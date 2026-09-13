@@ -76,3 +76,18 @@ version = "local:tools/taskrail"
 The wrapper then runs `uv run --project <checkout>/tools/taskrail taskrail`, so each worktree
 uses its own branch's code, and `taskrail upgrade` leaves the pin alone. Elsewhere,
 `TASKRAIL_BIN=/path/to/taskrail` points the wrapper at any build.
+
+## Releasing
+
+Releases are tagged `taskrail-vX.Y.Z`; the prefix lets other tools in this repository version
+independently. See [CHANGELOG.md](CHANGELOG.md).
+
+`pyproject.toml` is the only place the version is written, and it must equal the tag without its
+prefix: the wrapper accepts an installed CLI only when `taskrail-v$(taskrail --version)` matches
+the pin, so a mismatched build is never taken for the release.
+
+1. In a pull request: set `version` in `pyproject.toml`, run `uv lock`, add the changelog entry.
+2. After it is squash-merged: `git tag -a taskrail-vX.Y.Z <merge commit> -m "taskrail X.Y.Z"`
+   and `git push origin taskrail-vX.Y.Z`. A published tag never moves.
+3. Verify a clean install from the tag, then bump `main` to the next `.dev0` version, so builds
+   from `main` never claim to be the release.

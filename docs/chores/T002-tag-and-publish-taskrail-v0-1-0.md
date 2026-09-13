@@ -1,6 +1,6 @@
 # T002 — Tag and publish taskrail-v0.1.0
 
-Kind: chore · Epic: E01 · Status: scope
+Kind: chore · Epic: E01 · Status: scope approved
 
 ## Goal
 
@@ -47,6 +47,14 @@ After the pull request is merged, and only with explicit confirmation at that po
 4. **Who creates and pushes the tag.** It is a publication others will pin, and it must never
    move. Recommended: I do it after the merge, once you confirm in chat; if the auto-mode
    classifier blocks it, you run the two commands I give you.
+
+## Decisions at the scope gate
+
+- The version is written only in `pyproject.toml`; `__version__` reads the package metadata.
+- A follow-up task bumps `main` to `0.2.0.dev0` right after the tag is pushed.
+- `CHANGELOG.md` gets a short entry per release.
+- The change set is approved as written; the tag waits for the merge and an explicit
+  confirmation.
 
 ## Out of scope
 
