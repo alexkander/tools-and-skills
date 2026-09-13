@@ -1,6 +1,6 @@
 # T034 — Clear done-branch for a task reopened on its mainline
 
-Kind: bug · Epic: E05 · Status: diagnosed
+Kind: bug · Epic: E05 · Status: fixed
 
 ## Symptom
 
@@ -181,3 +181,111 @@ remains, and `refs` lists only the remaining tips.
   `done-branch` again, with a stale remote copy excluded from `refs`.
 - **Docs.** One sentence in `DESIGN.md` §7 *Done on its branch* for the exception and its cost,
   and one bullet under `## Unreleased` in `tools/taskrail/CHANGELOG.md`.
+
+## Gate decisions
+
+Recorded in [the autopilot decisions](../autopilot/decisions/T034-clear-done-branch-for-a-task-reopened-on.md):
+the fix is approved as proposed, plus a regression test for a second reopen cycle; the recorded
+branch is not cleared on reopen, with no follow-up task; the trailer match tolerates whitespace like
+`review.REOPENS`, reusing that constant.
+
+## Fix
+
+`tools/taskrail/src/taskrail/stack.py`:
+
+- `_reopened_since(root, task_id, tip, mainline_refs)` runs
+  `git log --format=%B --grep=^Reopens: <mainline refs> --not <tip>` and returns whether
+  `review.REOPENS` finds the task's ID in those messages. The git grep only narrows the walk to
+  commits carrying some `Reopens:` line; the ID and the whitespace tolerance come from the one
+  pattern `review` already uses, so the two cannot drift apart.
+- `_find` keeps a tip in `refs` only when the row is `✅` there **and** `_reopened_since` is false.
+  The `and` short-circuits, so the query runs only for `✅` tips of tasks that are not merged —
+  those that would otherwise be `done-branch` — and the result stays in the per-project cache.
+  With no mainline ref present, nothing changes.
+- `done_on_branch(project)` and `_read_statuses(project, backlog_file, revisions)` keep their
+  signatures.
+
+Also: one paragraph extension in `tools/taskrail/DESIGN.md` §7 *Done on its branch*, one bullet under
+`## Unreleased` in `tools/taskrail/CHANGELOG.md`.
+
+## Verification
+
+Regression tests in `tools/taskrail/tests/test_stacked_base.py`, using the `lanes` fixture:
+
+- `test_a_task_reopened_on_the_mainline_is_pending_despite_its_stale_branch[trailer]` and
+  `[trailer-with-whitespace]` (trailer line `Reopens:  T001 \r`, committed with
+  `--cleanup=verbatim`) — stale local and remote branch: `pending`, offered by `next`, the dependent
+  T002 `blocked` by T001 with no stacked base, and `claim` exits 0;
+- `test_a_second_done_on_a_branch_containing_the_reopen_is_done_branch_again` — the stale
+  `origin/T001-base-task` stays, a new local branch of the same name is done after the reopen:
+  `done-branch`, with `refs == ("T001-base-task",)`;
+- `test_a_second_reopen_clears_a_branch_that_contains_only_the_first` — done, merged, reopened,
+  done again on a branch containing that first reopen, merged, reopened again: `pending`.
+
+Run against the unfixed code (`uv run pytest -q -p no:cacheprovider --color=no tests/test_stacked_base.py -k reopen`,
+assertion lines):
+
+```text
+>       assert data(lanes.root, "show", "T001", capsys=capsys)["state"] == "pending"
+E       AssertionError: assert 'done-branch' == 'pending'
+tests/test_stacked_base.py:356: AssertionError
+>       assert data(lanes.root, "show", "T001", capsys=capsys)["state"] == "pending"
+E       AssertionError: assert 'done-branch' == 'pending'
+tests/test_stacked_base.py:356: AssertionError
+>       lanes.finish("T001", T001, base="main")
+>       assert main(["--root", str(path), "claim", task_id, "--owner", "lane"]) == 0
+E       AssertionError: assert 5 == 0
+tests/test_stacked_base.py:78: AssertionError
+>       assert data(lanes.root, "show", "T001", capsys=capsys)["state"] == "pending"
+E       AssertionError: assert 'done-branch' == 'pending'
+tests/test_stacked_base.py:389: AssertionError
+FAILED tests/test_stacked_base.py::test_a_task_reopened_on_the_mainline_is_pending_despite_its_stale_branch[trailer]
+FAILED tests/test_stacked_base.py::test_a_task_reopened_on_the_mainline_is_pending_despite_its_stale_branch[trailer-with-whitespace]
+FAILED tests/test_stacked_base.py::test_a_second_done_on_a_branch_containing_the_reopen_is_done_branch_again
+FAILED tests/test_stacked_base.py::test_a_second_reopen_clears_a_branch_that_contains_only_the_first
+4 failed, 16 deselected in 1.57s
+```
+
+The second test's captured stderr for the refused claim:
+`taskrail: T001 is done on branch origin/T001-base-task, not yet merged into main` — the stale
+remote copy alone. (An earlier run failed on a test mistake instead — output of `finish` left in
+the captured stream before `reopen --json` — which was corrected before this run.)
+
+A throwaway check that the whitespace variant is meaningful: for a commit whose trailer line is
+`Reopens:  T001 \r`, `git log --grep='^Reopens: T001$'` returns nothing and
+`git log --grep='^Reopens:'` returns the commit.
+
+After the fix:
+
+```text
+$ uv run pytest -q -p no:cacheprovider --color=no tests/test_stacked_base.py -k reopen
+4 passed, 16 deselected in 1.75s
+$ uv run --directory tools/taskrail pytest -q
+373 passed in 25.42s
+```
+
+The `lint` check the `fix` stage names is not configured in this repository's `[checks]`.
+
+The reproduction from *Reproduction*, re-run end to end with the fixed CLI in a throwaway
+repository (deleted afterwards):
+
+```text
+after done on branch: pending done-branch
+after squash-merge: done done
+refs: T001-base-task main origin/T001-base-task origin/main
+after reopen on main (stale local + remote branch): pending pending
+next: ['T002', 'T001']
+T001   ⬜ pending     feature   2pt  E01   Base task
+T002   ⬜ pending     feature   1pt  E01   Other
+only origin/T001-base-task and the record remain: pending pending
+$ taskrail claim T001 (fresh worktree from origin/main)
+claimed T001 as lane
+exit=0
+T001 done
+after second done on a branch containing the reopen: pending done-branch
+$ taskrail claim T001 (main checkout)
+taskrail: T001 is done on branch T001-base-task, not yet merged into main
+exit=5
+```
+
+The last refusal names only the new local tip, not the stale `origin/T001-base-task`.
