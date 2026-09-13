@@ -1,6 +1,6 @@
 # T015 — Hand closed tasks off for review with a merge request link
 
-Kind: feature · Epic: E01 · Status: plan
+Kind: feature · Epic: E01 · Status: plan approved
 
 ## Behaviour
 
@@ -130,3 +130,9 @@ when the content calls for it (`--type ci`, `--scope taskrail`, `--breaking` for
 - **Squash keeps only the title and description**, so a reopen's trailer must be in the
   description; this relies on the host being set to use the pull request title and
   description as the squash commit message.
+
+## Decisions at the plan gate
+
+- The plan is approved as written.
+- `review` requires the task to be done on its branch: reviewing follows closing.
+- This repository's config switches `push_task_branch` to `true`, matching the new default.
