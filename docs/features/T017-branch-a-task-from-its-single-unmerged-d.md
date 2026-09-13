@@ -1,6 +1,6 @@
 # T017 — Branch a task from its single unmerged dependency
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 Source: the accepted autopilot design, `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
 (evidence E1, *Session state*, *Recommendation*), and
@@ -87,6 +87,44 @@ depends on T001 and T003. T001 is claimed in its worktree, marked done there and
     `review`'s `rebase.dependency`), `README.md` where it describes states or the base, the core
     skill's workspace and close steps, and `CHANGELOG.md` (one bullet) describe the behaviour; the
     installed skill copies match their sources after `taskrail upgrade`.
+
+## Test coverage
+
+In `tools/taskrail/tests/test_stacked_base.py`: E1's backlog, a local bare `origin`, and lanes
+that claim, mark done and commit in their own worktrees; no network. All 16 tests failed before the
+implementation (`16 failed`) and pass after it.
+
+| Criterion | Tests |
+|---|---|
+| 1. `done-branch`, `next`, `list --state`, `claim` refuses | `test_a_task_done_on_its_branch_is_done_branch_and_never_offered`, `test_done_branch_wins_over_a_live_claim` (Q2) |
+| 2. Single unmerged dependency sets the base | `test_a_single_unmerged_dependency_sets_the_base` |
+| 3. Two unmerged dependencies block | `test_two_unmerged_dependencies_block_the_task` |
+| 4. Inside the dependency's worktree | `test_inside_the_dependency_worktree_the_base_is_still_its_branch` |
+| 5. Merged on the local or remote mainline | `test_a_dependency_merged_into_the_local_mainline_is_merged`, `test_a_dependency_merged_only_on_the_remote_mainline_is_merged` |
+| 6. Remote-only, further-ahead and diverged branch copies | `test_a_dependency_branch_only_on_the_remote`, `test_the_further_ahead_copy_of_the_dependency_branch_wins_and_divergence_stops` |
+| 7. `new --workspace --depends-on` | `test_new_workspace_branches_from_the_single_unmerged_dependency`, `test_new_workspace_refuses_two_unmerged_dependencies_and_frees_the_id` |
+| 8. Claim records the base; old and future claim files load | `test_claim_records_the_fork_point_of_a_stacked_branch`, `test_claim_records_the_mainline_base`, `test_claim_files_without_a_base_or_with_unknown_keys_still_load` |
+| 9. `review` on a stacked branch | `test_review_rebases_a_stacked_branch_onto_its_dependency`, `test_review_on_a_mainline_based_branch_has_no_dependency` |
+| 10. `done` on the stacked branch | `test_review_rebases_a_stacked_branch_onto_its_dependency` (asserts `done T002` exits 0) |
+| 11. Existing behaviour | the whole suite, 278 passed; four existing assertions gained only the new keys (below) |
+| 12. Documentation and skill | reviewed at the implement gate: `DESIGN.md` §6.1, §6.2, §7, §7.1; `README.md`; core skill steps 2, 3 and 8, installed with `taskrail upgrade`; `CHANGELOG.md` |
+
+Existing tests changed, each only by the new keys:
+
+- `tests/test_workspace.py::test_show_reports_the_base` and
+  `tests/test_mainline_remote.py::test_show_uses_the_remote_the_mainline_tracks` compare the whole
+  `base` object: expected values gained `commit` and `dependency: None`.
+- `tests/test_review.py::test_prepare_reports_target_head_and_title` compares the whole `rebase`
+  object: it gained `dependency: None`.
+- `tests/test_claims.py::test_remote_claim_does_not_publish_machine_details` lists the public
+  claim's keys: it gained `base`, which holds only ref names and a commit.
+
+Deviations from the plan's wording:
+
+- `DESIGN.md` §6.2 lists the fields of a remote claim, so it names `base` too — one phrase outside
+  §6.1 and §7, still within the claims section.
+- The text form of `list` and `next` widens the state column from 9 to 11 characters so
+  `done-branch` stays aligned.
 
 ## Affected areas
 
