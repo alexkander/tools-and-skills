@@ -18,3 +18,18 @@ Reviewed: the plan in `docs/features/T023-report-signs-of-prior-work-on-a-task-i
 ## Conflict handling agreed for all lanes
 
 T021 and T022 both edit the config template in `install.py` (`[columns]` and `[review]`), T022 and T023 both edit adjacent steps of the core skill, and every lane adds a `## Unreleased` changelog line and a decisions index row. Each lane touches only its own section. When a later rebase conflicts there: keep both sides in sources, changelog and indexes, then regenerate `.claude/skills/` with `taskrail upgrade` instead of merging installed copies by hand.
+
+## implement gate
+
+Reviewed independently of the lane's report: `prior.py`, the two-line hunk in `cmd_show`, the
+step 2 change in the skill source, a re-run of the suite in the lane's worktree (181 passed), and
+`show` against this repository's real history: T013 reported its squash title (`suffix`), T001 its
+`scope` commits and the merge commit naming its branch, T014 nothing, each in about 150 ms.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation? | approve · request changes | **approve** | Matches the approved plan, keeps clear of `task_dict`, and the lane's mutation run showed the tests catch a looser prefix, a missing cap and a wider ref set. |
+| 2 | Keep the `installed.json` version and hash change from `upgrade` | keep · revert by hand | **keep** | It is what `upgrade` writes; a rebase conflict there is resolved by re-running `upgrade`, as agreed. |
+
+Observation, not a change request: for a finished task the artifact is found on every branch cut
+from `main`, so the text line gets long. It is informational; revisit only if it proves noisy.
