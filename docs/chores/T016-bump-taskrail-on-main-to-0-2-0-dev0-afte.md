@@ -1,6 +1,6 @@
 # T016 — Bump taskrail on main to 0.2.0.dev0 after the 0.1.0 tag
 
-Kind: chore · Epic: E01 · Status: scope
+Kind: chore · Epic: E01 · Status: implemented
 
 ## Goal
 
@@ -24,6 +24,11 @@ distinguishable from it, as the README's releasing steps require.
    taskrail adds its line there, so preparing the next release is moving that section under a
    version heading. Alternative: write the whole entry when the release is prepared.
 
+## Decisions at the scope gate
+
+- Add an `## Unreleased` section to the changelog.
+- The change set is approved as written; no follow-up tasks for now.
+
 ## Out of scope
 
 - What `init` pins when run from a development build. With `0.2.0.dev0`, `init` writes
@@ -40,3 +45,13 @@ distinguishable from it, as the README's releasing steps require.
 - `uv run --directory tools/taskrail taskrail --version` prints `taskrail 0.2.0.dev0`.
 - `.taskrail/bin/taskrail --version` in this repository prints `taskrail 0.2.0.dev0` (local pin).
 - `uv build` produces `taskrail-0.2.0.dev0-py3-none-any.whl`.
+
+### Results
+
+- `uv run --directory tools/taskrail pytest -q` → 152 passed, with the release-tag test renamed to
+  `test_the_release_tag_is_the_version_without_its_development_suffix`. The stage's `lint` check
+  is not configured in this repository.
+- `uv run --directory tools/taskrail taskrail --version` → `taskrail 0.2.0.dev0`.
+- `.taskrail/bin/taskrail --version` in this repository → `taskrail 0.2.0.dev0`.
+- `uv build` → `taskrail-0.2.0.dev0-py3-none-any.whl`.
+- `uv.lock` records `version = "0.2.0.dev0"` for taskrail.
