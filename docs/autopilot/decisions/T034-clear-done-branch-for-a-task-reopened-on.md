@@ -30,3 +30,16 @@ in spaces and `\r` still matches, which the whitespace test proves.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the fix | approve · changes | **approve** | Minimal, only for would-be `done-branch` tips, signatures unchanged, pattern reused as decided. |
+
+## rebase after T029 and T035
+
+T029 (`45eb96f`) and T035 (`2312a2a`) were squash-merged into `main`. The lane rebased onto T029
+at close and the orchestrator rebased again onto T035.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` (both times) | keep both rows · stop | **keep both** | Rows added on both sides. |
+
+After the rebase: no conflict markers, `pytest -q` 473 passed, `taskrail validate` 0 errors,
+`upgrade` reports nothing to create or update. `stack.done_on_branch` and `stack._read_statuses`
+keep their signatures, so the autopilot's `status` is unaffected.
