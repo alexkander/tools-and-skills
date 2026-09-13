@@ -6,6 +6,12 @@ keep what git cannot hold in a local run file. Lanes are background subagents on
 and task-tool subagents on OpenCode. T024 becomes the skill task, after T017 and five smaller
 CLI and documentation tasks.**
 
+**Gate outcome:** the human accepted this design at the decide gate
+([decision record](../autopilot/decisions/T007-design-taskrail-s-autopilot-from-existin.md)).
+They overrode one recommendation: the autopilot skill is installed in every consumer repository,
+and `taskrail autopilot start` refuses until the repository enables it (design point 1,
+*Installation*).
+
 ## Question
 
 What is the smallest agent-agnostic design for a taskrail autopilot — a skill plus CLI support,
@@ -271,8 +277,16 @@ New commands, all under `taskrail autopilot`, all with `--json` and the existing
 
 `autopilot` runs only on explicit request. The skill says so in prose, not only in frontmatter,
 per this repository's portability rule: never start without the human asking and giving a
-count. It is installed only when `[autopilot].enabled` is true, using the kind filter T025 adds
-to `init` and `upgrade`, so a repository that does not use it never offers it to its agent.
+count.
+
+**Installation — decided by the human at the decide gate.** `init` and `upgrade` install the
+`taskrail-autopilot` skill in every repository, with the other skills and with no filter. Each
+repository decides whether to use it through `[autopilot].enabled`. Until that is true,
+`taskrail autopilot start` refuses with exit 5 and names the key, and the skill stops when it
+sees that refusal. The spike had recommended installing the skill only where the autopilot is
+enabled, through T025's filter, so that a repository not using it would never offer it to its
+agent. The human chose always-installed: every consumer receives the same skills, and the
+refusal is a CLI guarantee that holds on any agent.
 
 ### 2. Orchestrator and lanes on each agent
 
@@ -416,7 +430,7 @@ by reading its worktree, and escalated if stuck. An agent that can wait on a con
 
 ```toml
 [autopilot]
-enabled = false                 # install the autopilot skill and allow `autopilot start`
+enabled = false                 # allow `autopilot start`; the skill is installed regardless
 max_lanes = 3
 kinds = []                      # kinds the autopilot may drive; empty means every allowed kind
 governing = []                  # read first to answer gates; a lane touching one escalates
@@ -460,6 +474,8 @@ values = ["5433", "5434", "5435"]
 | | orchestrator judgement only | rejected: races between orchestrator sessions |
 | 7 Hand-off | **sequential** | **chosen**: every pull request tested on the real mainline |
 | | batch | deferred: fewer rebases, untested combinations |
+| 1 Installation | install the skill only where `[autopilot].enabled` is true (T025's filter) | recommended by the spike; **overridden by the human** |
+| | **install always; `autopilot start` refuses with exit 5 until enabled** | **chosen by the human** at the decide gate |
 | 7 Detection | ancestry or `git cherry` only | rejected: blind to squash (E4) |
 | | **ancestor → tree → patch-id → merge-tree** | **chosen** (E4) |
 
@@ -471,13 +487,13 @@ backlog):
 | # | Task | Kind | Pts | Depends on | Parallel with |
 |---|---|---|---|---|---|
 | T017 (edited) | Branch a task from its single unmerged dependency: add the `done-branch` state (✅ only at the task branch tip, not eligible in `next`), stacked base in `show`, `new --workspace` and `review`, `base.commit` recorded in the claim | feature | 3 → 5 | — | new bug below |
-| new A | Stop init and upgrade on an unreadable installed.json (E3) | bug | 1 | — | T017; not T025 (both edit `install.py`) |
+| new A | Stop init and upgrade on an unreadable installed.json (E3) | bug | 1 | — | T017, B |
 | new B | Write the autopilot design into DESIGN.md | chore | 2 | — | T017, A |
-| new C | Add the `[autopilot]` configuration, runs and `autopilot start`, `lane` and `status` | feature | 5 | T017, B | — |
+| new C | Add the `[autopilot]` configuration, runs and `autopilot start`, `lane` and `status`; `start` refuses with exit 5 until `[autopilot].enabled` | feature | 5 | T017, B | — |
 | new D | Dispatch lanes with `autopilot next`: groups, kinds, resource pools | feature | 3 | C | E, F |
 | new E | Detect squash merges by content and follow through with `autopilot merged` | feature | 3 | C | D, F |
 | new F | Add `autopilot notify` and the escalation flags in `status` | feature | 2 | C | D, E |
-| T024 (edited) | Write the taskrail-autopilot skill with Claude Code and OpenCode notes, installed only where the autopilot is enabled | feature | 8 → 5 | D, E, F, T025 | — |
+| T024 (edited) | Write the taskrail-autopilot skill with Claude Code and OpenCode notes, installed in every repository by init and upgrade | feature | 8 → 5 | D, E, F | — |
 | new G | Trial the autopilot on a real backlog with each supported agent | spike | 2 | T024 | — |
 
 **T017 and T019 should not run in parallel.** Both change how a task's branch is found:
@@ -511,8 +527,8 @@ Lower-priority follow-ups **not** proposed now:
   trailers inside the tree): tree and patch-id could miss. Detection would then need the host's
   pull-request state, which is currently a non-goal.
 - **The trial run (G) shows sequential hand-off costs more than it catches:** add `batch`.
-- **T025 lands a different installation filter:** T024's "installed only when enabled" follows
-  it.
+- **Consumers object to an autopilot skill they have not enabled being offered to their
+  agent:** install it only where enabled, reusing T025's kind filter.
 
 ## How to reproduce
 
