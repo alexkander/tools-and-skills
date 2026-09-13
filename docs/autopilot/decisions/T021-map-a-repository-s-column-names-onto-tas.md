@@ -17,3 +17,16 @@ Reviewed: the plan in `docs/features/T021-map-a-repository-s-column-names-onto-t
 ## Conflict handling agreed for all lanes
 
 T021 and T022 both edit the config template in `install.py` (`[columns]` and `[review]`), T022 and T023 both edit adjacent steps of the core skill, and every lane adds a `## Unreleased` changelog line and a decisions index row. Each lane touches only its own section. When a later rebase conflicts there: keep both sides in sources, changelog and indexes, then regenerate `.claude/skills/` with `taskrail upgrade` instead of merging installed copies by hand.
+
+## implement gate
+
+Reviewed independently of the lane's report: the source diff `6029b5d..dc637a5` (`config.py`
+`_column_aliases`, `backlog.py` `_index` and `_parse_tasks`, `ids.py`, `writer.py`, the
+`--column` refusal in `cli.py`, one commented template line in `install.py`) and a re-run of the
+suite in the lane's worktree (177 passed).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation? | approve · request changes | **approve** | Aliases apply to task tables only; every conflict rule in the plan is enforced and tested; tests were observed failing first; a new test file avoids clashes with other lanes. |
+| 2 | Follow-up for `new --column ID=T9` being silently ignored | open a bug · leave it | **open a bug** | Exit 0 while discarding an explicit value is a defect, independent of aliases; the fix mirrors the refusal T021 adds. |
+| 3 | Possible conflict with T018 near the end of `config.py` | accept · move the function now | **accept** | T018's hunks sit before `[checks]` and at the end of `Config`; any conflict keeps both sides. |
