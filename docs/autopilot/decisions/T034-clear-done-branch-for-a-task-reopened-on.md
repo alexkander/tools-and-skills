@@ -18,3 +18,15 @@ proposed git query, including a second done on a branch that contains the reopen
 
 Diagnosis approved. The lane must remove its scratch repositories under a temporary directory
 when it no longer needs them.
+
+## fix gate
+
+Reviewed: commit `5ca09d0` (`stack.py` `_reopened_since`, four regression tests in
+`tests/test_stacked_base.py`, DESIGN.md §7, CHANGELOG). Re-ran `uv run --directory tools/taskrail
+pytest -q` in the lane's worktree: 373 passed. The four tests failed on the unfixed code for the
+diagnosed reason. `review.REOPENS` is multiline with `\s*` around the ID, so a trailer line ending
+in spaces and `\r` still matches, which the whitespace test proves.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · changes | **approve** | Minimal, only for would-be `done-branch` tips, signatures unchanged, pattern reused as decided. |
