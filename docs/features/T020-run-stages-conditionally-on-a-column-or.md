@@ -197,3 +197,34 @@ All in `tools/taskrail/tests/test_conditional_stages.py`.
   warns about a value outside `match`. A per-column set of allowed values is out of scope.
 - **Parallel lanes.** T017 edits the core skill's steps 2, 3 and 8 and DESIGN.md §6–§7; this
   task edits step 5, §5 and one sentence of §12.7, so a rebase conflict should be mechanical.
+
+## Verification
+
+Exercised with the real CLI (`uv run --directory tools/taskrail taskrail --root <tmp> …`) in a
+throwaway repository under a temporary directory, deleted afterwards. Its config declared
+`custom = ["Area"]` and `aliases = { Pts = "Size" }`; its backlog had two tasks of a local
+`screen` kind (`Area` = `UI` and `api`) and two of core `feature` (`ui` and `—`), with an
+override of `feature` adding `visual-check` on `column = "Area"`, `match = ["*"]`.
+
+The `screen` kind had `build` (plain), `visual-check` (`column = "area"`, `match = ["ui", "ux"]`),
+`migration-review` (`judgement = true`) and `a11y-audit` (`column = "Area"`, `match = "ui"`,
+`judgement = true`).
+
+- `validate`: `4 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`, exit 0.
+- `show T001` (`UI`): `visual-check (gate: always)` unmarked, `migration-review` and `a11y-audit`
+  marked `— executor's judgement`.
+- `show T002` (`api`): `visual-check` and `a11y-audit` marked `— not applicable (Area)`,
+  `migration-review` `— executor's judgement`.
+- `show T003` / `show T004` (override): `visual-check` unmarked for `ui`, `— not applicable (Area)`
+  for `—`.
+- `show T002 --json`: `visual-check` `column: "Area"`, `match: ["ui", "ux"]`, `judgement: false`,
+  `applies: false`; `migration-review` `judgement: true`, `applies: true`; `a11y-audit`
+  `match: ["ui"]`, `judgement: true`, `applies: false`; `build` `column: null`, `match: []`.
+- `kind list --json`: the same `column`, `match` and `judgement`, and no `applies`.
+- `column = "Team"`: `stage-column-unknown` "column `Team` is not declared in [columns].custom",
+  exit 1. `column = "size"`: "… is the alias of core column Pts; a column predicate reads custom
+  columns only". `column = "PTS"`: "… is core column Pts; …". `show T001` then exits 1.
+- Override with `match = []`: `kind-invalid` at `.taskrail/overrides/feature/kind.toml`; with
+  `column = "Owner"`: `stage-column-unknown` at the same path. Restored: 0 errors.
+
+No gap against the plan.
