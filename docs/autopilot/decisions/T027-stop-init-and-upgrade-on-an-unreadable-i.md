@@ -15,3 +15,15 @@ real merge conflict reproduced, seven kinds of broken manifest, and the root cau
 | 2 | Which broken manifests refuse with exit 2 | all read failures · JSON syntax only | **all**: syntax errors (conflict markers, empty file), non-object values, non-UTF-8 bytes and read errors | Same function, same missing check; leaving tracebacks would fix half the defect. |
 | 3 | `upgrade --force` on a broken manifest | refuse · reinstall from nothing | **refuse** | `--force` overwrites managed files; with the digests lost it would overwrite copies it can no longer tell apart from local edits. |
 | 4 | A readable `{}` | keep current behaviour · new message | **keep** | taskrail never writes it and there is no state to lose. |
+
+## fix gate
+
+Reviewed independently of the lane's report: the `install.py` diff of `b8a27ba` (only
+`read_manifest` and its message), the red run of the 21 regression cases on the unfixed code, and
+a re-run of the suite in the lane's worktree (284 passed).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · request changes | **approve** | Every read failure now raises the existing `ConfigError` path (exit 2) before anything is written; a missing manifest and `{}` keep their behaviour. |
+| 2 | Keep "or delete it to reinstall from scratch" in the message | keep · drop | **keep** | Checked in a throwaway repository: after deleting the manifest, a plain `init` re-records all five unedited skill copies (their content matches), and only locally edited copies would stay unmanaged — the safe outcome. The advice is accurate. |
+| 3 | Follow-ups for the claims and ID-reservation readers | none · open tasks | **none** | That state is local and never committed, so it cannot arrive broken through a merge. |
