@@ -19,3 +19,20 @@ Reviewed: the framed draft `docs/spikes/T007-design-taskrail-s-autopilot-from-ex
 State corrections for the lane: T005 was stopped before doing any work, to follow the agreed task
 order (T005 runs last); its claim was released. T026 now runs in parallel and edits `cmd_new`'s
 `--column` handling in `cli.py`.
+
+## decide gate — escalated to the human
+
+The orchestrator reviewed the decision document (`f2eb2df`) — evidence E1–E7, the design and the
+task breakdown — and escalated the gate, as agreed at the frame gate. It flagged one conflict
+before asking: the lane recommended installing the autopilot skill only when
+`[autopilot].enabled` is true, while the human had required the autopilot to end up installed in
+every consumer repository, with each repository deciding whether to use it.
+
+Decisions taken by the human:
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Accept the design as the autopilot's architecture | **accepted**: one judgement skill over a `taskrail autopilot` command group; state derived from git plus a local run file; claims stay the only lock. |
+| 2 | Open tasks A–G and edit T017 and T024 as in the breakdown | **yes, all of it**, including hand-edited points and dependencies while `taskrail edit` does not exist. |
+| 3 | Where run-level decisions live | **copied into each affected task's record**, and kept in the local run file. |
+| 4 | When the autopilot skill is installed | **always**; `taskrail autopilot start` refuses (exit 5) until `[autopilot].enabled` is true. This overrides the lane's recommendation 5. |
