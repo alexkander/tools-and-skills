@@ -18,3 +18,16 @@ Reviewed: the plan in `docs/features/T022-use-each-mainline-s-own-remote-in-revi
 ## Conflict handling agreed for all lanes
 
 T021 and T022 both edit the config template in `install.py` (`[columns]` and `[review]`), T022 and T023 both edit adjacent steps of the core skill, and every lane adds a `## Unreleased` changelog line and a decisions index row. Each lane touches only its own section. When a later rebase conflicts there: keep both sides in sources, changelog and indexes, then regenerate `.claude/skills/` with `taskrail upgrade` instead of merging installed copies by hand.
+
+## implement gate
+
+Reviewed independently of the lane's report: the source diff `80151d1..a0cb76e` (`review.py`
+`resolve_remote`, `query.py` `base_dict`, `cli.py` `_open_workspace` and `cmd_review`, one
+`install.py` template line) and a re-run of the suite in the lane's worktree (164 passed).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation? | approve · request changes | **approve** | One resolver used consistently for base, fetch, push and link; tests were observed failing first; the template change is confined to `[review]`. |
+| 2 | Updating the expected `base` in `test_show_reports_the_base` | accept · report the fields outside `base` | **accept** | The change only adds the two approved keys to an object the test compares whole; moving them would contradict the plan. |
+| 3 | Keep the `installed.json` version and hash change from `upgrade` | keep · commit only the hash | **keep** | It is what `upgrade` writes; conflicts are resolved by re-running it. |
+| 4 | Unwrapped changelog line | keep · rewrap now | **keep** | Keeps parallel merges trivial; rewrap when the release is prepared. |
