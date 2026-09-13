@@ -1,6 +1,6 @@
 # T002 — Tag and publish taskrail-v0.1.0
 
-Kind: chore · Epic: E01 · Status: scope approved
+Kind: chore · Epic: E01 · Status: implemented, awaiting merge and tag
 
 ## Goal
 
@@ -83,3 +83,23 @@ Before merging, entirely local:
 After tagging: `uv tool install` from GitHub at `taskrail-v0.1.0`, into a temporary tool
 directory, prints `taskrail 0.1.0`, and `taskrail self upgrade --dry-run` resolves
 `taskrail-v0.1.0` as the latest tag.
+
+### Results before merging
+
+Automated: `uv run --directory tools/taskrail pytest -q` → 152 passed, including
+`tests/test_version.py`. The stage's `lint` check is not configured in this repository.
+
+Local, with a `taskrail-v0.1.0` tag that existed only in a scratch clone of this branch
+(`c3d6ff9`) and a temporary uv tool directory:
+
+1. `uv build` produced `taskrail-0.1.0-py3-none-any.whl`.
+2. `uv tool install` from `git+file://<clone>@taskrail-v0.1.0#subdirectory=tools/taskrail`
+   installed a CLI printing `taskrail 0.1.0`.
+3. In a new git repository, `taskrail init --integration claude` pinned
+   `version = "taskrail-v0.1.0"`. With only that CLI on `PATH` and no `uvx`, the wrapper ran
+   `validate` successfully — so it used the installed CLI, whose version matched the pin.
+4. With no `taskrail` on `PATH` and `TASKRAIL_SOURCE=file://<clone>`, the wrapper fell back to
+   `uvx` for the pinned tag: `--version` printed `taskrail 0.1.0` and `validate` succeeded.
+5. `taskrail self upgrade --dry-run` resolved `taskrail-v0.1.0` as the latest tag.
+
+The checks against GitHub itself wait for the published tag.
