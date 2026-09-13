@@ -1,6 +1,6 @@
 # T029 — Add the autopilot configuration, runs, and the start, lane and status commands
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12 (§12.1 *Skill and CLI*,
 §12.2 *Installation and opt-in*, §12.4 *State*, §12.9 *Configuration*, §12.10 *Delivery*), and
@@ -197,6 +197,257 @@ Deviations from the plan's wording:
 - Criterion 1 also covers a `decisions` template with an unknown placeholder, which would otherwise
   fail only when `status` renders it.
 - §6.2 names `run` among the remote claim's fields.
+
+## Verification
+
+### Real CLI
+
+Run through this checkout's wrapper, `.taskrail/bin/taskrail --root <repo>`, in a throwaway
+repository under `/tmp` with a bare `origin`, lanes in `.worktrees/`, and T001 squash-merged on
+`origin/main` by a second clone; the repository was removed afterwards. Four tasks: T001, T002
+depending on T001, T003, and T004 discarded. Output as printed (git's own `Squash commit -- not
+updating HEAD` line from the second clone is left out):
+
+```
+
+$ taskrail autopilot start --count 2   # [autopilot] absent
+taskrail: the autopilot is disabled; set [autopilot].enabled = true in .taskrail/config.toml to allow `autopilot start`
+exit=5
+
+$ taskrail autopilot start             # still disabled, no count
+taskrail: the autopilot is disabled; set [autopilot].enabled = true in .taskrail/config.toml to allow `autopilot start`
+exit=5
+
+$ taskrail validate                    # max_lanes = 0
+taskrail: .taskrail/config.toml: autopilot.max_lanes must be at least 1
+exit=2
+
+$ taskrail autopilot start             # enabled, no count
+taskrail: autopilot start needs --count N, the number of tasks to complete
+exit=2
+
+$ taskrail autopilot start --count 2 --kinds nope
+taskrail: --kinds: kind `nope` is not defined (known: bug, chore, feature, spike)
+exit=2
+
+$ taskrail autopilot start --count 2
+20260913-1 exit=0
+run file: 20260913-1.json
+
+$ taskrail claim T001 --run 20000101-1 (unknown run)
+taskrail: no autopilot run `20000101-1`
+exit=3
+
+$ taskrail claim T001 --run 20260913-1
+claimed T001 as abigail@archlinux
+exit=0
+
+$ taskrail claim T003 --run 20260913-1
+claimed T003 as abigail@archlinux
+exit=0
+
+$ taskrail autopilot lane T001 --run 20260913-1 --handle agent-1 --state gate --reason 'plan gate'
+T001 in run 20260913-1: gate (plan gate)
+exit=0
+
+$ taskrail autopilot lane T003 --run 20260913-1 --handle agent-3 --state failed
+taskrail: --state failed needs --reason
+exit=2
+
+$ taskrail autopilot lane T003 --run 20260913-1 --handle agent-3 --group ui
+T003 in run 20260913-1: running
+exit=0
+
+$ taskrail autopilot decision --run 20260913-1 --question 'Touch map' --decision 'T001 owns shared.txt' --reason 'one writer'
+decision 1 recorded in run 20260913-1
+exit=0
+
+$ taskrail autopilot status
+run 20260913-1 · 0/2 done-merged · kinds: every allowed kind · started 2026-09-13T22:23:07+00:00 by abigail@archlinux
+  T001   gate         handle agent-1  idle 0m  — plan gate
+  T003   running      handle agent-3  group ui  idle 0m
+  hand-off: next — · in review — · queue —
+files touched by more than one lane:
+  shared.txt: T001, T003
+exit=0
+
+$ taskrail autopilot status --json | jq '.overlaps, [.runs[0].tasks[] | {id, state, handle, group, reason, touched, idle_minutes, silent}]'
+{"shared.txt":["T001","T003"]}
+{"id":"T001","state":"gate","handle":"agent-1","group":null,"reason":"plan gate","touched":["shared.txt"],"idle_minutes":0,"silent":false}
+{"id":"T003","state":"running","handle":"agent-3","group":"ui","reason":null,"touched":["shared.txt"],"idle_minutes":0,"silent":false}
+
+$ taskrail autopilot lane T003 --run 20260913-1 --state handed-off   # T003 not done-branch
+taskrail: T003 is not done on its branch (done-branch), so it cannot be handed off
+exit=5
+(T001 marked done and committed on its branch; its claim is released)
+
+$ taskrail autopilot status --json | jq T001 and handoff
+{"id":"T001","state":"done-branch","claim":null,"touched":["TODO.md","shared.txt"]}
+{"mode":"sequential","in_review":null,"queue":["T001"],"next":"T001"}
+
+$ taskrail autopilot lane T001 --run 20260913-1 --state handed-off
+T001 in run 20260913-1: gate (plan gate); handed off (1 of 1)
+exit=0
+
+$ taskrail autopilot status --json | jq handoff
+{"mode":"sequential","in_review":"T001","queue":[],"next":null}
+
+$ taskrail claim T002 --run 20260913-1   # stacked on T001's branch
+claimed T002 as abigail@archlinux
+exit=0
+
+$ taskrail autopilot status --json | jq T002
+{"id":"T002","state":"running","touched":["stacked.txt"],"decisions":"docs/autopilot/decisions/T002-stacked.md","decisions_index":"docs/autopilot/decisions/README.md"}
+
+$ taskrail autopilot status --json | jq T001 state   # merged on origin, not fetched
+[[],"handed-off",{"mode":"sequential","in_review":"T001","queue":[],"next":null}]
+
+$ taskrail autopilot status --fetch --json | jq
+[["origin"],"done-merged",1,false,{"mode":"sequential","in_review":null,"queue":[],"next":null}]
+
+$ taskrail autopilot start --count 1   # disabled again
+taskrail: the autopilot is disabled; set [autopilot].enabled = true in .taskrail/config.toml to allow `autopilot start`
+exit=5
+
+$ taskrail autopilot status --run 20260913-1   # still works while disabled
+run 20260913-1 · 1/2 done-merged · kinds: every allowed kind · started 2026-09-13T22:23:07+00:00 by abigail@archlinux
+  T001   done-merged  handle agent-1  idle 0m  — plan gate
+  T003   running      handle agent-3  group ui  idle 0m
+  T002   running      idle 0m
+  hand-off: next — · in review — · queue —
+exit=0
+
+$ taskrail autopilot status --run 20000101-1
+taskrail: no autopilot run `20000101-1`
+exit=3
+
+run file:
+{
+  "id": "20260913-1",
+  "started": "2026-09-13T22:23:07+00:00",
+  "owner": "abigail@archlinux",
+  "count": 2,
+  "kinds": [],
+  "tasks": {
+    "T001": {
+      "handle": "agent-1",
+      "group": null,
+      "state": "gate",
+      "reason": "plan gate",
+      "updated": "2026-09-13T22:23:09+00:00",
+      "resources": {}
+    },
+    "T003": {
+      "handle": "agent-3",
+      "group": "ui",
+      "state": "running",
+      "reason": null,
+      "updated": "2026-09-13T22:23:08+00:00",
+      "resources": {}
+    },
+    "T002": {
+      "handle": null,
+      "group": null,
+      "state": "running",
+      "reason": null,
+      "updated": null,
+      "resources": {}
+    }
+  },
+  "handed_off": [
+    "T001"
+  ],
+  "decisions": [
+    {
+      "number": 1,
+      "question": "Touch map",
+      "decision": "T001 owns shared.txt",
+      "reason": "one writer",
+      "recorded": "2026-09-13T22:23:08+00:00"
+    }
+  ]
+}
+removed /tmp/t029-verify.VjiE
+```
+
+What this shows against the plan, with no gap found:
+
+- the refusal names `[autopilot].enabled` and comes before the `--count` check; config errors,
+  `--count` and `--kinds` exit 2; the run ID is `YYYYMMDD-N`;
+- `claim --run` refuses an unknown run with exit 3 and lists the task in the run, so T002, claimed
+  but never passed to `lane`, is in the run file;
+- `status` reports `gate`, `running`, `done-branch` once T001 is done and its claim released,
+  then `handed-off` and `done-merged` only after `--fetch`; `touched` and `overlaps` include
+  uncommitted files and T001's `TODO.md`, and stacked T002 lists only its own file;
+- the hand-off queue moves from `next: T001` to `in_review: T001` to empty once merged;
+- `lane --state handed-off` is refused with exit 5 for T003, which is not `done-branch`; a
+  `failed` state without `--reason` exits 2;
+- `status` and `lane` keep working while `enabled = false`, and the run file holds exactly what
+  was recorded.
+
+`silent` needs a lane idle for longer than `silent_minutes` (at least a minute), so it was not
+waited for here; `test_a_running_lane_idle_past_silent_minutes_is_silent` covers it with a clock
+two hours ahead.
+
+After the real-CLI run, a lane's recorded `state` and `reason` stay in the text line of a task
+whose derived state has moved on (`T001 done-merged … — plan gate`), as the plan describes: the
+run file keeps the orchestrator's last record, and the derived state takes precedence.
+
+### The tests catch broken behaviour
+
+The tests were written after the code, so at the implement gate the orchestrator asked to break
+three behaviours one at a time and show that the matching tests fail. Each change was made in the
+working tree, the autopilot tests were run with `uv run pytest -q --tb=line tests/test_autopilot.py`
+(from `tools/taskrail`; ANSI colours and the progress line removed below), and the file was
+restored with `git checkout`. Nothing broken was committed.
+
+(a) `autopilot start` no longer refuses while disabled:
+
+```
+-    if not config.autopilot.enabled:
++    if False and not config.autopilot.enabled:  # MUTATION (a)
+E   assert 0 == 5
+.../tools/taskrail/tests/test_autopilot.py:200: assert 0 == 5
+E   assert 0 == 5
+.../tools/taskrail/tests/test_autopilot.py:598: assert 0 == 5
+FAILED tests/test_autopilot.py::test_start_is_refused_until_the_autopilot_is_enabled
+FAILED tests/test_autopilot.py::test_status_lane_and_decision_work_while_disabled
+2 failed, 37 passed in 4.54s
+```
+
+(b) A recorded `gate`, `escalated` or `failed` is checked before `done-branch` (the two blocks of
+`task_state` swapped):
+
+```
+-    if task.id in stack.done_on_branch(project):
+-        return "handed-off" if task.id in run["handed_off"] else "done-branch"
+-    lane = run["tasks"].get(task.id)
++    lane = run["tasks"].get(task.id)  # MUTATION (b)
++    if task.id in stack.done_on_branch(project):
++        return "handed-off" if task.id in run["handed_off"] else "done-branch"
+E   AssertionError: assert ('failed', 'gate') == ('done-branch', 'handed-off')
+      At index 0 diff: 'failed' != 'done-branch'
+.../tools/taskrail/tests/test_autopilot.py:429: AssertionError: assert ('failed', 'gate') == ('done-branch', 'handed-off')
+FAILED tests/test_autopilot.py::test_status_derives_every_state - AssertionEr...
+1 failed, 38 passed in 4.24s
+```
+
+T003 was recorded at `gate` and then finished and handed off: the broken precedence reports `gate`
+instead of `handed-off`, and T001, recorded `failed`, reports `failed` instead of `done-branch`.
+
+(c) `lane --state handed-off` accepted for a task that is not `done-branch`:
+
+```
+-    if handed_off and task.id not in stack.done_on_branch(project):
++    if False and handed_off and task.id not in stack.done_on_branch(project):  # MUTATION (c)
+E   assert (0 == 5)
+.../tools/taskrail/tests/test_autopilot.py:366: assert (0 == 5)
+FAILED tests/test_autopilot.py::test_handed_off_needs_done_branch_and_keeps_the_order
+1 failed, 38 passed in 4.69s
+```
+
+After restoring the files, `git status --short` was empty and the full suite passed again:
+`339 passed in 21.67s`.
 
 ## Affected areas
 
