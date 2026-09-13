@@ -1,6 +1,6 @@
 # T013 — Clarify workspace base, stage commits and agent restart in the taskrail skills
 
-Kind: chore · Epic: E01 · Status: scope
+Kind: chore · Epic: E01 · Status: implemented
 
 ## Goal
 
@@ -46,6 +46,13 @@ All paths under `tools/taskrail/` unless stated.
    this chore to wording changes, and the release would ship with F5 documented as a known gap.
    Recommended: keep it here — it is the fix T013's description already names.
 
+## Decisions at the scope gate
+
+- New workspaces branch from the further-ahead of the local and remote mainline, the same rule
+  `review` uses.
+- `new --workspace` stays in this chore.
+- The change set is approved as written.
+
 ## Out of scope
 
 - `taskrail edit` (T014) and the merge driver (T004).
@@ -61,3 +68,31 @@ All paths under `tools/taskrail/` unless stated.
   `taskrail new --workspace` against a throwaway epic in a scratch clone creates the worktree,
   writes the row there, leaves the main checkout untouched, and `claim` works from inside it;
   `taskrail upgrade` prints the restart note.
+
+### Results
+
+Automated: `uv run --directory tools/taskrail pytest -q` → 150 passed (13 new, in
+`tests/test_workspace.py` and `tests/test_install.py`). The stage's `lint` check is not
+configured in this repository.
+
+Exercised for real:
+
+- `taskrail show T013` in this repository printed `base origin/main (origin/main is up to date
+  with or ahead of main)`.
+- `taskrail upgrade` updated the core and spike skills and printed `note skills changed: restart
+  the agent session so it loads them`.
+- In a scratch clone of this repository, with the wrapper pointed at this branch's build,
+  `taskrail new --epic E01 --kind chore --title "Probe the workspace flag" --workspace` created
+  `.worktrees/T016-probe-the-workspace-flag` from `origin/main`, wrote the row there, left the
+  main checkout on `main` with no changes, and `claim T016` then `validate` succeeded inside the
+  new worktree.
+
+Differences from the approved change set:
+
+- `writer.py` did not need to change: the new workspace gets a copy of the configuration with
+  its own root, which `Edits` already honours.
+- Two small fixes on the way, found by the new tests: a failed `new --workspace` released its ID
+  reservation through the configuration of the worktree it had just removed, and git reported
+  that missing directory as "git is not installed". The reservation now uses the original
+  configuration, and a missing working directory is reported as such.
+- `show` returns `base: null` outside a git repository instead of a misleading reason.
