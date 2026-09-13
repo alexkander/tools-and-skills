@@ -135,3 +135,31 @@ All in `tools/taskrail/tests/test_install.py`.
 | 7. Core skill always; unshipped skill ignored | `test_core_skill_installs_when_only_a_local_kind_with_its_own_skill_is_allowed` |
 | 8. Override replacing a core kind's skill | `test_an_override_replacing_a_core_kinds_skill_skips_that_skill` |
 | 9. Errors withhold removals | `test_kind_resolution_errors_withhold_removals_until_fixed`, `test_kind_resolution_errors_still_install_from_the_resolved_kinds` |
+
+## Verification
+
+Run through the real CLI (`uv run --project tools/taskrail taskrail --root <tmp>`) in a throwaway
+git repository whose `.taskrail/config.toml` was the default config plus `[kinds]`:
+
+- With `allowed = ["bug", "chore"]`, `init --integration claude` created only `taskrail`,
+  `taskrail-bug` and `taskrail-chore`, with the note `not installing skills that no allowed kind
+  uses: taskrail-feature, taskrail-spike` and the restart note.
+- Removing `[kinds]` and running `upgrade` created `taskrail-feature` and `taskrail-spike`.
+- After appending a line to `taskrail-feature/SKILL.md` and restoring `allowed = ["bug",
+  "chore"]`, `upgrade` removed `taskrail-spike` and skipped `taskrail-feature` (`no longer
+  installed here, but edited locally; left in place`); `upgrade --force` then removed it.
+- With every skill installed again and `allowed = ["bgu", "chore"]`, `upgrade` exited 0, removed
+  nothing, and noted `kind resolution reports errors (run `taskrail validate`), so skills no
+  longer wanted were left in place:` followed by the `taskrail-bug`, `taskrail-feature` and
+  `taskrail-spike` paths; all five skills stayed. `validate` exited 1 with
+  `kind-allowed-unknown` for `bgu`. After correcting the typo, `upgrade` removed
+  `taskrail-feature` and `taskrail-spike` and kept `taskrail-bug`.
+- A local `research` kind with `skill = "taskrail-spike"` and `allowed = ["bug", "chore",
+  "research"]` made `upgrade --json` create `taskrail-spike`, noting only `taskrail-feature` as
+  left out.
+
+In this repository (no `[kinds]`, `local:tools/taskrail` pin), `.taskrail/bin/taskrail upgrade`
+printed `8 file(s) already up to date` and `git status --short` stayed empty: its installed
+skills do not change.
+
+No difference from the plan was found.
