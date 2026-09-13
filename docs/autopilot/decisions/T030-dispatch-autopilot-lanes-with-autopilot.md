@@ -30,3 +30,20 @@ branch based on the mainline.
 
 Plan approved with Q3 and Q7 changed. The lane must remove its scratch repositories under a
 temporary directory when it no longer needs them.
+
+## implement gate
+
+Reviewed: commits `d1d7d9a` (plan updated for Q3, Q5, Q7) and `7c611fa` (`autopilot/dispatch.py`,
+`config.py` group and resource tables, `runs.update_all` and `dispatch_live`, the `dispatched`
+state in `status.py`, `cmd_next` and the `lane --group` check, DESIGN.md, README, CHANGELOG,
+`tests/test_autopilot_next.py`). Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's
+worktree: 505 passed. The 36 new tests failed before the code, and four deliberate breakages (failed
+freeing a place, resources not released, union of kinds, failed occupying a lane) each failed the
+tests that cover them. Git state is read before the lock, and every run is read and written under one
+hold of it, so two concurrent `next` calls share the limits.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Details left open by the plan (`skipped` includes same-run dispatches, capacity checked per candidate, first `limited_by`, preview skips tasks failed in any run, a lane reported under its claim's run, `lane --group` checks run and task first, text lines for skipped and released) | accept · drop same-run dispatches from `skipped` | **accept** | Each is visible and tested; seeing why a task was not offered again is worth a line. |
+| 2 | Shared helpers added to `runs.py` and `status.py` | accept · move into `dispatch.py` | **accept** | Additions only; `update_all` exists because the lock is not re-entrant, and T031/T032 can reuse them. |
+| 3 | CHANGELOG bullet at the top of Unreleased | keep · move to the end | **move it to the end** | Every other bullet is appended in merge order; a rebase conflict there is a known class resolved by keeping both, so position does not avoid it and the order should stay chronological. |
