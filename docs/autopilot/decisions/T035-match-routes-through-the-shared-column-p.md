@@ -41,3 +41,16 @@ a column the later one does not constrain never covers it — and an exhaustive 
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | Follows D1–D6 and the eleven criteria; `parse_column_predicate` keeps its signature and messages. |
 | 2 | New DESIGN.md §5.5 *Routes* | keep · fold into §5.1 | **keep** | Routes now have their own rules and three issue codes; §5.4 stays about stages. |
+
+## rebase after T019 and T029
+
+T019 (`1543057`) and T029 (`45eb96f`) were squash-merged into `main`. The branch was rebased onto
+`origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/features/README.md`, `docs/autopilot/decisions/README.md`, `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Rows and bullets added on both sides. |
+| 2 | Conflict in `TODO.md` | union by ID, `✅` wins · stop | **union by ID** | T019, T029 and T035 `✅` on their sides; no `Reopens:` commit for any. |
+
+After the rebase: no conflict markers, `pytest -q` 469 passed, `taskrail validate` 0 errors,
+`upgrade` reports nothing to create or update.
