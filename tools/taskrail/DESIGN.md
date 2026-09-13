@@ -248,7 +248,10 @@ one machine see each other's claims without any network.
 `base` records where the claimed branch started: `onto`, the ref `show` reports as the base (§7);
 `dependency`, the ID of the unmerged dependency it is stacked on, or `null`; and `commit`, the
 fork point `git merge-base HEAD <onto>` at claim time. Once that dependency is squash-merged,
-`git rebase --onto <mainline> <base.commit>` replays only the task's own commits. `base` is
+`git rebase --onto <mainline> <base.commit>` replays only the task's own commits. `taskrail done`
+releases the claim, so for a finished dependent the fork point is also
+`git merge-base HEAD <dependency branch>` while that branch exists: follow-through must compute it
+before removing the dependency's branch. `base` is
 `null` when no base could be determined. A claim file is read ignoring keys this version does not
 know, so a later version can add fields without hiding its claims from this one.
 
