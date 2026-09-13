@@ -33,3 +33,16 @@ in the lane's worktree: 295 passed. `predicates.py` imports nothing else from ta
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | It follows the plan and decisions 1–7; `applies` is a boolean in every case and the kind stays loaded on `stage-column-unknown`. |
 | 2 | Text `show` markers | keep `— not applicable (Area)` and `— executor's judgement` · add the match values | **keep** | `--json` carries `match` for anyone who needs it; text lines stay short. |
+
+## rebase after T017 and T027
+
+The lane rebased onto `origin/main` (`a9ae799`) at close, following the orchestrator's conflict
+instructions. Checked by the orchestrator before publishing:
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/features/README.md`, `docs/autopilot/decisions/README.md`, `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Additive rows and bullets on both sides. |
+| 2 | Conflict in `.taskrail/installed.json` | regenerate · hand-merge | **regenerate with `upgrade --force`** | The manifest records digests of rendered files; `upgrade` now reports nothing to create or update. |
+
+After the rebase: the skill source differs from `main` in step 5 only, no conflict markers,
+`pytest -q` 333 passed, `taskrail validate` 0 errors.
