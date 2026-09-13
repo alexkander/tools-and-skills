@@ -1,6 +1,6 @@
 # T035 — Match routes through the shared column predicate
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: decision 6 of `docs/autopilot/decisions/T020-run-stages-conditionally-on-a-column-or.md`,
 which opened this task so that taskrail stops having two matchers with different letter-case rules.
@@ -177,3 +177,31 @@ autopilot decisions file. Risks:
   column is added to `[columns].custom`.
 - **Parallel lanes.** T029 may call `parse_column_predicate` for `[[autopilot.group]]`; keeping its
   signature and messages unchanged avoids a conflict there. T019 does not touch kinds or §5.
+
+## Verification
+
+Exercised with the real CLI (`uv run --directory tools/taskrail taskrail --root <tmp> …`) in a
+throwaway repository under a temporary directory, deleted afterwards: the same repository as
+*Today* above (`custom = ["Stack"]`, `aliases = { Pts = "Size" }`, kinds `svc` and `odd`, tasks
+T001–T007).
+
+- As in the plan, `validate` exits 1: `route #1: column `Size` is the alias of core column Pts; a
+  column predicate reads custom columns only` and `route #2: column `Owner` is not declared in
+  [columns].custom` (`route-column-unknown`), `route #3: `when.Stack` must be a non-empty string or
+  a non-empty list of non-empty strings` (`kind-invalid`, so `odd` is dropped and T006/T007 report
+  `task-kind-unknown`), and for `svc` the warning `route #2 never applies: route #1, listed before
+  it, matches every task it matches` (`route-unreachable`).
+- Without the `Stack = ""` route: the two `route-column-unknown` errors remain, no
+  `task-kind-unknown` (the kind stays loaded), `validate` exits 1 and `show T001 --json` exits 1
+  with "the backlog has 2 validation error(s)".
+- With `Owner` declared, the `Size` route removed and a route
+  `when = { Stack = ["WEB", "api"], owner = "-" }` → `odd-list` added: `validate` exits 0 with only
+  the `svc` `route-unreachable` warning. `show --json` gives T001 `API` → `svc-upper`, T002 `api` →
+  `svc-upper`, T003 `Api` → `svc-upper`, T004 `ui` → `svc-padded`, T005 `—` → `svc-default`, T006 →
+  `odd-undeclared`, T007 `web` → `odd-list` — the *after* column of the table above.
+- `kind list --json` routes: `svc` `{"Stack": "API"}`, `{"Stack": "api"}`, `{"Stack": "ui"}` (trimmed),
+  `{"Stack": "*"}` (declared spelling of `stack`); `odd` `{"Owner": "*"}` and
+  `{"Stack": ["WEB", "api"], "Owner": "-"}`.
+- Text `show T003` still prints only `skill svc-upper` and its stages.
+
+No gap against the plan.
