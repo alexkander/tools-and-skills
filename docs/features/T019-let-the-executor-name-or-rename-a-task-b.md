@@ -1,6 +1,6 @@
 # T019 — Let the executor name or rename a task branch
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: plan approved
 
 Source: the accepted autopilot design, `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
 (*T017 and T019 should not run in parallel*), and `tools/taskrail/DESIGN.md` §6–§7 as of T017.
@@ -58,8 +58,18 @@ After this change:
   validated as above before an ID is written; a refusal leaves no branch, worktree or record, and
   frees the reserved ID. `--branch` without `--workspace` exits 2: naming an existing task is
   `taskrail branch`'s job.
-- **`claim`** is unchanged: it records the branch it runs on (or `--branch`) in the claim as
-  today, and does not create a branch record.
+- **`claim` freezes the template name.** It still stores the branch it runs on (or `--branch`)
+  in the claim as today. Once the claim is held (created or already held):
+  - when that branch equals the task's resolved branch and no record exists — the name comes
+    from the template — `claim` writes the record, so a later hand edit of the title no longer
+    changes the branch;
+  - when that branch differs from the resolved branch (another name, a mainline, or a detached
+    `HEAD`), `claim` records nothing and warns: `taskrail: warning: …` on stderr, naming
+    `taskrail branch`, and the same text in a `warning` field with `--json`. The exit code
+    stays 0.
+
+  The `--json` result gains `branch_recorded` (whether this call wrote a record) and `warning`
+  (`null` when there is none).
 - **`show`** (and `list --json`, `next --json`) reports the resolved `branch`, a new
   `branch_source` (`recorded` or `template`), and `worktree`: the path of the worktree that has
   the branch checked out when one does (relative to the repository root when inside it), else
@@ -74,8 +84,9 @@ After this change:
 - The core skill says how to use it: in step 3, run `taskrail branch <ID> <NAME>` before creating
   the workspace when the branch needs another name, then `show` again; to rename later, run it
   inside the workspace rather than `git branch -m` (or run it afterwards to adopt a manual
-  rename); never rename a pushed branch without saying so at a gate. Step 8 uses the resolved
-  branch as today.
+  rename); never rename a pushed branch without saying so at a gate. Step 4 says that a
+  `warning` from `claim` means the workspace is not on the task's branch, to resolve before any
+  edit. Step 8 uses the resolved branch as today.
 
 ## Acceptance criteria
 
@@ -115,12 +126,25 @@ T003 independent; lanes in worktrees under a temporary directory; no network.
 8. With `claim_remote` set to a bare remote, a rename re-pushes the remote claim: the claim read
    back from the remote has `branch` `NAME`, and releasing it afterwards still deletes the ref.
 9. Editing T001's title by hand after `taskrail branch` does not change `show T001`'s `branch`.
-10. Outside git, and in every existing test, behaviour is unchanged apart from the new
-    `branch_source` key; no code other than the resolver renders a kind's `branch` template.
-11. `DESIGN.md` §6 (branch records) and §7 (`branch` command, `new --branch`, `show`'s
-    `branch`, `branch_source` and `worktree`, `review`, `done-branch`, prior work), `README.md`
-    where it lists commands, the core skill's steps 3 and 8, and `CHANGELOG.md` (one bullet)
-    describe the behaviour; the installed skill copy matches its source after `taskrail upgrade`.
+10. `claim T001` on `T001-base-task` with no record exits 0 with `branch_recorded` `true` and
+    `warning` `null`; `show T001` then reports `branch_source` `recorded`, and after T001's title
+    is edited by hand `show T001` still reports `T001-base-task`, `review` still runs on it, and
+    T001 done on that branch is still `done-branch` from the main checkout. Claiming again, or
+    claiming a task whose record already names the branch, writes nothing
+    (`branch_recorded` `false`).
+11. `claim T001` on another branch (`feature/other`, or `main` in the main checkout) exits 0,
+    writes no record (`branch_source` stays `template`), prints a warning naming
+    `taskrail branch` on stderr, and returns the same text in `warning` with `--json`. A task
+    whose record names `feature/base`, claimed on `T001-base-task`, warns the same way and keeps
+    its record.
+12. Outside git, and in every existing test, behaviour is unchanged apart from the new
+    `branch_source`, `branch_recorded` and `warning` keys; no code other than the resolver
+    renders a kind's `branch` template.
+13. `DESIGN.md` §6 (branch records, `claim` freezing and warning) and §7 (`branch` command,
+    `new --branch`, `show`'s `branch`, `branch_source` and `worktree`, `review`, `done-branch`,
+    prior work), `README.md` where it lists commands, the core skill's steps 3, 4 and 8, and
+    `CHANGELOG.md` (one bullet) describe the behaviour; the installed skill copy matches its
+    source after `taskrail upgrade`.
 
 ## Affected areas
 
@@ -145,17 +169,19 @@ T003 independent; lanes in worktrees under a temporary directory; no network.
 
 - Moving a task's worktree directory on rename (`git worktree move`).
 - Pushing, deleting or renaming a remote branch, or retargeting an open pull request.
-- Sharing branch records with other clones. Another clone finds a renamed branch neither through
-  `done-branch` nor in `show`; it sees the template name, as it would for a branch named by hand
-  today. With `claim_remote`, only the live claim carries the name.
-- Recording a branch implicitly in `claim`, and refusing a claim made on another branch.
+- Sharing branch records with other clones — follow-up T036. Another clone finds a renamed
+  branch neither through `done-branch` nor in `show`; it sees the template name, as it would for
+  a branch named by hand today. With `claim_remote`, only the live claim carries the name.
+- Recording a differing branch in `claim`, and refusing a claim made on another branch.
 - Validating kind `branch` templates as git ref names, and checking records in `validate`.
 - Listing earlier names of a renamed branch in `prior_work`.
 - A command to forget a record; naming the task after its template's name records that name.
 
-## Decisions for the plan gate
+## Decisions at the plan gate
 
-Each has a recommendation; the plan above is written as if all are accepted.
+Recorded in `docs/autopilot/decisions/T019-let-the-executor-name-or-rename-a-task-b.md`. Every
+recommendation below was accepted; decision 2 added that `claim` freezes the template name and
+warns on another branch (see *Behaviour*), and the cross-clone follow-up was opened as T036.
 
 1. **Where the chosen name is recorded.** Recommended: a per-task file in the git common
    directory, local and never public, surviving `done`, release and branch deletion.
@@ -180,8 +206,8 @@ Each has a recommendation; the plan above is written as if all are accepted.
 
 ## Open questions and risks
 
-- **Cross-clone visibility** (out of scope above): if another machine matters, a follow-up could
-  mirror records to a remote ref next to `refs/taskrail/claims`. Not proposed now.
+- **Cross-clone visibility** (out of scope above): T036 mirrors records to a remote ref next to
+  `refs/taskrail/claims`.
 - **Parallel lanes.** T029 adds commands to `cli.py`'s parser and T020 edits the core skill's
   step 5; this task adds one parser block and edits steps 3 and 8, so a rebase conflict, if any,
   is mechanical.
