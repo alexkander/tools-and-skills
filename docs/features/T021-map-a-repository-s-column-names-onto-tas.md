@@ -1,6 +1,6 @@
 # T021 — Map a repository's column names onto taskrail's columns
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 ## Behaviour
 
@@ -29,7 +29,9 @@ With an alias in place:
   so the repository's convention is enforced rather than silently drifting.
 - **Writing.** `new --pts 3` fills the `Size` cell; `done`, `discard` and `reopen` find an
   aliased `✓` column; a table created for an epic that has none, with no other table to copy,
-  uses the alias names in its header.
+  uses the alias names in its header. `new --column Size=3` (or `--column Pts=3`) is refused
+  with a message naming the flag that fills that column, so an agent following the
+  repository's header names is told how to set it.
 - **Messages.** A missing required column is reported by the name the repository uses, with the
   core name alongside, for example `task table is missing column(s): Blocked By (Depends On)`.
 - **Output is unchanged.** `--json` keeps its field names (`points`, `depends_on`, …) and
@@ -56,7 +58,10 @@ compared case-insensitively.
    today.
 5. `new --pts 3 --depends-on T001 --description D` appends a row whose `Size`, `Blocked By` and
    `Description` cells hold those values, in an existing table with aliased headers; the diff
-   is that one row.
+   is that one row. `new --column <name>=<value>`, where the name is an aliased core column's
+   alias or core name (case-insensitively), exits 2 without writing or consuming an ID, and its
+   message names the flag that sets that column (`--pts`, `--depends-on`, …), or says taskrail
+   sets it for `ID` and `✓`.
 6. `new` in an epic with no task table, in a backlog with no table to copy, writes a header
    that uses the alias names.
 7. `done`, `discard` and `reopen` change the status cell of a table whose `✓` column is
@@ -81,8 +86,11 @@ compared case-insensitively.
 - `tools/taskrail/src/taskrail/writer.py` — pass the aliases in `set_status`, `add_task` and
   `_header_template`, and render alias names in a default header.
 - `tools/taskrail/src/taskrail/install.py` — a commented `aliases` example in the `init` config.
-- Tests: `tests/test_validate.py` (reading, conflicts), `tests/test_write.py` (writes),
-  `tests/test_ids.py` (allocation).
+- `tools/taskrail/src/taskrail/cli.py` — `new` refuses `--column` for an aliased core column
+  and names the flag to use.
+- Tests: one dedicated file, `tests/test_column_aliases.py`, rather than additions to
+  `test_validate.py`, `test_write.py` and `test_ids.py`, to stay clear of parallel lanes'
+  edits to those files.
 - Docs: `tools/taskrail/DESIGN.md` (§3.2 Columns, §4 Configuration), `README.md` where config
   is described, and one line under `## Unreleased` in `CHANGELOG.md`.
 
@@ -91,8 +99,8 @@ compared case-insensitively.
 - Aliases for the Epics table columns (`ID`, `Epic`, `Objective`, `File`).
 - Several aliases for one column, or aliases that differ per backlog in the same repository.
 - Renaming the fields of `--json` output or the CLI flags (`--pts` stays `--pts`).
-- `new --column Size=3` for an aliased core column: `--column` stays for custom columns and is
-  refused with the existing "the task table has no column(s)" message; use `--pts`.
+- Filling an aliased core column through `--column`: it stays for custom columns, and is
+  refused with a hint instead (criterion 5).
 - Aliasing custom columns, or kinds routing (`when`) on an aliased core column.
 - Rejecting duplicate header cells in general (a table naming the same column twice), which is
   pre-existing behaviour.
@@ -100,14 +108,36 @@ compared case-insensitively.
 
 ## Open questions and risks
 
-- **Replace versus add.** The plan makes the alias replace the core name (a `Pts` header is an
-  error once `Pts` is aliased). The alternative accepts both names and needs a
-  `column-duplicate` error for tables that name the column both ways; it is more forgiving of
-  mixed files but no longer enforces a repository's fixed header. Decided at the plan gate.
-- **Config shape.** `aliases` maps core name → repository header. The reverse direction
-  (`Size = "Pts"`) reads naturally too; the chosen one keeps keys to a closed, checkable set.
+- **Replace versus add.** The alias replaces the core name (a `Pts` header is an error once
+  `Pts` is aliased), rather than accepting both names, so a repository's fixed header is
+  enforced.
+- **Config shape.** `aliases` maps core name → repository header, which keeps keys to a closed,
+  checkable set.
+- **An alias equal to its own core name** in another case (`Pts = "pts"`) is dropped as a
+  no-op rather than refused.
 - **Signature changes in shared helpers.** `_index` and `_is_task_table` gain an optional
   argument with a default, so callers that do not pass it keep today's behaviour; a missed call
   site would silently ignore aliases, which the write and ID tests are there to catch.
 - **Parallel work.** T018 also edits config loading; the change here is one hunk beside
   `[columns].custom` to keep a rebase conflict small.
+
+Decisions at the plan gate (recorded in `docs/autopilot/decisions/`): the alias replaces the core
+name; the mapping is core name → header; `--column` for an aliased core column stays refused but
+must name the flag to use; scope kept.
+
+## Test coverage
+
+All in `tools/taskrail/tests/test_column_aliases.py`.
+
+| Criterion | Tests |
+|---|---|
+| 1. `Size` for `Pts` validates and feeds `points` | `test_size_alias_for_pts_validates_and_feeds_points` |
+| 2. Every core column; missing column named by both names | `test_every_core_column_can_be_aliased`, `test_a_missing_aliased_column_is_named_by_alias_and_core_name` |
+| 3. Case-insensitive | `test_aliases_match_case_insensitively[size]`, `[SIZE]`, `test_alias_for_the_other_case_of_its_own_name_changes_nothing` |
+| 4. Core name of an aliased column is `column-alias` | `test_core_name_of_an_aliased_column_is_a_column_alias_error` |
+| 5. `new` fills aliased columns; `--column` hint | `test_new_fills_aliased_columns_with_a_one_row_diff`, `test_new_column_for_an_aliased_core_column_names_the_flag_to_use` (5 cases: `Size`, `size`, `Pts`, `Blocked By`, `Key`) |
+| 6. New table uses alias names | `test_new_table_without_a_template_uses_the_alias_names` |
+| 7. `done`, `discard`, `reopen` on an aliased `✓` | `test_status_commands_change_an_aliased_status_column` |
+| 8. ID allocation, working tree and branches | `test_id_allocation_sees_an_aliased_id_column` |
+| 9. Conflicting configuration refused, exit 2 | `test_conflicting_aliases_are_refused` (9 cases) |
+| 10. No aliases: unchanged | the existing suite, unchanged and passing |
