@@ -143,3 +143,11 @@ The change set and its boundary were approved as scoped.
   exit 0.
 - `uv run --directory tools/taskrail pytest -q` → `262 passed`. The stage's `lint` check is not
   configured in this repository.
+
+## Docs
+
+No further documentation changes. `README.md` and `CHANGELOG.md` stay as they are (scope
+decisions 5 and 6), and no shipped skill, integration note or `CLAUDE.md` mentions the autopilot
+(`grep -rni autopilot` over them finds nothing), so none describes it inaccurately. No follow-up
+tasks were opened: the implement gate kept `status [--fetch]`, the exit-5 note and the lane's
+group in the run file, all left for T029 and T030 to build.
