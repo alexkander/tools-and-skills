@@ -40,3 +40,18 @@ changed under `ids.lock`, replaced atomically, and not written when the update b
 | 4 | Duplicated lookups | keep · align | **align at the close rebase** | `status.py` calls `stack.task_branch`, which T019 removes, and has its own `_worktrees_by_branch`, which T019 adds as `gitutil.worktree_branches`. Once T019 is on `origin/main`, use `branches.task_branch` and `gitutil.worktree_branches`, and drop the local copy. |
 
 Implementation approved with items 3 and 4.
+
+## rebase after T020 and T019
+
+T020 (`155a56c`) and T019 (`1543057`) were squash-merged into `main`. The lane rebased at close
+and again after T019, following the orchestrator's instructions. Checked by the orchestrator
+before publishing:
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the docs indexes, CHANGELOG and the DESIGN.md §7 table | keep both · stop | **keep both** | Rows and bullets added on both sides; T019's §6.4 and the §6.1 freeze text are intact. |
+| 2 | Conflict at the end of `cmd_claim` | keep both behaviours · stop | **keep both** | T019's branch freeze and warning run first, then the task joins the run; a new test covers `claim --run` on the template branch. |
+| 3 | `status` branch lookup | adapt to T019's resolver · keep a local copy | **adapt** | Commit `1b0db75` uses `branches.task_branch` and `gitutil.worktree_branches`; a new test covers a renamed task branch. |
+
+After the rebase: no conflict markers, `pytest -q` 410 passed, `taskrail validate` 0 errors,
+`upgrade` reports nothing to create or update.
