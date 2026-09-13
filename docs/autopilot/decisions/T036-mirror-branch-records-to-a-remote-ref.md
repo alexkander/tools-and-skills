@@ -40,3 +40,12 @@ another clone pushed meanwhile is never overwritten.
 | 1 | Approve the implementation | approve · changes | **approve** | Follows D1–D8; every criterion maps to a test seen failing. |
 | 2 | `new` reports `record_remote` only with `--branch` | only then · always, `null` otherwise | **only with `--branch`** | `new`'s output stays unchanged when no record is written. |
 | 3 | Close rebase onto T029 and T035 | keep both sides · stop and ask | **keep both sides** | Index rows keep both; DESIGN.md keeps T029's §4/§12 text and adds this branch's key and §6/§7 text; in `cmd_claim` T029's `--run` block stays and this branch's record push follows `_freeze_branch`; regenerate the installed skill and manifest with `upgrade --force` if they conflict. |
+
+## rebase after T029 and T035
+
+The lane rebased onto `origin/main` (`2312a2a`) at close, as decided at the implement gate.
+Checked by the orchestrator before publishing: no conflict markers, `TODO.md` differs from `main`
+only in T036 `✅` and the added T037 row, the skill source differs only in step 3, `upgrade` reports
+nothing to create or update, `pytest -q` 485 passed, `taskrail validate` 0 errors. The branch's
+upstream, set to `origin/main` by `git worktree add`, was unset so no plain `git push` can target
+the mainline.
