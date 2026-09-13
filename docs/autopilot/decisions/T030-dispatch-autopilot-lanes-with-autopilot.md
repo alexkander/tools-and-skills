@@ -47,3 +47,13 @@ hold of it, so two concurrent `next` calls share the limits.
 | 1 | Details left open by the plan (`skipped` includes same-run dispatches, capacity checked per candidate, first `limited_by`, preview skips tasks failed in any run, a lane reported under its claim's run, `lane --group` checks run and task first, text lines for skipped and released) | accept · drop same-run dispatches from `skipped` | **accept** | Each is visible and tested; seeing why a task was not offered again is worth a line. |
 | 2 | Shared helpers added to `runs.py` and `status.py` | accept · move into `dispatch.py` | **accept** | Additions only; `update_all` exists because the lock is not re-entrant, and T031/T032 can reuse them. |
 | 3 | CHANGELOG bullet at the top of Unreleased | keep · move to the end | **move it to the end** | Every other bullet is appended in merge order; a rebase conflict there is a known class resolved by keeping both, so position does not avoid it and the order should stay chronological. |
+
+## verify and close
+
+The verify stage ran `autopilot next` through the real CLI with a column group, a judgement group,
+a resource pool and a bare origin, and found no gap against the plan, so it did not stop. The lane
+noted that a dispatched lane with no `lane` update shows no idle time in `status`; the orchestrator
+leaves that as is, since a dispatch expires after the claim grace period and idle time matters for
+lanes that have started. No rebase was needed (`origin/main` is `2312a2a`). Checked before
+publishing: `pytest -q` 505 passed, `taskrail validate` 0 errors, `upgrade` reports nothing to
+create or update, the CHANGELOG bullet is last in Unreleased, and the branch has no upstream.
