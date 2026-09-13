@@ -21,3 +21,16 @@ branch from a mainline that lacks the dependency's work.
 | 7 | Scope | keep 5 points · split | **keep** | Coherent change; points order work, they do not budget it. |
 
 Plan approved. The lane must remove its scratch repositories under `/tmp` when it no longer needs them.
+
+## implement gate
+
+Reviewed: commit `296f400` (`stack.py`, `query.py`, `claims.py`, `cli.py`, `model.py`, the core
+skill, DESIGN.md §6.1, §6.2 and §7). Re-ran `uv run --directory tools/taskrail pytest -q` in the
+lane's worktree: 278 passed. The four existing tests that changed only gained the new keys.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | `base` in the remote claim (DESIGN.md §6.2) | keep · drop from the published copy | **keep** | It holds refs and a commit that already live on that remote, no machine details; §6.2 stays in the claims section T017 owns. |
+| 2 | State column width in `list` and `next` | 11 · 9 | **11** | Text output is for people; aligned rows matter more than a two-space shift, and `--json` is the stable contract. |
+| 3 | Approve the code | approve · changes | **approve, with one doc correction** | The code follows Q1–Q6. `done` releases the claim, so `base.commit` is gone by the time a finished dependent needs `rebase --onto`. DESIGN.md §6.1 must say the fork point is also `git merge-base HEAD <dependency branch>` while that branch exists, so follow-through computes it before removing the branch (T031). |
+| 4 | Stale branch of a reopened task | fix now · follow-up | **follow-up task** | A task reopened on the mainline whose old branch still has `✅` reads as `done-branch` and `claim` refuses it. Follow-through deletes merged branches, so it is rare, and the refusal names the branch; a mainline `Reopens: <ID>` commit the branch lacks should clear the state. Opened at the docs stage with `taskrail new`, kind bug, depending on T017. |
