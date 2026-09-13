@@ -36,3 +36,24 @@ worktree: 335 passed. The kind's `branch` template is now rendered only in `bran
 | 1 | Failed re-push of the remote claim after a local rename | accept partial success, exit 2 naming the ref · push first and roll back | **accept** | The local branch, record and claim agree, which is what every local command reads; the error names the ref to fix, and the claim's lease keeps it safe. A rollback path adds code for a rare case. |
 | 2 | `claim` now warns when claiming on a branch other than the task's, including the mainline | keep · silence on the mainline | **keep** | Claiming from the mainline is exactly the mistake that leaves work on the wrong branch; the exit code is unchanged, so nothing that scripts `claim` breaks. |
 | 3 | Approve the implementation | approve · changes | **approve** | It follows the plan and decisions 1–7. `stack.task_branch` is removed; the orchestrator tells the T029 lane, whose `status` planned to call it, to use `branches.task_branch` once this merges. |
+
+## verify and close
+
+The verify stage found one gap: `branch` accepted a name recorded for a task created in another
+workspace, whose row this checkout does not have yet. The lane fixed it within the approved scope
+(`branches.owner_of` also checks records) with a regression test observed failing first; no
+decision was needed.
+
+## rebase after T020
+
+The lane rebased onto `origin/main` (`155a56c`) at close, following the orchestrator's conflict
+instructions. Checked by the orchestrator before publishing:
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the docs indexes and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Additive rows and bullets. |
+| 2 | Conflicts in `TODO.md` | union by ID, `✅` wins · stop | **union by ID** | T035 and T036 both added; T019 and T020 `✅`; no `Reopens:` commit for either. |
+| 3 | Core skill source | keep both edits · stop | **keep both** | Steps 3, 4 and 8 from this branch, step 5 from T020; the diff against `main` shows only this branch's steps. |
+| 4 | Installed skill and `.taskrail/installed.json` | regenerate · hand-merge | **regenerate with `upgrade --force`** | `upgrade` now reports nothing to create or update. |
+
+After the rebase: `pytest -q` 369 passed, `taskrail validate` 0 errors over 36 tasks.
