@@ -84,6 +84,19 @@ library is published to a package registry and depended on by version. A Claude 
 marketplace (`.claude-plugin/marketplace.json`) is one option for the skills, but as an adapter
 over the layout above, never as its canonical shape. Record each choice here once made.
 
+## Backlog
+
+This repository tracks its own work with taskrail (`tools/taskrail`): `TODO.md` holds the epics
+and tasks, and `.taskrail/bin/taskrail` runs the CLI from this checkout's source (the config
+pins `local:tools/taskrail`), so a task worktree runs its own branch's code. Use the `taskrail`
+skill and its executor skills to work tasks.
+
+- The skills under `.claude/skills/taskrail*` are **installed copies**. Edit the sources in
+  `tools/taskrail/src/taskrail/skills/`, then run `.taskrail/bin/taskrail upgrade`.
+- `TODO.md` and the artifacts under `docs/` are public like everything else here; the
+  publishing constraint above applies to task titles, descriptions and write-ups.
+- Claims stay local (`claim_remote` is off), so no refs are pushed for them.
+
 ## Commands
 
 There is no repository-wide build. Each tool is its own project; run commands from its
