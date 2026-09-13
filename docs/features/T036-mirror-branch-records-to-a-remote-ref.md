@@ -1,6 +1,6 @@
 # T036 — Mirror branch records to a remote ref
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: the T019 decision record (`docs/autopilot/decisions/T019-let-the-executor-name-or-rename-a-task-b.md`,
 decision 7) and `tools/taskrail/DESIGN.md` §6.2 (remote claims) and §6.4 (task branches) as of T019.
@@ -58,8 +58,9 @@ pushes the branch; A reports T001 `done-branch` on `feature/base` and its depend
   offline, a server refusing refs outside `refs/heads` and `refs/tags`, or a lease rejected because
   another clone pushed that record meanwhile — keeps the local branch, record and claim, prints a
   warning naming the ref and the retry (`taskrail branch <ID> <NAME>`), and leaves the exit code as
-  it would have been. `branch`, `claim` and `new --json` report `record_remote`: `null` when nothing
-  was mirrored, else `name`, `ref`, `commit` (pushed commit or `null`), `pushed` and `error`.
+  it would have been. `branch`, `claim` and `new --branch` (`--json`) report `record_remote`: `null`
+  when nothing was mirrored, else `name`, `ref`, `commit` (pushed commit or `null`), `pushed` and
+  `error`. `new` without `--branch` writes no record and its result has no such key.
 - **Deletion.** Nothing deletes a remote record automatically, like a local one; `done`,
   `release`, `discard` and `reopen` leave it. A repository cleans up with
   `git push <remote> --delete refs/taskrail/branches/<ID>`, and the next fetch prunes the local copy.
@@ -122,7 +123,7 @@ pushes the branch; A reports T001 `done-branch` on `feature/base` and its depend
 - Renaming or deleting a local git branch in a clone that adopts another clone's rename.
 - Checking remote claims in `branch`'s owner check.
 - A standalone `taskrail fetch` command, and fetching the mainline's remote in `show --fetch`.
-- The remote-claim deletion bug found while reproducing (see *Open questions*).
+- The remote-claim deletion bug found while reproducing (see *Open questions*), opened as T037.
 
 ## Open questions and risks
 
@@ -138,9 +139,58 @@ pushes the branch; A reports T001 `done-branch` on `feature/base` and its depend
   `claims._delete_remote` passes `--force-with-lease=<ref>` without an expected value, which git
   checks against a remote-tracking ref that does not exist for `refs/taskrail/claims/*`, so the push
   is rejected as `stale info`. `done` has then written the row but exits 2 and leaves both the local
-  and the remote claim. Proposed as a follow-up bug task.
+  and the remote claim. Opened as T037 (decision D7); no test here goes through `release --force`
+  or `done` with `claim_remote` set.
 - **Parallel lane.** DESIGN.md §4 is also edited by the T029 lane; the change here is one line in
   the `[git]` block.
+
+## Implementation
+
+Decisions D1–D8 in `docs/autopilot/decisions/T036-mirror-branch-records-to-a-remote-ref.md` were
+applied as approved.
+
+- `config.py`: `[git].branch_record_remote` (string, default `""`).
+- `gitutil.py`: `write_claim_commit` became `write_file_commit(root, name, content, message)`;
+  `claims.py` passes `claim.json`.
+- `branches.py`: `fetch(config)` fetches with `--prune --no-tags` into
+  `refs/taskrail/remotes/<remote>/branches/*`, reads every copy through one `git cat-file --batch`
+  and adopts a record when there is no local one or its `recorded` is later; `push(config, record)`
+  writes the parentless commit, pushes with `--force-with-lease=<ref>:<copy>` and moves the copy.
+  Neither raises for a failed fetch or push. Record timestamps come from `_now()`.
+- `cli.py`: `_fetch_records` (a no-op while the setting is off; clears the branch and
+  `done-branch` caches) runs at the start of `claim` and `branch` unless `--local-only`, of
+  `new --workspace`, of `review` unless `--no-fetch` or `[review].fetch = false`, and of
+  `show`/`list`/`next` with `--fetch`. `_mirror_record` pushes after `branch` writes the record
+  (before the claim's remote copy is re-pushed), after `claim` freezes a name, and after
+  `new --workspace --branch` has written its row (`_write` gained an `on_written` hook so the
+  result carries `record_remote`).
+- The core skill's step 3 reads `show <ID> --json --fetch`; installed copies refreshed with
+  `taskrail upgrade`. DESIGN.md §4, §6.1, §6.2, §6.4 and §7, the README and the changelog describe it.
+- `tests/test_task_branch.py`: the exact `branch --json` result of T019's first test now includes
+  `record_remote: null`.
+
+## Acceptance criteria → tests
+
+All in `tools/taskrail/tests/test_branch_records_remote.py`.
+
+| # | Tests |
+|---|---|
+| 1 | `test_nothing_is_mirrored_when_the_setting_is_off`, `test_a_non_string_setting_is_a_configuration_error` |
+| 2 | `test_branch_pushes_a_public_parentless_record` |
+| 3 | `test_claim_pushes_only_the_record_it_freezes`, `test_new_workspace_with_a_branch_pushes_its_record` |
+| 4 | `test_local_only_neither_fetches_nor_pushes_records` |
+| 5 | `test_each_push_leases_on_the_previous_commit`, `test_a_record_changed_by_another_clone_meanwhile_is_not_overwritten` |
+| 6 | `test_show_fetch_resolves_a_branch_renamed_in_another_clone`, `test_list_and_next_fetch_agree` |
+| 7 | `test_review_fetches_records_before_resolving_the_task_branch`, `test_claim_fetches_records_first`, `test_branch_fetches_records_first`, `test_new_workspace_fetches_records_first` |
+| 8 | `test_the_later_record_wins_and_a_fetch_never_deletes_one` |
+| 9 | `test_an_unreachable_remote_only_warns` |
+| 10 | `test_branch_pushes_a_public_parentless_record` (tree and keys; `prior_work.commits` empty) |
+| 11 | documentation, reviewed at the gate |
+
+Tests were written first and observed failing: 16 failed before any implementation (`KeyError:
+'record_remote'`, `unrecognized arguments: --fetch`, no `branches._now`, and the unknown config key
+accepted). With the implementation, removing the fetch from `_fetch_records` fails 9 of them, and
+adopting every remote record regardless of `recorded` fails the adoption test.
 
 ## Evidence
 
