@@ -1,6 +1,6 @@
 # T017 — Branch a task from its single unmerged dependency
 
-Kind: feature · Epic: E05 · Status: implemented
+Kind: feature · Epic: E05 · Status: verified
 
 Source: the accepted autopilot design, `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
 (evidence E1, *Session state*, *Recommendation*), and
@@ -203,3 +203,46 @@ blocked ['T001'] origin/main
 $ (in T001's worktree) taskrail show T002 --json (state, blocked_by, base.onto)
 pending [] origin/main
 ```
+
+## Verification
+
+Run with this branch's CLI (`uv run --project tools/taskrail taskrail`) in a scratch repository
+under `/tmp` with a local bare `origin`, set up as E1: T001 (2 pts), T002 (1 pt, depends on T001),
+T003 (3 pts), T004 (1 pt, depends on T001 and T003). Lanes worked in `.worktrees/<branch>`. The
+scratch repository was deleted afterwards.
+
+- Before any lane, `next` listed T001 and T003. After `claim`, `done` and a commit for T001 in its
+  worktree, `next` on the main checkout listed T002 and T003; `list --state done-branch` printed
+  `T001   ⬜ done-branch feature   2pt  E01   Base task`; `claim T001` exited 5 with
+  `T001 is done on branch T001-base-task, not yet merged into main`.
+- `show T002` printed `state pending` and
+  `base T001-base-task (T001 is done on T001-base-task but not merged into main: only T001-base-task exists)`;
+  its JSON `base` had `commit` equal to the branch tip (`3dabd2f`) and `dependency` `T001`. Inside
+  T001's worktree, `show T002` reported the same `onto` and `dependency`.
+- A T002 worktree branched from `T001-base-task`; T001's branch then gained a commit (`fa005fe`)
+  before `claim T002`, whose `base` was `{onto: T001-base-task, commit: 3dabd2f…, dependency: T001}`:
+  the fork point, not the new tip. `done T002` exited 0.
+- `review T002 --json` on T002's branch reported `target` `main`, `fetched` true and `rebase`
+  `{onto: T001-base-task, needed: false, dependency: T001}`. After another commit on T001's branch,
+  `needed` was true and the text form printed `rebase onto T001-base-task: git rebase T001-base-task`;
+  after that rebase, `needed` was false again.
+- With T003 also done on its branch, `show T004` reported `blocked`, `blocked_by` `['T001', 'T003']`
+  and `base.onto` null with `T001, T003 are done only on unmerged branches; wait until all but one
+  are merged into main`; `claim T004` exited 5 (`blocked by T001, T003`); `next` printed
+  `no eligible tasks`.
+- `new --workspace --depends-on T001,T003` exited 5 with that reason and created no branch;
+  `new --workspace --depends-on T001` created `T005-stacked-once` from `T001-base-task`, at the same
+  commit.
+- With T001's `✅` squashed onto the remote `main` and fetched, `show T001` reported `pending` (the
+  main checkout's own row, as before this task), `show T002` reported base `origin/main` with
+  `dependency` null, and `list --state done-branch` listed T002 and T003 but not T001.
+
+The first two `review` calls failed with `git fetch origin failed: fatal: '../origin.git' does
+not appear to be a git repository`. The scratch setup caused it: the remote URL was relative, so it
+did not resolve from a nested worktree. Pointing `origin` at an absolute path fixed it, and the
+`review` results above come from that rerun.
+
+The same build on this repository's own checkout listed the parallel lanes T027 and T028, each
+committed `done` on its branch, as `done-branch`; `next` ran in 0.4 s.
+
+No difference from the plan was found.
