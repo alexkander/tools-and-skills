@@ -1,6 +1,6 @@
 # T015 — Hand closed tasks off for review with a merge request link
 
-Kind: feature · Epic: E01 · Status: plan approved
+Kind: feature · Epic: E01 · Status: implemented
 
 ## Behaviour
 
@@ -99,6 +99,25 @@ when the content calls for it (`--type ci`, `--scope taskrail`, `--breaking` for
 10. The core skill's close and hand-off steps use `review` instead of their current manual
     fetch, rebase and push instructions, and the commit-message section states that with
     squash merges the pull request title is what reaches the mainline.
+
+## Test coverage
+
+In `tools/taskrail/tests/test_review.py`, against a bare local remote.
+
+| Criterion | Tests |
+|---|---|
+| 1. Task branch only; target and head | `test_review_runs_only_on_the_task_branch`, `test_prepare_reports_target_head_and_title` |
+| 2. Task must be done | `test_review_requires_the_task_to_be_done` |
+| 3. Fetch on, off, failing | `test_prepare_reports_target_head_and_title`, `test_no_fetch_flag_and_config`, `test_failed_fetch_is_a_usage_error` |
+| 4. Rebase base selection | `test_prepare_reports_target_head_and_title`, `test_remote_ahead_requires_a_rebase_before_publishing`, `test_local_mainline_ahead_is_the_base`, `test_diverged_mainlines_stop_the_review`, `test_rebase_can_be_disabled` |
+| 5. Push, lease, disabled, rejected | `test_remote_ahead_requires_a_rebase_before_publishing`, `test_push_disabled_returns_the_command`, `test_republishing_uses_a_lease_and_a_moved_branch_is_rejected`, `test_rejected_push_exits_with_conflict` |
+| 6. Title | `test_title_type_scope_and_breaking`, `test_subject_keeps_acronyms`, `test_core_kinds_declare_commit_types` |
+| 7. Reopens trailers in the body | `test_body_carries_reopens_trailers` |
+| 8. Links per provider | `test_github_link`, `test_gitlab_link`, `test_gitea_forgejo_and_template_links`, `test_an_over_long_body_is_dropped_from_the_link` |
+| 9. Remote URL forms | `test_parse_remote_url`, `test_local_path_remotes_have_no_web_address`, `test_provider_detection` |
+| 10. Skill close and hand-off | reviewed at the implement gate; `test_skills_have_only_frontmatter_every_agent_accepts` still passes |
+
+Configuration: `test_push_defaults_to_true_and_provider_is_checked`.
 
 ## Affected areas
 
