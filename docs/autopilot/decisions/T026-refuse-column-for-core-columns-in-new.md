@@ -28,3 +28,10 @@ the suite in the lane's worktree (250 passed).
 | 1 | Approve the fix | approve · request changes | **approve** | Smallest change that addresses the root cause; the regression tests failed first for the diagnosed reasons, including the `--workspace` case, and pass now. |
 | 2 | Keep `test_new_still_fills_a_custom_column` | keep · drop | **keep** | It guards the one legitimate use of `--column` the new refusal must not break, which no other test covered. |
 | 3 | The lane amended its own unpushed fix commit | accept · object | **accept** | Only its own commit, not yet pushed, to record verbatim test output; no shared history was rewritten. |
+
+## rebase after T025 merged
+
+This branch was rebased onto `origin/main` (`d5d374d`), which carries T025 (#12). Two additive
+conflicts, both resolved by keeping every entry: the decisions index row and the `Unreleased`
+changelog bullet. `TODO.md` merged without conflict. After the rebase: no conflict markers, 262
+tests passed, `validate` clean, installed skills matching their sources.
