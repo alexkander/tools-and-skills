@@ -26,3 +26,18 @@ meaning. Changing route semantics now costs nothing outside this repository.
 Not marked breaking: taskrail is 0.x and earlier behaviour changes (T026, T027) were released the
 same way, each flagged in the CHANGELOG. Plan approved. The lane must remove its scratch
 repositories under a temporary directory when it no longer needs them.
+
+## implement gate
+
+Reviewed: commit `fd0511c` (`predicates.py` `parse_match` and `covers`, `kinds.py` routes,
+`project.py`, DESIGN.md §5.1, §5.4, §5.5, README, CHANGELOG, `tests/test_routes.py`). Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 392 passed. Against the
+unchanged source the new tests gave 42 failed, 17 passed, and the 17 are the behaviour meant to
+stay. `covers` is exact for these values — a `*` is covered only by `*`, and an earlier route with
+a column the later one does not constrain never covers it — and an exhaustive pairwise test over
+483 routes and 50 tasks checks that no reachable route is reported.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Follows D1–D6 and the eleven criteria; `parse_column_predicate` keeps its signature and messages. |
+| 2 | New DESIGN.md §5.5 *Routes* | keep · fold into §5.1 | **keep** | Routes now have their own rules and three issue codes; §5.4 stays about stages. |
