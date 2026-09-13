@@ -1,6 +1,6 @@
 # T037 — Delete remote claims with a lease on their recorded commit
 
-Kind: bug · Epic: E02 · Status: diagnosed
+Kind: bug · Epic: E02 · Status: fixed
 
 ## Symptom
 
@@ -407,3 +407,197 @@ and every `done`/`discard` test use repositories without `claim_remote`.
    claim with exit 0; `claim --takeover` of a stale remote claim replaces the ref; and, for
    decision 1, a record without `remote.commit` is released.
 5. A `## Unreleased` bullet in `tools/taskrail/CHANGELOG.md`.
+
+## Fix
+
+Decisions taken at the diagnose gate are recorded in
+[docs/autopilot/decisions/T037-delete-remote-claims-with-a-lease-on-the.md](../autopilot/decisions/T037-delete-remote-claims-with-a-lease-on-the.md).
+Decision 1 took the smaller refusal instead of the proposed `ls-remote` lookup.
+
+- `claims._delete_remote` always leases on `remote.commit`; its `force` parameter is gone, so
+  `release(force=True)` waives only the owner check. A remote ref holding another commit is still
+  refused (exit 2, local claim kept).
+- A record without `remote.commit` is refused before any push, in both `_delete_remote` and
+  `rename_branch`, with a `GitError` naming `--local-only` and `git push <remote> :<ref>`.
+  `rename_branch` keeps its T019 order: the local claim already names the new branch when it
+  refuses, and the message says so.
+- `cli._change_status` (`done`, `discard`) still writes the row first. A `GitError` from the
+  release is caught: the local claim stays, stderr says
+  `<ID> is marked <status>, but its claim was not released: <reason>; run `taskrail release <ID> --force` to retry`,
+  and the command exits 2.
+- `tools/taskrail/CHANGELOG.md` has a bullet under `## Unreleased`.
+
+### Regression tests, run before the fix
+
+Added to `tools/taskrail/tests/test_claims.py`, all on the `remote_pair` fixture (a bare remote
+and two clones with `claim_remote = "origin"`):
+
+| Test | Covers |
+|---|---|
+| `test_forced_release_deletes_the_remote_claim[alice\|bob]` | `release --force` by the owner and by someone else |
+| `test_closing_a_task_deletes_its_remote_claim[done\|discard]` | `done`, `discard` |
+| `test_takeover_replaces_a_stale_remote_claim` | `claim --takeover` |
+| `test_forced_release_keeps_a_remote_claim_holding_another_commit` | `--force` never deletes another clone's claim (guard; passes before the fix too, by design) |
+| `test_a_close_that_cannot_delete_the_remote_claim_says_the_row_was_written[done-done\|discard-discarded]` | decision 2 |
+| `test_release_refuses_a_remote_claim_without_its_commit[force0\|force1]` | decision 1, `release` with and without `--force` |
+| `test_rename_refuses_to_re_push_a_remote_claim_without_its_commit` | decision 1, `rename_branch` |
+
+On the unfixed code (`uv run pytest -q --color=no --tb=short tests/test_claims.py -k remote`,
+failure lines only):
+
+```
+_____________ test_forced_release_deletes_the_remote_claim[alice] ______________
+E   AssertionError: taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote4/origin.git
+E      ! [rejected]        (delete) -> refs/taskrail/claims/T002 (stale info)
+E     error: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/remote4/origin.git'
+E     
+E   assert 2 == 0
+______________ test_forced_release_deletes_the_remote_claim[bob] _______________
+E   AssertionError: taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote5/origin.git
+E      ! [rejected]        (delete) -> refs/taskrail/claims/T002 (stale info)
+E     error: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/remote5/origin.git'
+E     
+E   assert 2 == 0
+______________ test_closing_a_task_deletes_its_remote_claim[done] ______________
+E   AssertionError: taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote6/origin.git
+E      ! [rejected]        (delete) -> refs/taskrail/claims/T002 (stale info)
+E     error: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/remote6/origin.git'
+E     
+E   assert 2 == 0
+____________ test_closing_a_task_deletes_its_remote_claim[discard] _____________
+E   AssertionError: taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote7/origin.git
+E      ! [rejected]        (delete) -> refs/taskrail/claims/T002 (stale info)
+E     error: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/remote7/origin.git'
+E     
+E   assert 2 == 0
+_________________ test_takeover_replaces_a_stale_remote_claim __________________
+E   AssertionError: taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote8/origin.git
+E      ! [rejected]        (delete) -> refs/taskrail/claims/T002 (stale info)
+E     error: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/remote8/origin.git'
+E     
+E   assert 2 == 0
+E   assert 'T002 is marked done, but its claim was not released' in "taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote10/orig...claims/T002 (stale info)\nerror: failed to push some refs to '/tmp/pyte
+E   assert 'T002 is marked discarded, but its claim was not released' in "taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote11/orig...claims/T002 (stale info)\nerror: failed to push some refs to '/tmp
+________ test_release_refuses_a_remote_claim_without_its_commit[force0] ________
+E   assert 'does not record the commit' in "taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote12/orig...claims/T002 (stale info)\nerror: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/
+________ test_release_refuses_a_remote_claim_without_its_commit[force1] ________
+E   assert 'does not record the commit' in "taskrail: could not delete remote claim refs/taskrail/claims/T002: To /tmp/pytest-of-abigail/pytest-210/remote13/orig...claims/T002 (stale info)\nerror: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/
+_______ test_rename_refuses_to_re_push_a_remote_claim_without_its_commit _______
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'does not record the commit'
+E     Actual message: "could not update the remote claim refs/taskrail/claims/T002 on origin: error: failed to push some refs to '/tmp/pytest-of-abigail/pytest-210/remote14/origin.git'"
+FAILED tests/test_claims.py::test_forced_release_deletes_the_remote_claim[alice]
+FAILED tests/test_claims.py::test_forced_release_deletes_the_remote_claim[bob]
+FAILED tests/test_claims.py::test_closing_a_task_deletes_its_remote_claim[done]
+FAILED tests/test_claims.py::test_closing_a_task_deletes_its_remote_claim[discard]
+FAILED tests/test_claims.py::test_takeover_replaces_a_stale_remote_claim - As...
+FAILED tests/test_claims.py::test_a_close_that_cannot_delete_the_remote_claim_says_the_row_was_written[done-done]
+FAILED tests/test_claims.py::test_a_close_that_cannot_delete_the_remote_claim_says_the_row_was_written[discard-discarded]
+FAILED tests/test_claims.py::test_release_refuses_a_remote_claim_without_its_commit[force0]
+FAILED tests/test_claims.py::test_release_refuses_a_remote_claim_without_its_commit[force1]
+FAILED tests/test_claims.py::test_rename_refuses_to_re_push_a_remote_claim_without_its_commit
+10 failed, 5 passed, 13 deselected in 2.86s
+```
+
+The first five fail on the `stale info` rejection from the lease without a value — the root
+cause. The other five fail because the refused cases had no message naming the row, the retry,
+`--local-only` or the ref. The five that pass are the four existing remote-claim tests and the
+guard `test_forced_release_keeps_a_remote_claim_holding_another_commit`.
+
+## Verification
+
+After the fix:
+
+```
+$ uv run --directory tools/taskrail pytest -q tests/test_claims.py
+............................                                             [100%]
+28 passed in 3.76s
+$ uv run --directory tools/taskrail pytest -q          # the stage's `test` check
+480 passed in 43.25s
+```
+
+The stage's `lint` check is not configured in `.taskrail/config.toml` (`[checks]` defines only
+`test`), so it was not run.
+
+The CLI end to end, in throwaway repositories under `mktemp -d /tmp/t037-verify.XXXXXX` (same
+setup as the reproduction, deleted afterwards):
+
+```
+===== release --force by the owner
+claimed T002 as alice
+$ taskrail release T002 --owner alice --force
+released T002
+exit=0
+$ git -C origin.git for-each-ref refs/taskrail/claims
+$ ls .git/taskrail/claims
+===== done
+claimed T002 as alice
+$ taskrail done T002 --owner alice
+T002 done
+exit=0
+$ git -C origin.git for-each-ref refs/taskrail/claims
+$ ls .git/taskrail/claims
+===== claim --takeover of a stale claim
+claimed T002 as alice
+$ taskrail claim T002 --owner bob --takeover
+taskrail: warning: T002 was claimed on branch main, but its branch is T002-repricing; work on that branch, or run `taskrail branch T002 <NAME>` to name the branch the task is worked on
+claimed T002 as bob
+exit=0
+$ git -C origin.git for-each-ref refs/taskrail/claims
+059f33e87bb33dc09ee99bc49da6dc2816dfae29 commit	refs/taskrail/claims/T002
+$ ls .git/taskrail/claims
+T002.json
+$ published owner
+  "owner": "bob",
+===== branch rename, then release --force
+claimed T002 as alice
+$ taskrail branch T002 T002-renamed --owner alice
+T002 branch renamed from T002-repricing to T002-renamed
+exit=0
+$ taskrail release T002 --owner alice --force
+released T002
+exit=0
+$ git -C origin.git for-each-ref refs/taskrail/claims
+$ ls .git/taskrail/claims
+===== done while the remote ref holds another commit
+claimed T002 as alice
+$ git -C origin.git update-ref refs/taskrail/claims/T002 $(git -C origin.git rev-parse main)
+$ taskrail done T002 --owner alice
+taskrail: T002 is marked done, but its claim was not released: could not delete remote claim refs/taskrail/claims/T002: To /tmp/t037-verify.kxTz5z/origin.git
+ ! [rejected]        (delete) -> refs/taskrail/claims/T002 (stale info)
+error: failed to push some refs to '/tmp/t037-verify.kxTz5z/origin.git'; run `taskrail release T002 --force` to retry
+T002 done
+exit=2
+$ git -C origin.git for-each-ref refs/taskrail/claims
+13ae2aa36bed5d870ff6cf1e14057e24c2cb5dd7 commit	refs/taskrail/claims/T002
+$ ls .git/taskrail/claims
+T002.json
+| ✅ | T002 | feature | 3   | T001       | Repricing      | Recompute   |
+| ⬜ | T003 | bug     | 1   | T002       | Rounding error | Off by one  |
+===== release of a record without remote.commit
+claimed T002 as alice
+$ taskrail release T002 --owner alice --force
+taskrail: the local claim for T002 does not record the commit it pushed to refs/taskrail/claims/T002 on origin, so the remote claim cannot be deleted safely; run `taskrail release T002 --local-only` to drop the local claim, then check the remote claim is this one and delete it by hand with `git push origin :refs/taskrail/claims/T002`
+exit=2
+$ git -C origin.git for-each-ref refs/taskrail/claims
+76a57c9fff7cca36aeb72d021c3fd6ee826edc3a commit	refs/taskrail/claims/T002
+$ ls .git/taskrail/claims
+T002.json
+$ taskrail release T002 --owner alice --local-only
+released T002
+exit=0
+$ git -C origin.git for-each-ref refs/taskrail/claims
+76a57c9fff7cca36aeb72d021c3fd6ee826edc3a commit	refs/taskrail/claims/T002
+$ ls .git/taskrail/claims
+===== branch rename of a record without remote.commit
+claimed T002 as alice
+$ taskrail branch T002 T002-renamed --owner alice
+taskrail: the local claim for T002 now names branch T002-renamed, but it does not record the commit it pushed to refs/taskrail/claims/T002 on origin, so the remote claim was not updated; pass --local-only to leave the remote claim alone, or check it is this claim and delete it by hand with `git push origin :refs/taskrail/claims/T002`
+exit=2
+$ published claim branch
+  "branch": "T002-repricing",
+```
+
+In the "another commit" case the remote ref stands for a claim this clone did not push, so it is
+kept even though `done` releases with `force=True`; the row is written, the local claim stays for
+the retry, and the message says both.
