@@ -22,3 +22,17 @@ mainline, and editing a title by hand silently changes the template branch name.
 
 Plan approved with the `claim` addition in 2. The lane must remove its scratch repositories under
 a temporary directory when it no longer needs them.
+
+## implement gate
+
+Reviewed: commits `5609f30` (T036), `92255ad` (plan update) and `af2d44b` (`branches.py`,
+`stack.py`, `query.py`, `gitutil.py`, `claims.py`, `cli.py` `branch`/`claim`/`new`/`review`, core
+skill steps 3, 4 and 8, DESIGN.md §6.1, §6.4, §7, §7.1, README, CHANGELOG,
+`tests/test_task_branch.py`). Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's
+worktree: 335 passed. The kind's `branch` template is now rendered only in `branches.py`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Failed re-push of the remote claim after a local rename | accept partial success, exit 2 naming the ref · push first and roll back | **accept** | The local branch, record and claim agree, which is what every local command reads; the error names the ref to fix, and the claim's lease keeps it safe. A rollback path adds code for a rare case. |
+| 2 | `claim` now warns when claiming on a branch other than the task's, including the mainline | keep · silence on the mainline | **keep** | Claiming from the mainline is exactly the mistake that leaves work on the wrong branch; the exit code is unchanged, so nothing that scripts `claim` breaks. |
+| 3 | Approve the implementation | approve · changes | **approve** | It follows the plan and decisions 1–7. `stack.task_branch` is removed; the orchestrator tells the T029 lane, whose `status` planned to call it, to use `branches.task_branch` once this merges. |
