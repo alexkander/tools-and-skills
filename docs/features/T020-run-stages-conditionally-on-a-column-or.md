@@ -70,19 +70,22 @@ Each entry of `kind_descriptor.stages` gains:
 | `column` | the resolved column name, or `null` |
 | `match` | the list of values, or `[]` |
 | `judgement` | `true` or `false` |
-| `applies` | `false` when the column predicate does not hold; otherwise `"judgement"` when `judgement` is true; otherwise `true` |
+| `applies` | the column predicate's result for this task: `true` or `false`, and `true` when the stage has no predicate |
 
 `kind list --json` has no task, so its stages carry `column`, `match` and `judgement` but no
-`applies`. Text `show` marks each stage line: `— not applicable (Area)` or `— executor's
-judgement`.
+`applies`. `applies` is always a boolean and `judgement` stays a separate boolean, so a consumer
+never type-checks a field: the stage is skipped when `applies` is false, and left to the
+executor when `applies` and `judgement` are both true. Text `show` marks each stage line with
+`— not applicable (Area)` when `applies` is false, and `— executor's judgement` when it is true
+and `judgement` is set.
 
 ### Executing
 
 The core skill's step 5 changes, and nothing else in it:
 
 - Skip a stage whose `applies` is `false`, without asking.
-- When `applies` is `"judgement"`, decide whether the stage is relevant to this task. To skip it,
-  record the stage and the reason in the artifact and in the next gate report. When the skipped
+- When `applies` and `judgement` are both true, decide whether the stage is relevant to this
+  task. To skip it, record the stage and the reason in the artifact and in the next gate report. When the skipped
   stage's gate is `always`, stop at that point and ask instead of skipping silently: the kind's
   author wanted a human to see that stage.
 - A stage the executor skill does not describe — one a repository added through an override —
@@ -106,8 +109,10 @@ is unaffected.
    cell and not for `—`/empty; `"—"` holds for an empty cell, `—` or `-`, and for a task in a
    table that lacks the column.
 3. `match = "ui"` (a string) behaves as `["ui"]`.
-4. A stage with `judgement = true` and no column reports `applies: "judgement"`; with a column
-   predicate too, it reports `"judgement"` when the predicate holds and `false` when it does not.
+4. A stage with `judgement = true` and no column reports `applies: true, judgement: true`; with
+   a column predicate too, it reports `applies: true` when the predicate holds and
+   `applies: false` when it does not, with `judgement: true` in both cases. `applies` is a JSON
+   boolean in every case.
 5. A stage without `column`, `match` or `judgement` reports `column: null`, `match: []`,
    `judgement: false`, `applies: true`; the core kinds' `show --json` output changes only by
    those added fields.
@@ -125,7 +130,8 @@ is unaffected.
     match values plus the declared custom columns and aliases, with no dependency on kinds, so
     a `[[autopilot.group]]` can call it.
 12. Text `show` marks a stage that does not apply and a judgement stage.
-13. The installed core skill's step 5 says how to treat `applies` `false` and `"judgement"`,
+13. The installed core skill's step 5 says to skip a stage whose `applies` is false and to decide
+    one whose `applies` and `judgement` are both true,
     including recording a skipped judgement stage and asking first when its gate is `always`,
     and that a stage the executor skill does not describe follows its `summary`.
 14. DESIGN.md documents the conditional stage keys and the column predicate in §5, and §12.7
