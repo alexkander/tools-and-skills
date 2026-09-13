@@ -1,6 +1,6 @@
 # T020 — Run stages conditionally on a column or the executor's judgement
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 ## Behaviour
 
@@ -137,6 +137,27 @@ is unaffected.
 14. DESIGN.md documents the conditional stage keys and the column predicate in §5, and §12.7
     points to that definition instead of deferring to "whichever lands first".
 
+## Test coverage
+
+All in `tools/taskrail/tests/test_conditional_stages.py`.
+
+| # | Tests |
+|---|---|
+| 1 | `test_column_predicate_matches_case_insensitively_after_trimming` |
+| 2 | `test_any_of_several_values`, `test_star_matches_any_non_empty_cell`, `test_empty_marker_matches_an_empty_cell_or_a_missing_column` (`—` and `-`) |
+| 3 | `test_match_as_a_string` |
+| 4 | `test_judgement_alone`, `test_judgement_with_a_column_predicate` (both assert `applies is True`/`False`, never another type) |
+| 5 | `test_plain_stage_reports_defaults`, `test_core_kind_stages_only_gain_the_new_fields` |
+| 6 | `test_kind_list_reports_the_predicate_without_applies` |
+| 7 | `test_malformed_predicate_is_kind_invalid` (8 cases: column without match, match without column, empty list, non-string value, blank value, empty column, non-string column, non-boolean judgement) |
+| 8 | `test_undeclared_column_is_an_error_that_keeps_the_kind` (including `show` exit 1), `test_core_column_is_refused` (5 names and letter cases), `test_alias_of_a_core_column_is_refused` (`Size`, `size`) |
+| 9 | `test_column_predicate_matches_case_insensitively_after_trimming` (`column = "area"` reported as `Area`) |
+| 10 | `test_predicate_in_an_override_of_a_core_kind`, `test_override_errors_carry_the_override_path` |
+| 11 | `test_predicate_module_parses_resolves_and_matches_without_kinds`, `test_predicate_module_imports_nothing_else_from_taskrail` |
+| 12 | `test_text_show_marks_conditional_stages` |
+| 13 | `test_core_skill_step_5_covers_applies_and_judgement`; the installed copy is refreshed by `taskrail upgrade` |
+| 14 | Documentation; reviewed in the diff of `tools/taskrail/DESIGN.md` (§5.1, §5.4, §12.7) |
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/predicates.py` (new) — `ColumnPredicate`: parse `column` and
@@ -145,8 +166,8 @@ is unaffected.
   reads and validates them; `Stage.applies(task)`; `Kind.to_dict(task=None)`.
 - `tools/taskrail/src/taskrail/cli.py` — `cmd_show` passes the task to `to_dict` and marks
   stages in text output. No other command changes.
-- `tools/taskrail/src/taskrail/model.py` — possibly only to import the empty-cell markers from
-  the new module, so it stays free of imports from the rest of the package.
+- `tools/taskrail/src/taskrail/model.py` — `NONE_MARKERS` now comes from the new module and is
+  re-exported, so the module stays free of imports from the rest of the package.
 - `tools/taskrail/src/taskrail/skills/taskrail/SKILL.md` — step 5 only; installed copy
   refreshed with `taskrail upgrade`.
 - `tools/taskrail/DESIGN.md` — §5.1 example, a new §5.4 *Conditional stages* with the column
