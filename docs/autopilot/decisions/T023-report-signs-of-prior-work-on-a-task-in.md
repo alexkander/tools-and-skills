@@ -33,3 +33,18 @@ step 2 change in the skill source, a re-run of the suite in the lane's worktree 
 
 Observation, not a change request: for a finished task the artifact is found on every branch cut
 from `main`, so the text line gets long. It is informational; revisit only if it proves noisy.
+
+## rebase after T018 merged
+
+T018 was squash-merged first (#8), so this branch was rebased onto `origin/main` (`20b624f`).
+Every conflict fell in a known class and was resolved without escalation:
+
+| File | Conflict | Resolution |
+|---|---|---|
+| `docs/features/README.md` | both appended an index row | kept both rows |
+| `docs/autopilot/decisions/README.md` | both appended an index row | kept both rows |
+| `tools/taskrail/CHANGELOG.md` | both added an `Unreleased` bullet | kept both bullets |
+| `TODO.md` | T018's new T025 row next to this branch's ✅ on T023 | kept T025, kept T023 as ✅ (no `Reopens: T023` on either side) |
+
+After the rebase: no conflict markers left, 200 tests passed, `validate` clean, installed skills
+matching their sources, and `review` reporting no further rebase needed.
