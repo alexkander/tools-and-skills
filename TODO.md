@@ -42,6 +42,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T029 | feature | 5   | T017, T028 | Add the autopilot configuration, runs, and the start, lane and status commands | [autopilot] table, local run files beside claims, derived task states; autopilot start refuses with exit 5 until [autopilot].enabled is true. |
 | ⬜ | T030 | feature | 3   | T029       | Dispatch autopilot lanes with autopilot next | Tasks to start now within max_lanes, allowed kinds, group limits, claims and stacked bases, with resource pool values allocated per lane. |
 | ⬜ | T031 | feature | 3   | T029       | Detect squash merges by content and follow through with autopilot merged | Ancestor, tree, patch-id, then merge-tree after fetch --prune; --cleanup removes branch and worktree; list rebase --onto for stacked dependents. |
+| ⬜ | T032 | feature | 2   | T029       | Add autopilot notify and the escalation flags in autopilot status | Run the configured notify command per event; flag governing files touched, escalate_gates and conflicts outside the known classes. |
 
 ## E03 — caveman skill
 
