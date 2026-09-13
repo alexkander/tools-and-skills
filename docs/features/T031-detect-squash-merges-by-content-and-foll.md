@@ -1,0 +1,286 @@
+# T031 — Detect squash merges by content and follow through with autopilot merged
+
+Kind: feature · Epic: E02 · Status: plan
+
+Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12.1 (the `autopilot merged`
+row), §12.4 (`done-merged`), §12.8 (*Merge follow-through*) and §6.1 (the fork point of a finished
+dependent), with the evidence in `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
+(E4). Builds on T029 (`taskrail/autopilot/`: run files, `status.done_on_mainline`,
+`commands.register`), T019 (`branches.task_branch` and branch records) and T017 (`done-branch`,
+stacked bases, `base` in the claim).
+
+## Behaviour
+
+Today nothing tells whether a task branch was squash-merged: ancestry sees nothing after a squash
+(E4), `autopilot status` reports `done-merged` only from a `✅` row on a mainline ref, and removing
+a finished lane's worktree and branch, and finding the `rebase --onto` command for the branches
+stacked on it, is left to hand-typed git.
+
+After this change, `taskrail autopilot merged <ID> [--run R] [--cleanup] [--no-fetch] [--json]`:
+
+1. **Resolves the task and its branch.** The task must be in the checkout's backlog (exit 3
+   otherwise). Its branch is the live claim's `branch` when a claim exists, else
+   `branches.task_branch` — the T019 record, which outlives `done` and branch deletion, else the
+   kind's template (Q1).
+2. **Fetches once:** `git fetch --prune <remote>`, `<remote>` being the task mainline's remote
+   (`review.resolve_remote`, as `review` uses). Skipped with `--no-fetch`, or when that remote is
+   not configured at all (a local-only repository); `fetched` says which. A failing fetch exits 2.
+3. **Picks the head to check** (Q2): the local branch `refs/heads/<branch>` when it exists — it is
+   what `--cleanup` deletes, so its own commits must be the ones proven merged — else the
+   remote-tracking copy `<remote>/<branch>` that survived the prune. Both SHAs are reported. With
+   neither, the check falls back to a merge recorded earlier in a run (below); without one it exits 3.
+4. **Picks the mainline ref:** the further-ahead of `<mainline>` and `<remote>/<mainline>`
+   (`review.choose_base`). When they have diverged it checks `<remote>/<mainline>` first, then
+   `<mainline>`, and reports `mainline.diverged`.
+5. **Requires a finished branch** (Q3): the task's row must be `✅` at the head (read with
+   `stack._read_statuses`, so epic files count). Otherwise `merged` is false with that reason: an
+   unstarted branch is an ancestor of the mainline and its `merge-tree` is a no-op, so without this
+   guard checks 1 and 4 would report it merged (see *Evidence*).
+6. **Detects the merge**, stopping at the first check that proves it, with `M` the merge-base of
+   the head and the mainline ref:
+   1. `ancestor` — the head is an ancestor of the mainline. `commit` is the oldest first-parent
+      commit that contains it (`git rev-list --first-parent --ancestry-path=<head> <head>..<mainline>`,
+      last line): the head itself after a fast-forward, the merge commit otherwise.
+   2. `tree` — a commit of `git log --first-parent M..<mainline>` has the head's tree; `commit` is
+      the oldest one.
+   3. `patch-id` — the stable patch-id of `git diff M <head>` equals that of a first-parent commit
+      in `M..<mainline>`. One `git log --first-parent -p M..<mainline> | git patch-id --stable`
+      pipeline, read newest first and stopped at the first match (Q9); `commit` is that commit.
+   4. `merge-tree` — `git merge-tree --write-tree <mainline> <head>` writes the mainline's own
+      tree; `commit` is the mainline tip checked.
+
+   Each check's outcome is reported in `checks`, including the ones not reached. Two confirmations
+   are reported and never used as proof: `row_done_on_mainline` (the `✅` on the mainline ref) and
+   `title_commit` (a first-parent commit in `M..<mainline>` whose subject ends in `(<ID>)` or
+   `(<ID>) (#<n>)`).
+7. **Records the merge in runs** (Q4, Q5): with `--run R`, in that run (exit 3 for an unknown run
+   or a task R does not hold); without it, in every run that holds the task — none in standalone
+   use, which needs no run and no `[autopilot].enabled`. The lane entry gains
+   `merged: {"via", "commit", "head", "mainline", "detected"}`; the lane's recorded `state` is left
+   as the orchestrator set it. Nothing is written when `merged` is false.
+   `status.done_on_mainline` then also counts a task with a recorded merge whose `commit` is still
+   an ancestor of the local or remote mainline, so `status` reports it `done-merged` (and the run's
+   `handoff.in_review` clears) even after `--cleanup` removed the branch, or when the squash lost
+   the `✅`. A later run of `merged` on a task whose branches are gone reports the recorded merge
+   with `via` unchanged and `recorded: true`.
+8. **Lists stacked dependents** (Q6), computed before anything is removed: every task that lists
+   `<ID>` in `Depends On`, is not `✅` on the mainline, and has a local or remote-tracking branch.
+   For each:
+   - `fork`: the live claim's `base.commit` when its `base.dependency` is `<ID>` (exact even if the
+     dependency was rewritten later, `fork_source: "claim"`); otherwise
+     `git merge-base <dependent head> <dependency head>` with the dependency head SHA resolved in
+     step 3 — which works after the dependency's branch is deleted, since the SHA is already in hand
+     (`fork_source: "merge-base"`); otherwise, when this run found no dependency head, the `head`
+     recorded in the run (`fork_source: "run"`); otherwise `null` with a reason.
+   - a dependent whose `fork` is already on the mainline branched from the mainline, not from the
+     dependency: it is reported with `stacked: false` and no command;
+   - `onto`: the dependent's base as `show` computes it after the fetch — the mainline once the
+     dependency is `✅` there (`null` with its reason when diverged);
+   - `command`: `git rebase --onto <onto> <fork>`, to run inside `worktree` (the dependent's
+     checked-out worktree, else `null`): naming the branch as a third argument fails while another
+     worktree has it checked out.
+9. **`--cleanup`** (Q7, Q8) runs only when `merged` is true. In order: refuse, changing nothing, when
+   the worktree that has the branch checked out is the main worktree, contains the current directory
+   or `--root`, is locked, or has any change `git status --porcelain --untracked-files=all` reports
+   (untracked files count; ignored files do not, as for `git worktree remove`); exit 4 when a live
+   claim on the task belongs to another owner. Then `git worktree remove <path>`, then delete the
+   local branch with `git update-ref -d refs/heads/<branch> <verified head SHA>`, so a commit added
+   since the check keeps the branch; then release the caller's own claim if one is left. The remote
+   branch is never deleted (§6.4); `cleanup.remote_branch` names it when it still exists. The T019
+   branch record is kept (Q8). A cleanup with nothing left to remove succeeds.
+
+Text output: one line `T001 merged into origin/main via patch-id at 1b1a198` (or
+`T001 not merged into origin/main: <reason>`), then one line per cleanup action and one per
+dependent with its command.
+
+**Exit codes** (Q10): 0 when the check ran — merged or not — and any requested cleanup completed
+or had nothing to do; 1 for an invalid backlog unless `--allow-invalid`; 2 for a failed fetch or
+git error; 3 for an unknown task, an unknown run, a task the run does not hold, or no branch and no
+recorded merge; 4 for cleanup against someone else's claim; 5 when `--cleanup` is refused (not
+merged, dirty, current directory, main worktree, locked).
+
+**Code shape:** a new `taskrail/autopilot/merged.py` holds detection, dependents, cleanup and the
+`cmd_merged` handler; `commands.py` gains one import and one `add(...)` call; `status.py` changes
+only inside `done_on_mainline`, away from the lines T030 edits.
+
+## Acceptance criteria
+
+Every scenario runs in a throwaway repository with a local bare `origin`, lanes in their own
+worktrees, and merges made by a second clone that pushes to `origin`.
+
+1. **Ancestor.** A finished task branch merged into `origin/main` with a merge commit reports
+   `merged: true`, `via: "ancestor"`, `commit` the merge commit; fast-forwarded, `commit` is the
+   head.
+2. **Tree.** Squash-merged on an unchanged mainline: `via: "tree"`, `commit` the squash commit,
+   `checks` shows `ancestor` false.
+3. **Patch-id.** Squash-merged after an unrelated commit landed first: `via: "patch-id"`, `commit`
+   the squash commit; `tree` false.
+4. **Merge-tree.** The branch's changes reached the mainline in two separate commits, after an
+   unrelated one: `via: "merge-tree"`, `commit` the mainline tip.
+5. **Negatives.** An unmerged finished branch, and a squash-merged branch with one more commit
+   added afterwards, report `merged: false`, `via: null`, every check false, exit 0. An unstarted
+   branch at the mainline tip and a branch whose row is not `✅` at its head report `merged: false`
+   with the not-finished reason, although `ancestor` would hold.
+6. **Confirmations.** `row_done_on_mainline` and `title_commit` are reported for a squash titled
+   `… (T001) (#3)`, and a `✅` added by hand on the mainline for an unmerged branch leaves `merged`
+   false.
+7. **Fetch.** Without `--no-fetch`, a merge pushed to `origin` after the last fetch is detected and
+   a remote branch deleted on `origin` disappears from `origin/<branch>` (`fetched: true`);
+   `--no-fetch` leaves the refs as they were; a repository without the remote skips the fetch; an
+   unreachable remote exits 2.
+8. **Heads.** Local branch gone and `origin/<branch>` present: detected on the remote copy,
+   `head.ref` names it. Local present and remote pruned: detected on the local branch. Local branch
+   with an unpushed commit after its squash-merged remote copy: `merged: false`. Neither branch and
+   no recorded merge: exit 3. Unknown task: exit 3. A renamed branch (T019 record) is found after
+   `done` released the claim.
+9. **Runs.** With `--run R`, the lane of the task in R gains `merged` with `via`, `commit`, `head`,
+   `mainline`, `detected`, keeps its `state`, and other run keys survive; `--run` unknown or not
+   holding the task exits 3; without `--run` every run holding the task is updated and standalone
+   use writes no run file; `merged: false` writes nothing; `[autopilot].enabled = false` does not
+   stop it.
+10. **Status.** A task whose squash dropped the `✅` (row resolved by hand to `⬜` on the mainline)
+    is `done-merged` in `autopilot status` after `merged --run R` and not before; a recorded merge
+    whose commit is no longer on either mainline ref is not; after `--cleanup`, a second `merged`
+    reports `recorded: true` with the same `via` and exit 0.
+11. **Cleanup.** After a verified merge, `--cleanup` removes the lane's worktree directory and
+    `git worktree list` entry, deletes the local branch, keeps `origin/<branch>` when it exists and
+    names it, keeps the branch record, and releases the caller's leftover claim.
+12. **Cleanup refusals.** Exit 5 and nothing removed when: not merged; the worktree has a modified
+    file; the worktree has only an untracked file; the command runs from inside the worktree; the
+    branch is checked out in the main worktree; the worktree is locked. An ignored file alone does
+    not refuse. Exit 4 for another owner's live claim. A commit added to the branch between the check
+    and the deletion keeps the branch (the `update-ref` lease), exit 2.
+13. **Dependents.** T002 stacked on T001's branch, claimed with `--run`: after T001 is
+    squash-merged, `dependents` lists T002 with `fork` its claim's `base.commit`,
+    `fork_source: "claim"`, `onto: "origin/main"`, `worktree`, and `command`; running that command
+    in T002's worktree leaves only T002's commits on top of `origin/main`. With T002 done (claim
+    released) the fork comes from `merge-base` with T001's head, also after `--cleanup` deleted
+    T001's local branch and the remote branch was pruned in the same call. A dependent branched from
+    the mainline reports `stacked: false` and no command. A second call after the dependency's
+    branches are gone uses the run's recorded `head` (`fork_source: "run"`).
+14. **Text and JSON.** The text form prints the merged line, cleanup actions and dependent commands;
+    `--json` returns `id`, `branch`, `remote`, `fetched`, `mainline` (`ref`, `commit`, `diverged`),
+    `head` (`ref`, `commit`, `local`, `remote`), `done_at_head`, `merged`, `via`, `commit`,
+    `recorded`, `reason`, `checks`, `confirmations`, `runs`, `cleanup` and `dependents`.
+15. **Existing behaviour and documentation.** The whole suite passes unchanged; `DESIGN.md` §12.1
+    marks `merged` implemented with `--run` and `--no-fetch`, §12.4 describes the recorded merge,
+    §12.8 marks detection and cleanup implemented with the finished-branch guard and the bounded
+    patch-id range, §7's autopilot row names `merged`; `README.md` shows the command; `CHANGELOG.md`
+    has one bullet under *Unreleased*.
+
+## Affected areas
+
+- `tools/taskrail/src/taskrail/autopilot/merged.py` (new): detection, confirmations, dependents,
+  cleanup, `cmd_merged` and its arguments.
+- `tools/taskrail/src/taskrail/autopilot/commands.py`: one import, one `add(...)` call.
+- `tools/taskrail/src/taskrail/autopilot/status.py`: `done_on_mainline` also reads recorded merges.
+- Reused, not changed: `branches.task_branch`, `stack._read_statuses`, `query.base_dict`,
+  `review.resolve_remote`, `review.choose_base`, `runs.update`/`read_all`, `claims.read`/`release`,
+  `gitutil.worktree_branches`, `cli._emit`/`_load`/`_refuse_if_invalid`.
+- `tools/taskrail/DESIGN.md` §7, §12.1, §12.4, §12.8, §12.10; `tools/taskrail/README.md`;
+  `tools/taskrail/CHANGELOG.md`.
+- `tools/taskrail/tests/test_autopilot_merged.py` (new).
+
+## Out of scope
+
+- Rebasing dependents, re-running checks and publishing again: the orchestrator does it with the
+  reported commands (§12.8); `merged` only lists them.
+- Updating a rebased dependent's claim `base` (its `onto` names the deleted dependency branch and
+  its `commit` a squashed-away commit). `status`'s `touched` for such a lane may then include
+  mainline files until it is released; proposed as a follow-up task if it matters.
+- Content detection inside `autopilot status`: `status` stays a read of local refs and run files.
+- Deleting remote branches, host APIs and pull-request state (§1).
+- Naming the next branch in the hand-off queue: `status` already does.
+- A merge whose host squash rewrote content (§12.10 names it as a design change).
+
+## Open questions and risks
+
+Decisions for the gate, each with a recommendation:
+
+- **Q1 — Which branch the ID resolves to.** Recommended: the live claim's branch, else
+  `branches.task_branch` (record, else template). Alternatives: only `task_branch` (a claim moved
+  by hand would be missed); require `--branch` (typing error-prone).
+- **Q2 — Local vs remote copy.** Recommended: check the local branch when it exists, else
+  `<remote>/<branch>`; report both SHAs; a local branch with unpushed commits is not merged, which
+  keeps `--cleanup` from deleting work. Alternatives: check the remote copy first (it is what the
+  host merged, but a cleanup could then delete unpushed local commits); prove either (same risk).
+- **Q3 — Finished-branch guard.** Recommended: require `✅` for the task at the head before any
+  check. Alternatives: no guard (an unstarted branch reports merged via `ancestor` or `merge-tree`,
+  shown in *Evidence*); guard only with the claim's `base.commit` (gone after `done` releases the
+  claim).
+- **Q4 — What "marks done-merged in the run" stores.** Recommended: a `merged` object in the lane
+  entry (`via`, `commit`, `head`, `mainline`, `detected`) as evidence, with `done-merged` still
+  derived: `done_on_mainline` counts it only while `commit` is on a mainline ref. It is what lets
+  `status` and a later `merged` know the merge once `--cleanup` removed the branch. Alternatives:
+  store nothing and rely on `✅` (the design's "marks" has no effect, and a lost `✅` stays
+  undetected); set the lane `state` to `done-merged` (a stored state, contrary to §12.4).
+- **Q5 — Without a run vs `--run`.** Recommended: `--run R` optional; without it, update every run
+  holding the task; standalone use needs no run and no `enabled`. Alternatives: require `--run`
+  (standalone use impossible); `--run` adding the task to R (membership should come from `claim`).
+- **Q6 — Dependents and their fork point.** Recommended: as in step 8 — dependents by `Depends On`
+  with an existing branch; fork from the claim's `base.commit`, else `merge-base` with the
+  dependency head SHA resolved in this call (so deleting the dependency branch later cannot lose
+  it), else the run's recorded `head`; command `git rebase --onto <onto> <fork>` run in the
+  dependent's worktree. Alternatives: only dependents with a live claim (misses finished dependents
+  waiting in the hand-off queue); name the branch in the command (fails while it is checked out in
+  another worktree).
+- **Q7 — What refuses cleanup.** Recommended: any modified or untracked file, the current directory
+  or `--root` inside the worktree, the main worktree, a locked worktree; ignored files do not refuse;
+  exit 4 for another owner's claim; branch deleted with a lease on the verified SHA. Alternative:
+  `--force` to override dirtiness (not recommended: the lane's uncommitted work would be lost).
+- **Q8 — Branch records on cleanup.** Recommended: keep them. §6.4 already says a record outlives
+  branch deletion; the run's `status` keeps showing the task's branch name, and a reopened task
+  reuses its name. Alternative: remove it, so a reopened task renders a fresh template name.
+- **Q9 — Cost of patch-id.** Recommended: the range is bounded by the merge-base
+  (`M..<mainline>`, first-parent only), read as one streamed `git log -p | git patch-id` pipeline
+  newest first and stopped at the first match, and run only after `ancestor` and `tree` missed
+  (`tree` reads hashes only). The squash is usually among the newest commits, so a long-lived
+  branch costs little unless it is not merged, when the whole range is read once. Alternative: a
+  cap on the commits read (a merge older than the cap would be missed silently).
+- **Q10 — Exit codes.** Recommended: exit 0 for a completed check whether merged or not (`merged`
+  in the output), exit 5 only when `--cleanup` is refused. Alternative: exit 5 whenever `merged` is
+  false (easier in shell scripts, but a check that worked would look like a refusal).
+
+Risks:
+
+- **Parallel lanes.** T030 edits `commands.py` (imports, a handler, an `add` call), `status.py`
+  (`STATES`, `task_state`) and §12.1's rows; this task adds one import and one `add` in
+  `commands.py`, edits only `done_on_mainline` in `status.py`, and edits the `merged` row, §12.4's
+  `done-merged` bullet and §12.8. Expected conflicts are both-sides additions in imports, the
+  changelog, indexes and DESIGN.md tables. T036 changes `branches.py` internals but keeps
+  `task_branch`.
+- **`merge-tree --write-tree`** needs git 2.38 or later (this machine: 2.55.0). With an older git
+  the check is reported as skipped rather than failing the command.
+- **Rewritten dependencies.** When a stacked dependent's claim is gone and its dependency was
+  rebased after the dependent branched, `merge-base` falls back to a point on the mainline and the
+  dependent is reported `stacked: false`; the orchestrator's rebase then shows conflicts in the
+  dependency's files. Stated in `fork_source` and DESIGN.md.
+- **Host rewrites** (squash with altered content or trailers inside files) defeat `tree` and
+  `patch-id`; `merge-tree` may still hold. Already a named design change (§12.10).
+
+## Evidence
+
+A scratch repository under `/tmp`, removed afterwards (git 2.55.0): `empty` is a branch never
+worked on; `task` was squash-merged after an unrelated commit `c3`; `task2` was merged with a merge
+commit.
+
+```
+$ git merge-base --is-ancestor empty main && echo "ancestor: yes (false positive)"
+ancestor: yes (false positive)
+$ [ "$(git merge-tree --write-tree main empty)" = "$(git rev-parse main^{tree})" ] && echo yes
+merge-tree no-op: yes
+--- task (squashed)
+ancestor: no
+(no tree match expected: c3 came before the squash)
+$ git diff $M task | git patch-id --stable
+branch patch-id 0400669f87943ae34fd50be5e11a5dff2c6e45bb
+$ git log --first-parent -p --format='commit %H' $M..main | git patch-id --stable   # filtered on that id
+patch-id matches 1b1a198
+$ git rev-list --first-parent --ancestry-path=task2 task2..main | tail -1 | xargs git log -1 --format='%h %s'
+4221cd5 merge task2
+removed /tmp/t031-plan.XFeJ
+```
+
+It shows the unstarted-branch false positive behind Q3, that one `git log -p | git patch-id`
+pipeline finds a squash that a tree match misses (Q9), and that `--ancestry-path` with
+`--first-parent` names the merge commit for check 1.
