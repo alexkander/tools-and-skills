@@ -1,6 +1,6 @@
 # T025 — Skip installing skills for kinds a repository does not allow
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 ## Behaviour
 
@@ -30,15 +30,22 @@ Afterwards, installation installs the executor skills the repository's kinds act
   restart; a locally edited copy is left in place, listed under `skipped` ("no longer installed
   here, but edited locally; left in place") and stays tracked in the manifest; `--force`
   deletes it. Widening `allowed` again reinstalls the skill.
-- **Report.** When executor skills are left out, the report carries one note naming them, for
-  example `not installing skills for kinds outside kinds.allowed: taskrail-feature,
-  taskrail-spike`, so the absence is explained rather than silent.
+- **Report.** When executor skills are left out, the report carries one note naming them,
+  `not installing skills that no allowed kind uses: taskrail-feature, taskrail-spike`, so the
+  absence is explained rather than silent.
 - **First `init`.** `init` seeds `.taskrail/config.toml` before reading it, and the seeded config
   has no `[kinds]` table, so a first `init` installs every skill, as today. A repository that
   already has a config with `[kinds]` gets the filtered set on its first `init`.
 - **Invalid configuration.** A `config.toml` that fails to load already stops `init` and
-  `upgrade`; that does not change. Kind *validation issues* (for example `kind-allowed-unknown`)
-  do not stop installation; the resolved set is used as it is, and `validate` reports them.
+  `upgrade`; that does not change.
+- **Kind resolution errors.** Errors from kind resolution (for example `kind-allowed-unknown`
+  from a typo, or an invalid local descriptor) do not stop installation, which installs from the
+  resolved set as it is. But nothing the kind filter would remove is removed while they last:
+  such skills stay on disk and in the manifest, and a note says so — `kind resolution reports
+  errors (run `taskrail validate`), so skills no longer wanted were left in place: <paths>`.
+  An install step must never delete skills because of bad input; once the config is fixed, the
+  next run removes what is no longer wanted. Removals unrelated to kinds, such as the
+  `.opencode/skills` copies dropped when `claude` is added, are unaffected.
 
 Without `[kinds]` and without an override that changes a core kind's `skill`, the installed
 files are exactly as today.
@@ -67,20 +74,24 @@ files are exactly as today.
    taskrail does not ship; that unshipped skill name produces no file and no error.
 8. An override of an allowed core kind that replaces its `skill` with a skill taskrail does not
    ship stops that core kind's executor skill from installing (for example `bug` overridden to
-   `skill = "my-bug"` no longer installs `taskrail-bug`). *(Depends on decision 1 at the plan
-   gate.)*
-9. A config whose `allowed` names a kind no layer defines (`kind-allowed-unknown`) does not stop
-   `init`/`upgrade`: installation proceeds with the resolved set.
+   `skill = "my-bug"` no longer installs `taskrail-bug`), even without `[kinds]`.
+9. With kind resolution errors (`allowed = ["bgu", "chore"]`), `upgrade` on a fully installed
+   repository removes nothing, keeps every skill in the manifest, and adds a note naming the
+   skills left in place and why; after fixing the config, the next `upgrade` removes the skills
+   no longer wanted. A first `init` with that config still installs from the resolved set
+   (`taskrail`, `taskrail-chore`) without the note.
 
 ## Affected areas
 
-- `tools/taskrail/src/taskrail/install.py` — `skill_files()` gains a parameter for the skills to
-  leave out (or to keep); `install()` computes it from the loaded config's resolved kinds and
-  adds the report note. The existing removal loop already handles skills that stop being wanted.
-- `tools/taskrail/src/taskrail/kinds.py` — possibly a small read-only helper returning the skill
-  names a set of kinds uses (`skill` plus route skills), shared by the core-executor and
-  resolved-kind computations. No change to `load_kinds`.
-- `tools/taskrail/tests/test_install.py` — tests for the criteria. `cli.py` is not changed.
+- `tools/taskrail/src/taskrail/install.py` — a new `unused_executor_skills(config)` returns the
+  shipped executor skills no resolved kind names and whether kind resolution reported errors;
+  `install()` filters `skill_files()` by it (whose signature does not change), withholds removals
+  while there are errors, and adds the two notes.
+- `tools/taskrail/src/taskrail/kinds.py` — two read-only additions: `Kind.skill_names()` (its
+  `skill` plus each route's) and `core_kinds(config)` (the shipped descriptors alone). No change
+  to `load_kinds`.
+- `tools/taskrail/tests/test_install.py` — tests for the criteria, appended. `cli.py` is not
+  changed.
 - `tools/taskrail/DESIGN.md` (§5.2 resolution, §9 distribution), `tools/taskrail/README.md`
   (Task kinds) and one bullet under `## Unreleased` in `tools/taskrail/CHANGELOG.md`.
 
@@ -97,18 +108,30 @@ files are exactly as today.
 
 ## Open questions and risks
 
-- **Decision 1 — filter whenever, or only with `allowed`.** The plan applies one rule at all
-  times: an executor skill installs when a resolved kind names it. The side effect is criterion
-  8: an override that points a core kind at a different skill stops installing the core skill,
-  even without `[kinds]`. The alternative applies the filter only when `[kinds].allowed` is set
-  and keeps "install every executor skill" otherwise, so nothing at all changes for repositories
-  without the table.
-- **Decision 2 — the report note.** The plan adds a note naming the executor skills left out, on
-  every run where some are. The alternative is no note, relying on README and DESIGN.
-- **A typo in `allowed`.** `allowed = ["bgu", "chore"]` resolves only `chore`, so `upgrade`
-  removes `taskrail-bug` (unless edited) while `validate` reports `kind-allowed-unknown`. Fixing
-  the typo and re-running `upgrade` restores it. The alternative — install every skill whenever
-  kind resolution reports an error — is safer against typos but lets a broken config silently
-  keep disallowed skills; the plan does not take it.
 - **Skill named by a disallowed kind and an allowed one.** A skill installs if any resolved kind
   names it, so sharing a skill across kinds is safe.
+- **Withheld copies are not refreshed.** While kind resolution reports errors, a skill the filter
+  leaves out is neither removed nor rewritten, so it may lag a CLI upgrade until the config is
+  fixed.
+
+Decisions at the plan gate (recorded in
+`docs/autopilot/decisions/T025-skip-installing-skills-for-kinds-a-repos.md`): the filter applies
+always, so criterion 8 holds without `[kinds]`; the report notes the executor skills left out;
+with kind resolution errors, installation uses the resolved set but removes nothing and says why
+in a note, which replaced the original criterion 9.
+
+## Test coverage
+
+All in `tools/taskrail/tests/test_install.py`.
+
+| Criterion | Tests |
+|---|---|
+| 1. Without `[kinds]`: every skill, no note | `test_without_allowed_kinds_every_skill_installs_without_a_note`, `test_init_creates_a_valid_project`, `test_init_is_idempotent` |
+| 2. Filtered install for claude and opencode, note, idempotent | `test_allowed_kinds_limit_the_executor_skills_installed` (both integrations) |
+| 3. Narrowing removes unedited copies | `test_narrowing_allowed_kinds_removes_their_skills_on_upgrade` |
+| 4. Edited copy kept until `--force` | `test_an_edited_skill_of_a_disallowed_kind_is_kept_unless_forced` |
+| 5. Widening reinstalls | `test_widening_allowed_kinds_reinstalls_their_skills` |
+| 6. Local kind pulls in a shipped skill | `test_a_local_kind_naming_a_shipped_skill_installs_it` (by `skill` and by route) |
+| 7. Core skill always; unshipped skill ignored | `test_core_skill_installs_when_only_a_local_kind_with_its_own_skill_is_allowed` |
+| 8. Override replacing a core kind's skill | `test_an_override_replacing_a_core_kinds_skill_skips_that_skill` |
+| 9. Errors withhold removals | `test_kind_resolution_errors_withhold_removals_until_fixed`, `test_kind_resolution_errors_still_install_from_the_resolved_kinds` |
