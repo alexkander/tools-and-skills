@@ -1,6 +1,6 @@
 # T030 — Dispatch autopilot lanes with autopilot next
 
-Kind: feature · Epic: E02 · Status: implemented (plan approved with Q3 and Q7 changed at the gate)
+Kind: feature · Epic: E02 · Status: verified (plan approved with Q3 and Q7 changed at the gate)
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12 (§12.1 *Skill and CLI*,
 §12.4 *State*, §12.7 *Resources*, §12.9 *Configuration*), and the evidence behind it in
@@ -217,6 +217,143 @@ Details the plan left open, settled in the implementation:
   exits 3 first.
 - The text output also prints a `skipped` line per skipped task and a `released` line per release.
 - The `lint` check the kind names is not configured in this repository's `[checks]`.
+
+## Verification
+
+### Real CLI
+
+Run through this checkout's wrapper, `.taskrail/bin/taskrail --root <repo>`, in a throwaway
+repository under `/tmp` with a bare `origin`; the repository was removed afterwards. Its config:
+`[columns].custom = ["Area"]`, `max_lanes = 3`, a column group `ui` (`limit = 1`, `Area` matches
+`ui`), a judgement group `db` (`limit = 1`) and a resource `PORT` with `5433` and `5434`. Five tasks:
+T001 feature `ui` (1 pt), T002 bug `UI` (1 pt), T003 chore `api` (2 pts), T004 feature depending on
+T001 (2 pts), T005 bug (3 pts). Output as printed:
+
+```
+$ taskrail autopilot next   # enabled = false
+taskrail: the autopilot is disabled; set [autopilot].enabled = true in .taskrail/config.toml to allow `autopilot next`
+exit=5
+
+$ taskrail autopilot next   # preview, no run
+T001   feature  T001-first-ui  base origin/main  PORT=5433
+T003   chore    T003-api-work  base origin/main  PORT=5434
+  skipped T002: group ui is full
+dispatched 2 · 2/3 lanes in use · limited by resource:PORT · preview: nothing recorded
+exit=0
+
+$ taskrail autopilot start --count 3
+20260913-1 exit=0
+
+$ taskrail autopilot lane T003 --run 20260913-1 --group db
+T003 in run 20260913-1: running
+exit=0
+
+$ taskrail autopilot lane T005 --run 20260913-1 --group db
+T005 in run 20260913-1: running
+exit=0
+
+$ taskrail autopilot lane T005 --run 20260913-1 --group nope
+taskrail: no judgement group `nope` in [[autopilot.group]] (judgement groups: db)
+exit=2
+
+$ taskrail autopilot lane T005 --run 20260913-1 --group ui
+taskrail: group `ui` is computed from column Area; --group assigns only a group without column and match
+exit=2
+
+$ taskrail autopilot next --run 20260913-1 --json | jq (summary)
+exit=0
+{"dispatch":[{"id":"T001","groups":["ui"],"resources":{"PORT":"5433"},"environment":{"TASKRAIL_RESOURCE_PORT":"5433"},"branch":"T001-first-ui","worktree":".worktrees/T001-first-ui","base":"origin/main","commit":"02abcb1","decisions":"docs/autopilot/decisions/T001-first-ui.md","has_kind_descriptor":true,"prior_work":["artifact","branches","commits","commits_total"]},{"id":"T003","groups":["db"],"resources":{"PORT":"5434"},"environment":{"TASKRAIL_RESOURCE_PORT":"5434"},"branch":"T003-api-work","worktree":".worktrees/T003-api-work","base":"origin/main","commit":"02abcb1","decisions":"docs/autopilot/decisions/T003-api-work.md","has_kind_descriptor":true,"prior_work":["artifact","branches","commits","commits_total"]}],"skipped":[{"id":"T002","reason":"group ui is full"}],"limited_by":"resource:PORT","remaining":1,"lanes":{"free":1,"occupied":[["T001","dispatched",["ui"]],["T003","dispatched",["db"]]]},"groups":[["ui",["T001"],0],["db",["T003"],0]],"resources":[{"name":"PORT","values":["5433","5434"],"held":{"5433":"T001","5434":"T003"},"free":[]}],"released":[]}
+
+$ taskrail autopilot next --run 20260913-1   # again at once
+nothing to dispatch · 2/3 lanes in use · 1 more for run 20260913-1 · limited by resource:PORT
+exit=0
+
+$ taskrail autopilot status --run 20260913-1
+run 20260913-1 · 0/3 done-merged · kinds: every allowed kind · started 2026-09-13T23:09:01+00:00 by orchestrator
+  T003   dispatched   group db  idle 0m
+  T005   pending      group db  idle 0m
+  T001   dispatched 
+  hand-off: next — · in review — · queue —
+exit=0
+$ run file tasks:
+["T003","db",true,{"PORT":"5434"}]
+["T005","db",false,{}]
+["T001",null,true,{"PORT":"5433"}]
+--- lane T001: worktree, claim --run, gate
+
+$ taskrail claim T001 --run 20260913-1 (in the worktree)
+claimed T001 as lane
+exit=0
+
+$ taskrail autopilot lane T001 --run 20260913-1 --state gate --reason plan gate
+T001 in run 20260913-1: gate (plan gate)
+exit=0
+
+$ taskrail autopilot next --run 20260913-1   # T001 at a gate still holds its lane and value
+nothing to dispatch · 2/3 lanes in use · 1 more for run 20260913-1 · limited by resource:PORT
+exit=0
+--- T001 marked done and committed on its branch
+
+$ taskrail autopilot next --run 20260913-1   # T001 done-branch
+T002   bug      T002-second-ui  base origin/main  PORT=5433
+  released PORT=5433 from T001 (run 20260913-1)
+dispatched 1 · 2/3 lanes in use · 0 more for run 20260913-1 · limited by count
+exit=0
+
+$ taskrail autopilot lane T003 --run 20260913-1 --state failed --reason tests hang
+T003 in run 20260913-1: failed (tests hang)
+exit=0
+
+$ taskrail autopilot next --run 20260913-1   # T003 failed: keeps its place in the count, gives back its value
+  released PORT=5434 from T003 (run 20260913-1)
+nothing to dispatch · 1/3 lanes in use · 0 more for run 20260913-1 · limited by count
+exit=0
+
+$ taskrail autopilot next   # preview
+T004   feature  T004-after-first  base T001-first-ui  PORT=5434
+  skipped T002: dispatched in run 20260913-1
+  skipped T003: failed in run 20260913-1
+dispatched 1 · 2/3 lanes in use · limited by resource:PORT · preview: nothing recorded
+exit=0
+
+$ taskrail autopilot status --run 20260913-1
+run 20260913-1 · 0/3 done-merged · kinds: every allowed kind · started 2026-09-13T23:09:01+00:00 by orchestrator
+  T003   failed       group db  idle 0m  — tests hang
+  T005   pending      group db  idle 0m
+  T001   done-branch  idle 0m  — plan gate
+  T002   dispatched 
+  hand-off: next T001 · in review — · queue T001
+exit=0
+$ run file tasks:
+["T003","failed","db",true,{}]
+["T005","running","db",false,{}]
+["T001","gate",null,true,{}]
+["T002","running",null,true,{"PORT":"5433"}]
+
+$ taskrail autopilot next --run 20000101-1
+taskrail: no autopilot run `20000101-1`
+exit=3
+```
+
+What this shows against the plan, with no gap found:
+
+- `next` is refused with exit 5 while disabled, preview included, and exits 3 for an unknown run;
+- the preview and the first `next --run` choose the same tasks in `taskrail next`'s order, and only
+  the latter records `dispatched` and `resources`;
+- the column group `ui` (matching `UI` case-insensitively) skips T002 while T001 holds it; the
+  judgement group recorded with `lane --group db` puts T003 in `db`; `lane --group` refuses an
+  unknown name and a column group with exit 2;
+- each lane gets its own `PORT` value and `TASKRAIL_RESOURCE_PORT`, and dispatch stops at
+  `resource:PORT`; a second `next` at once dispatches nothing;
+- `status` reports the unclaimed lanes as `dispatched`; T001 at a gate keeps its lane and value;
+  once it is `done-branch` its value is released and given to T002, and the run's count stops
+  further dispatch;
+- T003 recorded `failed` gives back its value but keeps its place in the count (Q3 as decided), and
+  a preview skips it as failed; T004 is offered stacked on `T001-first-ui`.
+
+Observed, not a gap: a `dispatched` lane with no `lane` update has no `idle_minutes` in `status`
+(the dispatch time is not one of the moments T029 measures idle time from), so its text line shows
+no `idle` part.
 
 ## Affected areas
 
