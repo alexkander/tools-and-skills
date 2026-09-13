@@ -6,6 +6,10 @@ Releases are tagged `taskrail-vX.Y.Z`. Install one with:
 uv tool install taskrail --from "git+https://github.com/alexkander/tools-and-skills.git@taskrail-vX.Y.Z#subdirectory=tools/taskrail"
 ```
 
+## Unreleased
+
+Nothing yet.
+
 ## 0.1.0
 
 First release.
