@@ -1,6 +1,6 @@
 # T022 — Use each mainline's own remote in review
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 ## Behaviour
 
@@ -69,6 +69,27 @@ behaves exactly as before.
    describe the resolution; the installed skill copies match their sources after
    `taskrail upgrade`.
 
+## Test coverage
+
+In `tools/taskrail/tests/test_mainline_remote.py`, against two local bare repositories as
+`origin` and `upstream`; the link test only rewrites remote URLs and never fetches.
+
+| Criterion | Tests |
+|---|---|
+| 1. `show` uses the tracked remote | `test_show_uses_the_remote_the_mainline_tracks` |
+| 2. Fallback to `[review].remote` | `test_show_falls_back_to_the_review_remote[None, ., url, nosuch]`, `test_resolve_remote_uses_the_configured_fallback`, `tests/test_workspace.py::test_show_reports_the_base` |
+| 3. `new --workspace` | `test_workspace_branches_from_the_mainline_remote` |
+| 4. `review` fetch and rebase base | `test_review_fetches_and_rebases_against_the_mainline_remote`, `test_a_failed_fetch_names_the_mainline_remote` |
+| 5. Push to the resolved remote only | `test_publish_pushes_to_the_mainline_remote` |
+| 6. Link on the resolved remote's repository | `test_link_points_at_the_mainline_remote_repository` |
+| 7. Two backlogs, two remotes | `test_each_backlog_resolves_its_own_mainline_remote` |
+| 8. Documentation and skill | reviewed at the implement gate: `DESIGN.md` §4, §7, §7.1; `README.md`; the `[review]` comment in `install.py`; core skill steps 3 and 8, installed with `taskrail upgrade` |
+
+Deviation from criterion 2's wording: the existing base tests keep passing, but
+`test_show_reports_the_base` compares the whole `base` object, so its expected value gained the
+two new keys (`"remote": "origin"`, `"remote_source": "[review].remote"`). No other existing test
+changed.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/review.py` — a `resolve_remote(root, mainline, fallback)` helper
@@ -115,3 +136,14 @@ behaves exactly as before.
   reads the worktree's view, which is what an agent working there sees; no special handling.
 - **Parallel work.** `show`'s output is also touched by T023, and config loading by T018 and
   T021; this plan leaves `config.py` alone and keeps `query.py` edits inside `base_dict`.
+
+## Decisions at the plan gate
+
+Recorded in `docs/autopilot/decisions/T022-use-each-mainline-s-own-remote-in-review.md`.
+
+- The plan is approved as written.
+- The task branch is pushed to the resolved remote.
+- Tracking config wins over `[review].remote`, and the changelog line says so as a behaviour
+  change.
+- Core skill step 3 fetches `<base.remote>`; the close step names the mainline's remote.
+- No follow-up tasks: a separate push remote and `branch.<mainline>.merge` stay out of scope.
