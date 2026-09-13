@@ -36,3 +36,16 @@ Decisions taken by the human:
 | 2 | Open tasks A–G and edit T017 and T024 as in the breakdown | **yes, all of it**, including hand-edited points and dependencies while `taskrail edit` does not exist. |
 | 3 | Where run-level decisions live | **copied into each affected task's record**, and kept in the local run file. |
 | 4 | When the autopilot skill is installed | **always**; `taskrail autopilot start` refuses (exit 5) until `[autopilot].enabled` is true. This overrides the lane's recommendation 5. |
+
+## close and rebase after T025 and T026 merged
+
+The lane rebased onto `origin/main` (`d93ecdc`). One resolution went beyond the agreed classes
+and was reviewed by the orchestrator: in `TODO.md`, the branch's hand edit of T024 (points,
+dependencies, title, description) sat next to T026's ✅ from `main`. They are different rows, so
+the rows were united by ID — the branch's edited T024 and `main`'s ✅ on T026. **Accepted**: it is
+the row-union rule applied to an edited cell, with no row losing either side's change.
+
+Verified before publishing: the branch changes only `TODO.md`, two indexes, this record and the
+spike document; no conflict markers; `validate` reports 33 tasks and no errors; T027–T033 exist
+with the breakdown's dependencies; T017 is 5 points; T024 is 5 points and depends on T030, T031
+and T032, not T025; `review` needs no further rebase.
