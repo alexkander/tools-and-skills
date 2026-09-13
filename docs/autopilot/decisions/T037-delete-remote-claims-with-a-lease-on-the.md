@@ -19,3 +19,20 @@ path. The workspace was set up by cherry-picking the row from T036's branch, as 
 
 Diagnosis approved with decision 1 changed to the smaller refusal. The lane must use local bare
 remotes only and remove its scratch repositories when it no longer needs them.
+
+## fix gate
+
+Reviewed: commit `e55bba7` (`claims._delete_remote` and `rename_branch`, `cli._change_status`,
+eleven tests in `tests/test_claims.py`, CHANGELOG, write-up). Re-ran `uv run --directory
+tools/taskrail pytest -q` in the lane's worktree: 480 passed. Ten tests failed on the unfixed code:
+five with git's `stale info` rejection and five for the messages decided at diagnosis. The CLI run
+covered `release --force`, `done`, `claim --takeover`, a rename followed by a forced release, a
+remote ref holding another commit, and records without `remote.commit`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · changes | **approve** | The lease is always the recorded commit, `force` only waives the owner check, and a failed close says the row was written. |
+| 2 | `done`/`discard` on a record without `remote.commit` suggests a `--force` retry that refuses again | accept · special-case the hint | **accept** | The inner message names `--local-only` and the manual delete, which is the right action; only a damaged record reaches it. |
+| 3 | Guard test that passes before the fix | keep · drop | **keep** | It is the only test pinning that `--force` never deletes another clone's claim, which the new lease must preserve. |
+
+The orchestrator unset the branch's upstream (set to `origin/main` by `git worktree add`).
