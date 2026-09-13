@@ -1,6 +1,6 @@
 # T030 — Dispatch autopilot lanes with autopilot next
 
-Kind: feature · Epic: E02 · Status: plan approved (Q3 and Q7 changed at the gate)
+Kind: feature · Epic: E02 · Status: implemented (plan approved with Q3 and Q7 changed at the gate)
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12 (§12.1 *Skill and CLI*,
 §12.4 *State*, §12.7 *Resources*, §12.9 *Configuration*), and the evidence behind it in
@@ -141,6 +141,83 @@ After this change:
     defines occupied lanes and release, §12.9 and §12.10 mark T030 implemented; `README.md` shows
     the command; `CHANGELOG.md` has one bullet under *Unreleased*.
 
+## Test coverage
+
+In `tools/taskrail/tests/test_autopilot_next.py`: throwaway repositories with a local bare `origin`
+and lanes in their own worktrees; no network. The tests were written before the implementation.
+Against the code without T030 (only the test file and the one-line change to T029's test present),
+`uv run pytest -q -p no:cacheprovider tests/test_autopilot_next.py` gave `36 failed in 5.72s`, each
+test failing on its own assertion rather than at collection:
+
+```
+FAILED tests/test_autopilot_next.py::test_group_and_resource_configuration - ImportError: cannot import name 'GroupConfig' from 'taskrail.config' (…)
+FAILED tests/test_autopilot_next.py::test_group_and_resource_errors_name_the_key[…] - Failed: DID NOT RAISE ConfigError   (20 cases)
+FAILED tests/test_autopilot_next.py::test_next_is_refused_while_disabled_and_checks_the_run_and_backlog - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_next_dispatches_within_max_lanes_in_next_order - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_next_text_lists_each_dispatched_task - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_a_dispatch_holds_its_lane_until_it_is_claimed_or_expires - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_gate_and_escalated_occupy_a_lane_and_failed_does_not - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_lanes_and_dispatches_are_counted_across_runs - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_the_run_count_limits_dispatch - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_kinds_come_from_the_run_and_the_configuration - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_a_column_group_limits_its_lanes - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_a_judgement_group_follows_lane_group_records - assert (0 == 2)
+FAILED tests/test_autopilot_next.py::test_resources_are_allocated_per_lane_and_released_when_it_ends - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_concurrent_dispatches_share_the_limits - AssertionError: usage: taskrail autopilot [-h] {start,lane,decision,status}...
+FAILED tests/test_autopilot_next.py::test_stacked_bases_diverged_bases_and_blocked_tasks - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_next_without_a_run_is_a_preview - SystemExit: 2
+FAILED tests/test_autopilot_next.py::test_status_reports_a_dispatched_task - SystemExit: 2
+36 failed in 5.72s
+```
+
+(`SystemExit: 2` is argparse's `invalid choice: 'next'`; `assert (0 == 2)` is `lane --group nope`
+being accepted.) After the implementation: `36 passed`, and the whole suite `505 passed`.
+
+| Criterion | Tests |
+|---|---|
+| 1. Group and resource configuration | `test_group_and_resource_configuration`, `test_group_and_resource_errors_name_the_key` (20 cases) |
+| 2. Disabled, unknown run, invalid backlog | `test_next_is_refused_while_disabled_and_checks_the_run_and_backlog` |
+| 3. `max_lanes`, order, recorded dispatch, `show`'s fields | `test_next_dispatches_within_max_lanes_in_next_order`, `test_next_text_lists_each_dispatched_task` |
+| 4. A dispatch holds its lane until claimed or expired | `test_a_dispatch_holds_its_lane_until_it_is_claimed_or_expires` |
+| 5. `gate`, `escalated`, `failed`, `done-branch` | `test_gate_and_escalated_occupy_a_lane_and_failed_does_not`, `test_resources_are_allocated_per_lane_and_released_when_it_ends` |
+| 6. Across runs | `test_lanes_and_dispatches_are_counted_across_runs` |
+| 7. The run's count (Q3 as decided) | `test_the_run_count_limits_dispatch` |
+| 8. Kinds (Q7 as decided) | `test_kinds_come_from_the_run_and_the_configuration` |
+| 9. Column group | `test_a_column_group_limits_its_lanes` |
+| 10. Judgement group and `lane --group` check | `test_a_judgement_group_follows_lane_group_records` |
+| 11. Resources and lazy release | `test_resources_are_allocated_per_lane_and_released_when_it_ends`, `test_a_dispatch_holds_its_lane_until_it_is_claimed_or_expires` |
+| 12. Concurrent dispatches | `test_concurrent_dispatches_share_the_limits` (two CLI processes started together) |
+| 13. Stacked, diverged, doubly blocked | `test_stacked_bases_diverged_bases_and_blocked_tasks` |
+| 14. Preview | `test_next_without_a_run_is_a_preview` |
+| 15. `dispatched` in `status` | `test_status_reports_a_dispatched_task` |
+| 16. Existing behaviour | the whole suite; `tests/test_autopilot.py::test_lane_records_handle_state_reason_and_group` now configures `ui` as a judgement group |
+| 17. Documentation | reviewed at the implement gate: `DESIGN.md` §4, §7, §12 intro, §12.1, §12.4, §12.7, §12.9, §12.10; `README.md`; `CHANGELOG.md` |
+
+As a further check, four rules were broken one at a time in `dispatch.py` (restored from a copy
+afterwards, `cmp` identical) and the new tests run:
+
+| Mutation | Tests that failed |
+|---|---|
+| a `failed` task frees its place in the count | `test_gate_and_escalated_occupy_a_lane_and_failed_does_not`, `test_the_run_count_limits_dispatch` |
+| release does not clear a lane's `resources` | `test_resources_are_allocated_per_lane_and_released_when_it_ends` |
+| kinds are the union instead of the intersection | `test_kinds_come_from_the_run_and_the_configuration` |
+| `failed` occupies a lane | `test_gate_and_escalated_occupy_a_lane_and_failed_does_not`, `test_resources_are_allocated_per_lane_and_released_when_it_ends` |
+
+Details the plan left open, settled in the implementation:
+
+- `skipped` lists a task dispatched in the same run too (`dispatched in run R`), not only in
+  another run; capacity is checked before each candidate, so tasks after the point where capacity
+  ran out are neither dispatched nor listed.
+- When several limits are exhausted at once, `limited_by` names the first of `max_lanes`, `count`,
+  `resource:<NAME>` (in `[[autopilot.resource]]` order).
+- The preview skips a task recorded `failed` in any run, since it has no run of its own.
+- A lane in use is reported under the run its claim names when that run lists it, else the first
+  run (newest first) where it is in use.
+- `lane --group` checks the group after the run and the task, so an unknown run or task still
+  exits 3 first.
+- The text output also prints a `skipped` line per skipped task and a `released` line per release.
+- The `lint` check the kind names is not configured in this repository's `[checks]`.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/config.py` — `GroupConfig`, `ResourceConfig`,
@@ -148,9 +225,10 @@ After this change:
   aliases to resolve group columns.
 - `tools/taskrail/src/taskrail/autopilot/dispatch.py` (new) — occupancy, candidates, capacity,
   group membership, allocation and release.
-- `tools/taskrail/src/taskrail/autopilot/runs.py` — a context manager that takes the lock once and
+- `tools/taskrail/src/taskrail/autopilot/runs.py` — `update_all`, a context manager that takes the lock once and
   yields every run for reading and updating together (the lock is not re-entrant, and `next` reads
-  every run and may clear resources in several); `dispatched` in the lane defaults.
+  every run and may clear resources in several); `dispatch_live`, the expiry rule `status` and
+  `next` share; `dispatched` in the lane defaults.
 - `tools/taskrail/src/taskrail/autopilot/commands.py` — `cmd_next` and its `add(...)` call; the
   group check in `cmd_lane`.
 - `tools/taskrail/src/taskrail/autopilot/status.py` — the `dispatched` state (one branch in

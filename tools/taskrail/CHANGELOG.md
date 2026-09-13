@@ -12,6 +12,13 @@ uv tool install taskrail --from "git+https://github.com/alexkander/tools-and-ski
   is pushed as `refs/taskrail/branches/<ID>` by `branch`, `claim` and `new --workspace --branch`,
   and fetched by `claim`, `branch`, `new --workspace`, `review` and `show`/`list`/`next --fetch`,
   so another clone resolves a renamed branch; the later record wins, and failures only warn (T036).
+- **`autopilot next` dispatches lanes.** `taskrail autopilot next --run R` returns the tasks to start
+  now — `taskrail next`'s order, within `max_lanes`, the run's count and kinds, and the
+  `[[autopilot.group]]` limits — with `show`'s fields and one value of each `[[autopilot.resource]]`
+  per lane, records the dispatch in the run and releases the values of lanes that ended; without
+  `--run` it is a preview. `autopilot status` reports a dispatched, unclaimed task as `dispatched`.
+  Behaviour change: `autopilot lane --group` exits 2 unless the name is a configured judgement
+  group (T030).
 - **Allowed kinds.** `[kinds].allowed` in config restricts a repository to a closed set of task
   kinds; `validate` rejects tasks of any other kind with `task-kind-disallowed` (T018).
 - **Prior work in `show`.** `prior_work` reports an existing artifact, the task branch, and
