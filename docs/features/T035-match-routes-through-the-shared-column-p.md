@@ -1,9 +1,10 @@
 # T035 — Match routes through the shared column predicate
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: decision 6 of `docs/autopilot/decisions/T020-run-stages-conditionally-on-a-column-or.md`,
 which opened this task so that taskrail stops having two matchers with different letter-case rules.
+Plan-gate decisions D1–D6: `docs/autopilot/decisions/T035-match-routes-through-the-shared-column-p.md`.
 
 ## Today
 
@@ -111,9 +112,32 @@ Routes match through `predicates.py`, with the same rules as stage predicates:
    as today.
 10. `predicates.py` still imports nothing else from taskrail, and `parse_column_predicate`'s
     signature and messages are unchanged.
-11. DESIGN.md §5.1 and §5.4 describe routes as column predicates, with order and the new codes, and
-    no longer say routes match exactly; README's *Task kinds* mentions it; CHANGELOG has one
+11. DESIGN.md §5 describes routes as column predicates, with order and the new codes, and
+    no longer says routes match exactly; README's *Task kinds* mentions it; CHANGELOG has one
     bullet flagged "Behaviour change".
+
+## Test coverage
+
+All in `tools/taskrail/tests/test_routes.py`, written before the implementation. Run against the
+unchanged source (with the new `parse_match` import stubbed), 42 of its 59 tests failed; the 17 that
+passed pin behaviour that must not change: `*`, `—`/`-`, entries combined with "and", first match
+wins, `null` without a match or `skill`, the unchanged `skill is required` and `route` array
+messages, the six non-warning `route-unreachable` cases whose routes are all valid today, the
+spec-kit example's output, and `parse_column_predicate`'s messages.
+
+| # | Tests |
+|---|---|
+| 1 | `test_route_values_are_trimmed_and_case_insensitive` (`api`/`API`/` Api `, and a `" WEB "` value) |
+| 2 | `test_route_value_list_holds_for_any_value`, `test_one_element_list_behaves_as_the_string` |
+| 3 | `test_route_holds_only_when_every_entry_holds`, `test_star_never_holds_for_an_empty_cell`, `test_empty_marker_holds_for_an_empty_cell_or_a_missing_column` (`—` and `-`) |
+| 4 | `test_first_route_that_holds_wins`, `test_reordered_routes_change_the_winner`, `test_no_route_and_no_skill_reports_null` |
+| 5 | `test_column_key_resolves_case_insensitively` |
+| 6 | `test_undeclared_column_is_an_error_that_keeps_the_kind` (path, route number, kind loaded, `validate` and `show` exit 1, no `route-column-undeclared`), `test_undeclared_column_present_in_the_table_is_still_an_error`, `test_core_column_is_refused` (5 names and letter cases), `test_alias_of_a_core_column_is_refused` (`Size`, `size`), `test_override_route_errors_carry_the_override_path` |
+| 7 | `test_malformed_route_is_kind_invalid` (12 cases: `when` a string, empty, missing; value an integer, `""`, blank, `[]`, a list with an integer; blank column name; `Stack` and `stack`; missing `skill`; `route` not an array) |
+| 8 | `test_route_unreachable` (19 cases: letter case, padding, lists, `*` against `—` both ways, `*` against a list holding `—`, `—` against `-`, several columns in either direction, different columns, the first covering route named, each route reported once), `test_covers_never_hides_a_route_some_task_reaches` (exhaustive: every pair of 483 generated routes over `Stack`/`Spec` with `*`, `—`, `-`, literals and pairs, against 50 tasks of every cell combination and a table without the columns — a covered route never matches a task the covering route misses), `test_covers_compares_values_as_the_matcher_does` |
+| 9 | `test_routes_json_keeps_single_values_as_strings` (`kind list` and `show`), `test_text_show_prints_only_the_resolved_skill`, `test_spec_kit_example_routes_report_as_before` |
+| 10 | `test_parse_match_names_its_key`, `test_parse_column_predicate_messages_are_unchanged`; `tests/test_conditional_stages.py::test_predicate_module_imports_nothing_else_from_taskrail` still passes |
+| 11 | Documentation; reviewed in the diff of `tools/taskrail/DESIGN.md` (§5.1, §5.4, new §5.5), `README.md` and `CHANGELOG.md` |
 
 ## Affected areas
 
@@ -124,7 +148,7 @@ Routes match through `predicates.py`, with the same rules as stage predicates:
   builds, resolves and checks them; `Route.matches`, `Kind.to_dict` routes output;
   `columns_used_by_routes` removed.
 - `tools/taskrail/src/taskrail/project.py` — the `route-column-undeclared` loop and its import go.
-- `tools/taskrail/DESIGN.md` §5.1, §5.4; `tools/taskrail/README.md` *Task kinds*;
+- `tools/taskrail/DESIGN.md` §5.1, §5.4 and a new §5.5 *Routes*; `tools/taskrail/README.md` *Task kinds*;
   `tools/taskrail/CHANGELOG.md` one bullet.
 - `tools/taskrail/tests/test_routes.py` (new); `tests/test_kinds.py`'s existing route test keeps
   passing unchanged.
