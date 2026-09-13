@@ -1,6 +1,6 @@
 # T036 — Mirror branch records to a remote ref
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: the T019 decision record (`docs/autopilot/decisions/T019-let-the-executor-name-or-rename-a-task-b.md`,
 decision 7) and `tools/taskrail/DESIGN.md` §6.2 (remote claims) and §6.4 (task branches) as of T019.
@@ -191,6 +191,31 @@ Tests were written first and observed failing: 16 failed before any implementati
 'record_remote'`, `unrecognized arguments: --fetch`, no `branches._now`, and the unknown config key
 accepted). With the implementation, removing the fetch from `_fetch_records` fails 9 of them, and
 adopting every remote record regardless of `recorded` fails the adoption test.
+
+## Verification
+
+The real CLI (`uv run --directory tools/taskrail taskrail --root …`, from this branch) against a bare
+`origin.git` and clones under `mktemp -d /tmp/t036-verify.XXXX`, removed afterwards. Config:
+`[git] branch_record_remote = "origin"`. No behaviour differed from the plan.
+
+| Step | Seen |
+|---|---|
+| A: `claim T001` on its template branch | `branch_recorded` true; `record_remote.pushed` true (`de1443f`) |
+| A: `branch T001 feature/base`, `done`, push the branch | renamed; pushed `535269a` with a lease on `de1443f` |
+| `origin.git` | `refs/taskrail/branches/T001`: author `taskrail <taskrail@localhost>`, no parents, message `taskrail branch T001`, tree `branch.json` = `{"id": "T001", "branch": "feature/base", "recorded": "2026-09-13T22:55:33+00:00"}` |
+| B (fresh clone): `show T001`, `next` | `pending T001-base-task template`; `next` offers T001; no `refs/taskrail` in B |
+| B: `show T001 --fetch` | `done-branch feature/base recorded`; copy `refs/taskrail/remotes/origin/branches/T001` = `535269a`; local file adopted with A's timestamp |
+| B: `show T002`, `next` | `pending origin/feature/base T001`; `next` offers T002 |
+| C (fresh): `next --fetch` | offers T002 only |
+| D (fresh, on `feature/base`): `review T001` without an earlier `--fetch` | `head` `feature/base`, `fetched` true |
+| E (fresh): `claim T002` without an earlier `--fetch` | claimed; `base` `{onto: origin/feature/base, dependency: T001}`; its frozen record pushed |
+| C renames T002; B, whose copy is stale, renames it with a broken fetch URL and a working push URL | fetch warning; push `[rejected] (stale info)`, `record_remote.pushed` false with the error, retry named, exit 0; B keeps `b/name`, origin keeps C's `c/name` |
+| B fully offline: `show T001 --fetch`, `branch T002 b/offline` | warnings, local records used, exit 0 both |
+| B online: `show T002 --fetch` | keeps `b/offline` (later than origin's `c/name`) |
+| C: `branch T002 c/newer`; B: `show T002 --fetch` | B adopts `c/newer` with C's `recorded` |
+| `origin.git`: delete `refs/taskrail/branches/T002`; B: `show T002 --fetch` | copy pruned, local record `c/newer` kept |
+| C: `branch T002 c/local --local-only` | `record_remote` null; origin unchanged |
+| F (fresh, key removed): `branch`, `show --fetch` | `record_remote` null; no `refs/taskrail` in F |
 
 ## Evidence
 
