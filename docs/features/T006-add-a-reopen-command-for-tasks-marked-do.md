@@ -86,3 +86,23 @@ All in `tools/taskrail/tests/test_write.py`.
 
 Decisions at the plan gate: the reason goes in the commit message rather than the backlog, and
 discarded tasks can be reopened too.
+
+## Verification
+
+Run through the real CLI (`uv run --project tools/taskrail taskrail --root <repo>`) against a
+throwaway git repository holding two done tasks (T002 depending on T001) and one discarded task:
+
+- `reopen T001 --reason "Prices for refunds were never loaded"` exited 0, printed `T001
+  pending`, `T002 depends on T001 and is done` and the suggested message; `git diff
+  --word-diff` showed only `[-✅-]{+⬜+}` in T001's row, and `show T001` reported `pending`.
+- Committing with the suggested message, `git log --format='%(trailers:key=Reopens,valueonly)'`
+  printed `T001` and `git log --grep='^Reopens: T001$'` found the commit — the lookup the skill
+  prescribes for rebase conflicts.
+- Reopening T001 again exited 5 (`already pending`); a blank reason exited 2; `T099` exited 3;
+  omitting `--reason` failed in argparse with `the following arguments are required: --reason`.
+- `reopen T003 --reason "Still off by one" --json` on the discarded task exited 0 with
+  `dependents: []` and the expected `commit_message`.
+- `claim T001` then succeeded, and `validate` reported 0 errors.
+
+In this repository, `.taskrail/bin/taskrail reopen T099 --reason x` exited 3 through the wrapper.
+No difference from the plan was found.
