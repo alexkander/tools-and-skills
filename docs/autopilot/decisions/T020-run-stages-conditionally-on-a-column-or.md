@@ -20,3 +20,16 @@ Reviewed: the plan in `docs/features/T020-run-stages-conditionally-on-a-column-o
 
 Plan approved with decision 7. The lane must remove its scratch repositories under a temporary
 directory when it no longer needs them.
+
+## implement gate
+
+Reviewed: commits `0495ff7` (T035), `a260e5d` (plan, decision 7) and `dab40e3` (`predicates.py`,
+`kinds.py`, `cli.py`, `model.py`, core skill step 5, DESIGN.md §5.1, §5.4, §12.7, README,
+CHANGELOG, `tests/test_conditional_stages.py`). Re-ran `uv run --directory tools/taskrail pytest -q`
+in the lane's worktree: 295 passed. `predicates.py` imports nothing else from taskrail, so
+`model.py` re-exporting `NONE_MARKERS` from it adds no import cycle.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | It follows the plan and decisions 1–7; `applies` is a boolean in every case and the kind stays loaded on `stage-column-unknown`. |
+| 2 | Text `show` markers | keep `— not applicable (Area)` and `— executor's judgement` · add the match values | **keep** | `--json` carries `match` for anyone who needs it; text lines stay short. |
