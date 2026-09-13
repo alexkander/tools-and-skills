@@ -1,0 +1,288 @@
+# T030 — Dispatch autopilot lanes with autopilot next
+
+Kind: feature · Epic: E02 · Status: planned
+
+Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12 (§12.1 *Skill and CLI*,
+§12.4 *State*, §12.7 *Resources*, §12.9 *Configuration*), and the evidence behind it in
+`docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`. Builds on T029 (run files,
+`lane`, `status`, `AutopilotConfig`), T020 and T035 (the column predicate in `predicates.py`),
+and T017/T019 (`done-branch`, stacked bases, `branches.task_branch`). The plan-gate decisions
+will be recorded in `docs/autopilot/decisions/T030-dispatch-autopilot-lanes-with-autopilot.md`.
+
+## Behaviour
+
+Today there is no `autopilot next` (`taskrail autopilot next` exits 2 with
+`invalid choice: 'next'`), `[[autopilot.group]]` and `[[autopilot.resource]]` are ignored without
+any check — even `limit = "one"`, an undeclared `column` and an empty `values` validate cleanly —
+and `autopilot lane --group` stores any name (see *Evidence*). An orchestrator has to work out on
+its own which tasks to start, how many, and which port or database each lane uses.
+
+After this change:
+
+- **Configuration.** `[autopilot]` accepts the two tables of §12.9, checked when the config loads
+  (exit 2, naming the table entry and key):
+  - `[[autopilot.group]]`: `name` (a unique name, lowercase letters, digits and dashes), `limit`
+    (an integer, at least 1), and either `column` plus `match` — parsed by
+    `predicates.parse_column_predicate` and resolved with `predicates.resolve_column`, so a core
+    column, an alias or an undeclared column is refused exactly as for stages — or neither, which
+    makes a *judgement group*.
+  - `[[autopilot.resource]]`: `name` (unique, `^[A-Z][A-Z0-9_]*$`, so `TASKRAIL_RESOURCE_<NAME>`
+    is a valid environment variable) and `values` (a non-empty list of unique non-empty strings).
+- **`taskrail autopilot next --run R [--json]`** returns the tasks to dispatch now and records the
+  dispatch in run R, under the common-directory lock, in one atomic step:
+  1. **Occupied lanes** are counted across every run in the clone (Q2): a run task whose derived
+     state (T029's `status` precedence) is `running` (a claim, stale or not), `gate` or
+     `escalated`, or which is *dispatched* — recorded by an earlier `next` and not yet claimed,
+     for less than `[git].claim_grace_minutes` (Q1, Q4). `failed`, `done-branch`, `handed-off`,
+     `done-merged`, `discarded` and an expired dispatch occupy nothing.
+  2. **Releases** (Q5): every lane, in any run, that holds resources but no longer occupies a lane
+     has its `resources` cleared, and the released values are reported.
+  3. **Candidates** are `taskrail next`'s eligible tasks in its order (points ascending, then file
+     position), across backlogs: pending, unclaimed, not `done-branch`, not blocked — one
+     dependency done only on its unmerged branch still counts as a stacked base (T017). Of those,
+     a task is left out when its kind is not the run's (Q7), and skipped with a reason when it is
+     dispatched in a run already, recorded `failed` in run R, a member of a group at its limit,
+     or when `show`'s `base` is diverged or has no `onto` (Q8).
+  4. **Capacity** is the smallest of: free lanes (`max_lanes` minus occupied), the run's remaining
+     target (`count` minus its tasks that are dispatched, `running`, `gate`, `escalated`,
+     `done-branch`, `handed-off` or `done-merged`; Q3), and the free values of each resource.
+     Candidates are taken in order until capacity runs out; each one taken counts immediately
+     toward the lanes, the target, its groups and the resources for the next one.
+  5. **Groups**: a task is a member of a column group when the predicate matches its row, and of a
+     judgement group when run R records that group for it — assigned beforehand with
+     `autopilot lane <ID> --run R --group G` (Q9). Occupied members are counted the same way.
+  6. **Resources**: each dispatched task gets the first free value of every resource, in the
+     order `values` lists them.
+  7. **Recorded** for each dispatched task in run R: `dispatched` (a timestamp) and `resources`;
+     nothing else (Q4).
+
+  The result holds `run`, `preview` (false), `dispatch` — for each task `show --json`'s fields
+  (`base` already carries `commit`, `kind_descriptor` and `prior_work` included), plus
+  `resources`, `environment` (`TASKRAIL_RESOURCE_<NAME>` → value), `groups` (the names it counts
+  toward), `decisions` and `decisions_index` — then `lanes` (`max`, `occupied` with each lane's ID,
+  run, state and groups, `free`), `remaining`, `groups` and `resources` (each with its limit or
+  values, occupants or holders, and what is free after this dispatch), `released`, `skipped`
+  (`id` and `reason`, only for eligible tasks of the run's kinds met before capacity ran out) and
+  `limited_by` (`max_lanes`, `count`, `resource:<NAME>`, or `null` when candidates ran out). Text
+  output prints one line per dispatched task (ID, kind, branch, base, resource values) and a
+  summary line.
+- **`taskrail autopilot next` without `--run`** is a preview (Q10): the same computation for
+  `[autopilot].kinds`, with no run target and judgement groups taken from any run's record; it
+  writes nothing, `preview` is true, and `resources` shows the values that would be allocated.
+- **Exit codes** (Q11): 5 when `[autopilot].enabled` is not true, checked first as in `start`; 1
+  for an invalid backlog (no `--allow-invalid`: dispatching on a broken backlog is refused); 3 for
+  an unknown run; 4 when the lock cannot be taken; 0 otherwise, including an empty `dispatch`.
+- **`autopilot lane --group G`** now checks the name (Q9): exit 2 when no judgement group `G` is
+  configured, naming the judgement groups, and exit 2 for a column group, naming its column, since
+  its membership is computed. This replaces T029's "stored as given".
+- **`autopilot status`** reports a dispatched, not yet claimed task as `dispatched` instead of
+  `pending` (Q6); an expired dispatch is `pending` again.
+
+## Acceptance criteria
+
+1. Without the tables, `AutopilotConfig.groups` and `.resources` are empty; a config with a column
+   group, a judgement group and a resource loads them, the column resolved to its declared
+   spelling. Each of these exits 2 from any command and names the key: a `group` or `resource`
+   that is not an array of tables; a group without `name` or `limit`, with a duplicate or
+   malformed name, a non-integer or a `limit` below 1, `column` without `match` or the reverse, a
+   `column` not in `[columns].custom`, or a core column; a resource without `name` or `values`, a
+   duplicate or malformed name, an empty `values`, a non-string, empty or duplicate value.
+2. `autopilot next` and `next --run R` with `enabled` absent or false exit 5 naming
+   `[autopilot].enabled` and write nothing; `--run` for an unknown or malformed run exits 3; an
+   invalid backlog exits 1.
+3. With four independent pending tasks, `max_lanes = 2` and a run of count 5, `next --run R --json`
+   dispatches the first two in `taskrail next` order, records `dispatched` for both in the run
+   file, reports `limited_by: "max_lanes"`, and each entry carries `show`'s fields (`base.commit`,
+   `branch`, `worktree`, `kind_descriptor`, `prior_work`) and the rendered decision-record paths.
+4. Calling `next --run R` again at once dispatches nothing (both lanes are occupied by dispatch).
+   After `claim T001 --run R` it still dispatches nothing. Once the dispatch of T002 is older than
+   `claim_grace_minutes` without a claim, `next` releases its resources and offers T002 again.
+5. A lane recorded `gate` or `escalated` occupies a lane; one recorded `failed` does not. The
+   failed task stays out of `dispatch` while its claim is held (not eligible), and is skipped with
+   reason `failed` once its claim is released; its dependents are not candidates (blocked). A
+   `done-branch` lane frees its lane and its resources.
+6. Lanes are counted across runs: a claim in run A occupies a lane seen by `next --run B`; a task
+   dispatched in run A is skipped by run B with reason `dispatched`.
+7. The run target limits dispatch: with count 1 and nothing dispatched, `next` dispatches one task
+   and reports `limited_by: "count"`; a failed or discarded run task frees its share of the target.
+8. Kinds: a run started with `--kinds bug` dispatches only bug tasks; a run with empty kinds uses
+   `[autopilot].kinds` when set, otherwise every allowed kind. Tasks of other kinds are not listed
+   in `skipped`.
+9. A column group `ui` with `limit = 1` matching `Area = ui`: with two `ui` tasks and one other,
+   one `next` dispatches one `ui` task and the other task, and skips the second `ui` task with reason
+   `group ui is full`; while the first `ui` lane runs, a later `next` still skips it; once that lane is
+   `done-branch`, it is offered.
+10. A judgement group `db` with `limit = 1`: after `lane T003 --run R --group db` and
+    `lane T004 --run R --group db`, `next` dispatches only the first of them. `lane --group nope`
+    and `lane --group ui` (a column group) exit 2 and change nothing.
+11. A resource `PORT` with values `5433`, `5434` and `max_lanes = 3`: `next` dispatches two tasks
+    with `5433` and `5434` (with `environment.TASKRAIL_RESOURCE_PORT`), stored in the run, and
+    reports `limited_by: "resource:PORT"`; once a lane is `done-branch` or recorded `failed`,
+    the next `next` reports its value in `released`, clears it from that lane and allocates it again.
+    Two resources are allocated together, and a task gets no values when it is not dispatched.
+12. Two `next --run` calls on different runs, run concurrently, never allocate the same value or
+    exceed `max_lanes` (both under the lock).
+13. A task whose single dependency is `done-branch` is dispatched with `base.dependency` and
+    `base.onto` naming that branch; a task whose `base.diverged` is true is skipped with reason
+    `base diverged`; a task with two unmerged dependencies is not a candidate.
+14. `next` without `--run` returns the same selection with `preview: true`, and the run files and
+    their modification times are unchanged.
+15. `status` reports a dispatched, unclaimed task as `dispatched` with its resources, and as
+    `pending` once the dispatch expires; a claimed one is `running`.
+16. The whole existing suite still passes; T029's `lane --group ui` test configures `ui` as a
+    judgement group, the only change to an existing test.
+17. `DESIGN.md` §4 lists the two tables and their checks, §12.1 marks `next` implemented with its
+    rules and `lane --group`'s check, §12.4 adds `dispatched` to the run keys and states, §12.7
+    defines occupied lanes and release, §12.9 and §12.10 mark T030 implemented; `README.md` shows
+    the command; `CHANGELOG.md` has one bullet under *Unreleased*.
+
+## Affected areas
+
+- `tools/taskrail/src/taskrail/config.py` — `GroupConfig`, `ResourceConfig`,
+  `AutopilotConfig.groups` and `.resources`; `_autopilot` receives the declared columns and
+  aliases to resolve group columns.
+- `tools/taskrail/src/taskrail/autopilot/dispatch.py` (new) — occupancy, candidates, capacity,
+  group membership, allocation and release.
+- `tools/taskrail/src/taskrail/autopilot/runs.py` — a context manager that takes the lock once and
+  yields every run for reading and updating together (the lock is not re-entrant, and `next` reads
+  every run and may clear resources in several); `dispatched` in the lane defaults.
+- `tools/taskrail/src/taskrail/autopilot/commands.py` — `cmd_next` and its `add(...)` call; the
+  group check in `cmd_lane`.
+- `tools/taskrail/src/taskrail/autopilot/status.py` — the `dispatched` state (one branch in
+  `task_state`, one entry in `STATES`), subject to Q6.
+- Reused, not changed: `query.eligible`, `query.task_dict`, `query.base_dict`,
+  `kinds.Kind.to_dict`, `prior.prior_work`, `predicates`, `claims.read_all`, `templates.render`,
+  `ids.id_lock`.
+- `tools/taskrail/DESIGN.md` §4, §12.1, §12.4, §12.7, §12.9, §12.10; `tools/taskrail/README.md`;
+  `tools/taskrail/CHANGELOG.md`.
+- `tools/taskrail/tests/test_autopilot_next.py` (new, so T031 and T032 editing
+  `test_autopilot.py` do not conflict); one test in `tests/test_autopilot.py`.
+
+## Out of scope
+
+- Claiming, creating worktrees or launching lanes: claiming stays the lane's job.
+- Allocating resources to a lane that becomes active again after it ended (a reopened or resumed
+  failed lane): it keeps none; `status` shows its empty `resources`. A follow-up if the trial
+  (T033) needs it.
+- A resource for the orchestrator's own checks at hand-off (§12.8).
+- `autopilot merged` (T031), `notify` and escalation flags (T032), the `taskrail-autopilot` skill
+  (T024).
+- Removing a judgement group from a lane, or changing `taskrail next`.
+
+## Open questions and risks
+
+Decisions for the plan gate, each with a recommendation:
+
+- **Q1 — What occupies a lane?** Recommended: derived `running` (stale claims included, reported
+  with their stale reason, since the task is still blocked), `gate`, `escalated`, and a dispatch
+  not yet claimed within the grace. Alternatives: also `failed` (a run with `max_lanes` failures
+  stalls with no command to free it); only live claims (a stale claim or a lane between `next` and
+  its claim would be dispatched over).
+- **Q2 — Scope of `max_lanes` and group limits.** Recommended: every run in the clone, since both
+  are repository settings and resource pools are necessarily clone-wide; two orchestrators then
+  share three lanes. Alternative: per run (two orchestrators double the lanes and can break "one
+  UI lane"). Claims without a run are not lanes and occupy nothing, but their tasks stay
+  ineligible.
+- **Q3 — The run's `count` in dispatch.** §12.1 does not list it. Recommended: dispatch at most
+  the remaining target, with `failed` and `discarded` tasks freeing their share so a replacement
+  can start. Alternatives: ignore `count` (a run of 1 would start three lanes); count failed tasks
+  too (a failure permanently shrinks the run).
+- **Q4 — What `next` records.** Recommended: `dispatched` and `resources` per task. Without a
+  record, a second `next` before the lanes claim — minutes, while each lane reads its skills and
+  creates a worktree — would offer the same tasks again and exceed `max_lanes`. The dispatch
+  expires after `[git].claim_grace_minutes` without a claim, the same grace a claim's missing
+  branch gets, so a lane that was never launched does not hold a lane forever. Alternatives: a
+  separate `[autopilot]` key for the expiry; no expiry (a leaked dispatch needs a new command to
+  clear it); record nothing (double dispatch).
+- **Q5 — When resources are released.** §12.7 says "when the lane ends" without defining it.
+  Recommended: a lane holds values while it occupies a lane (Q1); `next` releases lazily, under
+  the lock, by clearing the `resources` of every lane in any run that no longer occupies one, and
+  reports them in `released`. Release has to be lazy anyway, because `done-branch` and
+  `done-merged` are derived from git, with no autopilot command at those transitions. Clearing
+  (rather than only ignoring old values) keeps a failed lane resumed later, or a reopened task,
+  from holding a value already given to another lane. Risk: the orchestrator's re-run of checks
+  at hand-off (§12.8) has no reserved value. Alternatives: hold until `done-merged` or
+  `discarded` (the sequential review queue then starves the pools); release also on
+  `lane --state failed` (a second release point for the same rule).
+- **Q6 — `dispatched` in `status`.** Recommended: yes, a one-branch change in `status.py`, which
+  the lane brief did not list; without it `status` shows a dispatched lane as `pending` with
+  resources. Alternative: leave `status` unchanged and rely on `next`'s output.
+- **Q7 — Allowed kinds.** Recommended: the run's `kinds` when non-empty (an explicit
+  `start --kinds` wins), else `[autopilot].kinds` when non-empty (the config may have changed
+  since `start`), else every allowed kind. Alternative: the intersection of both (a run started
+  with `--kinds bug` under `kinds = ["feature"]` would dispatch nothing).
+- **Q8 — Stacked bases and blocked tasks.** Recommended: reuse `query.eligible`, so a single
+  unmerged dependency gives a stacked base and anything else blocked is not a candidate; skip a
+  diverged or missing base with its reason, since the lane would stop at step 3 and §12.6 makes a
+  diverged base an escalation. A task recorded `failed` in run R is skipped even when its claim
+  was released, so the run does not retry it on its own; another run may.
+- **Q9 — Judgement groups before a lane exists.** Recommended: the orchestrator judges the
+  candidates (from a preview, Q10) and assigns them with `lane <ID> --run R --group G` before
+  `next --run R`, which honours the recorded group; an unassigned candidate counts only toward
+  column groups. `lane --group` checks the name (exit 2 for an unknown name or a column group),
+  changing T029's "stored as given" and its test. Alternatives: `next --group T003=db` flags
+  (a second way to write the same record); report judgement groups and let the orchestrator skip
+  (`next` would already have allocated and recorded the dispatch); keep storing any name (a typo
+  silently disables a limit).
+- **Q10 — `next` without `--run`.** Recommended: a preview that writes nothing, for
+  `[autopilot].kinds` and with no target, and is refused with exit 5 like the rest of dispatch
+  while the autopilot is disabled. Alternatives: use the newest run (an orchestrator could dispatch
+  into another session's run by omission); allow the preview while disabled.
+- **Q11 — Exit codes.** Recommended: 5 disabled (first), 1 invalid backlog, 3 unknown run, 4 lock
+  timeout, 0 with an empty dispatch — `taskrail next` also exits 0 with nothing eligible.
+- **Q12 — Group and resource name rules.** Recommended as in *Behaviour*: group names like kind
+  names, resource names as environment-variable suffixes, values strings only (a port is
+  written `"5433"`, as in §12.9). Alternative: accept integer values and convert them.
+- **§12 wording.** §12.1 says "`show`'s fields plus `base.commit`", but `show`'s `base` already
+  carries `commit` (T017); §12.1 will say so instead of implying a second field.
+
+Risks:
+
+- **Parallel lanes.** T031 and T032 add modules to `autopilot/` and edit `commands.py`,
+  `status.py` and DESIGN.md §12.1; this task adds one handler, one `add` call, one `task_state`
+  branch and its own rows, so conflicts should be both-sides additions. T036 edits
+  DESIGN.md §4 near `[git]`; this task edits §4's `[autopilot]` block.
+- **Cost.** `next` computes `show` for each dispatched task, `prior_work` included, and derives the
+  state of every run task; fine for a handful of lanes.
+- **Clock.** Dispatch expiry compares the local clock with a timestamp written on the same
+  machine; run files are local, so no cross-machine skew.
+
+## Evidence
+
+On this branch's base (`2312a2a`), in a throwaway repository under `/tmp` with `[autopilot]`
+enabled, `[columns].custom = ["Area"]`, a group with `limit = "one"` and `column = "Nope"`, and a
+resource with `values = []`; the repository was removed afterwards:
+
+```
+$ taskrail validate
+1 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)
+exit=0
+$ taskrail autopilot next
+usage: taskrail autopilot [-h] {start,lane,decision,status} ...
+taskrail autopilot: error: argument autopilot_command: invalid choice: 'next' (choose from start, lane, decision, status)
+exit=2
+$ taskrail autopilot next --run 20260913-1
+usage: taskrail autopilot [-h] {start,lane,decision,status} ...
+taskrail autopilot: error: argument autopilot_command: invalid choice: 'next' (choose from start, lane, decision, status)
+exit=2
+$ taskrail autopilot start --count 1
+20260913-1
+exit=0
+$ taskrail autopilot lane T001 --run 20260913-2 --group no-such-group --json
+{
+  "run": "20260913-2",
+  "task": {
+    "id": "T001",
+    "handle": null,
+    "group": "no-such-group",
+    "state": "running",
+    "reason": null,
+    "updated": "2026-09-13T22:49:25+00:00",
+    "resources": {}
+  },
+  "handed_off": []
+}
+exit=0
+```
+
+The suite on the base: `469 passed`.
