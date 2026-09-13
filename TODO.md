@@ -16,7 +16,7 @@ Done when: taskrail-v0.1.0 is tagged and a repository installs it with uv and ru
 | ✓  | ID   | Kind    | Pts | Depends On | Title                          | Description                    |
 |----|------|---------|-----|------------|--------------------------------|--------------------------------|
 | ✅ | T001 | spike   | 3   | —          | Validate the taskrail skills by working a real task end to end | Run one task through every stage with an agent and record what the skills got wrong. |
-| ⬜ | T002 | chore   | 1   | T001, T013 | Tag and publish taskrail-v0.1.0 | Set the package version, tag taskrail-v0.1.0 and verify a clean uv tool install. |
+| ⬜ | T002 | chore   | 1   | T001, T013, T015 | Tag and publish taskrail-v0.1.0 | Set the package version, tag taskrail-v0.1.0 and verify a clean uv tool install. |
 | ⬜ | T003 | chore   | 2   | T002       | Install taskrail in a first consumer project | Run taskrail init in a real project and note any friction. |
 | ⬜ | T013 | chore   | 2   | T001       | Clarify workspace base, stage commits and agent restart in the taskrail skills | Fix T001 frictions F1-F3: restart note after init, local mainline as base, meaning of commit = false. |
 | ⬜ | T015 | feature | 5   | —          | Hand closed tasks off for review with a merge request link | After closing: fetch, rebase onto the newer of the local or remote mainline, push, and print a PR/MR link with its title for any git host. |
