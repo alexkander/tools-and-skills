@@ -1,6 +1,6 @@
 # T027 — Stop init and upgrade on an unreadable installed.json
 
-Kind: bug · Epic: E02 · Status: diagnosed
+Kind: bug · Epic: E02 · Status: fixed
 
 ## Symptom
 
@@ -253,3 +253,161 @@ The pattern dates from the commit that introduced the installer (`473f784`); not
    the file named in stderr and the manifest bytes unchanged; plus parametrised shapes (empty,
    non-object, not UTF-8) and a check that a missing manifest still gives `upgrade` exit 3.
 4. One bullet under `## Unreleased` in `tools/taskrail/CHANGELOG.md`.
+
+## Decisions at the diagnose gate
+
+Recorded in [the autopilot decision record](../autopilot/decisions/T027-stop-init-and-upgrade-on-an-unreadable-i.md):
+every read failure refuses with exit 2 (syntax errors including conflict markers and an empty
+file, non-object values, non-UTF-8 bytes, read errors); `--force` refuses too; a readable `{}`
+keeps its current behaviour.
+
+## Fix
+
+### Regression test, observed failing first
+
+Added to `tools/taskrail/tests/test_install.py`, before touching `install.py`:
+
+- `test_an_unreadable_manifest_stops_init_and_upgrade` — parametrised over `init`,
+  `init --force`, `upgrade`, `upgrade --force` × conflict markers, empty file, not an object
+  (`[]`), not UTF-8, a directory. After `init --integration claude --github-workflow` it breaks
+  the manifest, runs the command and asserts exit 2, `.taskrail/installed.json` in stderr, and
+  every file outside `.git` byte-for-byte unchanged.
+- `test_a_manifest_without_read_permission_stops_init_and_upgrade` — mode 000; skipped as root.
+- `test_an_empty_object_manifest_is_still_treated_as_nothing_installed` — `{}` keeps `upgrade`
+  exit 3 and `init` exit 0 (decision 4).
+- The existing `test_upgrade_needs_a_previous_init` already pins a missing manifest to exit 3.
+
+Run against the unfixed `install.py` (commit `8fd1e73` plus the tests only):
+
+```
+$ uv run --directory tools/taskrail pytest -q --tb=line -rfEp tests/test_install.py -k "unreadable or read_permission or empty_object or previous_init"
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init-conflict markers]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init-empty file]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init-not an object]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init-not UTF-8]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init-a directory]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init --force-conflict markers]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init --force-empty file]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init --force-not an object]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init --force-not UTF-8]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[init --force-a directory]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade-conflict markers]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade-empty file]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade-not an object]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade-not UTF-8]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade-a directory]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade --force-conflict markers]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade --force-empty file]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade --force-not an object]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade --force-not UTF-8]
+FAILED tests/test_install.py::test_an_unreadable_manifest_stops_init_and_upgrade[upgrade --force-a directory]
+FAILED tests/test_install.py::test_a_manifest_without_read_permission_stops_init_and_upgrade
+PASSED tests/test_install.py::test_upgrade_needs_a_previous_init
+PASSED tests/test_install.py::test_an_empty_object_manifest_is_still_treated_as_nothing_installed
+21 failed, 2 passed, 32 deselected in 1.13s
+```
+
+The failure reasons match the root cause (distinct lines of `--tb=line`):
+
+```
+E   AssertionError: assert 0 == 2                                             (init, init --force: conflict markers, empty file — manifest treated as missing and overwritten)
+E   AttributeError: 'list' object has no attribute 'get'                      (init, init --force: not an object — install.py:86, Installer.__init__)
+E   AssertionError: taskrail: .taskrail/installed.json not found; run `taskrail init` first
+    assert 3 == 2                                                             (upgrade, upgrade --force: conflict markers, empty file, not an object)
+E   UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 13: invalid start byte   (every command: not UTF-8)
+E   IsADirectoryError: [Errno 21] Is a directory: '<tmp>/.taskrail/installed.json'               (every command: a directory)
+E   PermissionError: [Errno 13] Permission denied: '<tmp>/.taskrail/installed.json'              (mode 000)
+```
+
+### Change
+
+Only `read_manifest` in `tools/taskrail/src/taskrail/install.py` changed; `cli.py` did not:
+
+- `FileNotFoundError` still returns `{}`, so a never-installed repository behaves as before.
+- `OSError` (directory, permission, …), `UnicodeDecodeError` and `json.JSONDecodeError` raise
+  `ConfigError`, and so does a top-level JSON value that is not an object. The message names
+  `.taskrail/installed.json`, gives the reason, and says how to recover: "resolve any merge
+  conflict or fix the file, or delete it to reinstall from scratch".
+- `main` already maps `ConfigError` to exit 2. `install` constructs `Installer` — which reads
+  the manifest — before seeding or writing anything, and `upgrade` reads it before calling
+  `install`, so a refusal writes nothing; `--force` is never consulted.
+
+## Verification
+
+Regression tests after the fix:
+
+```
+$ uv run --directory tools/taskrail pytest -q --tb=short -rfEp tests/test_install.py -k "unreadable or read_permission or empty_object or previous_init"
+23 passed, 32 deselected in 0.90s
+```
+
+Stage checks:
+
+```
+$ uv run --directory tools/taskrail pytest -q
+284 passed in 16.07s
+```
+
+`lint` is named by the stage but has no command in this repository's `checks` (neither
+`.taskrail/config.toml` nor `tools/taskrail/pyproject.toml` configures one), so it was not run.
+
+End to end, in a throwaway repository with the same merge conflict as in *Reproduction*
+(deleted afterwards):
+
+```
+$ git merge a
+Automatic merge failed; fix conflicts and then commit the result.
+$ taskrail upgrade
+taskrail: .taskrail/installed.json cannot be read (Expecting property name enclosed in double quotes: line 15 column 1 (char 604)); resolve any merge conflict or fix the file, or delete it to reinstall from scratch
+exit=2
+$ taskrail upgrade --force
+(same message)
+exit=2
+$ taskrail init
+(same message)
+exit=2
+$ taskrail init --force
+(same message)
+exit=2
+$ taskrail init --integration claude
+(same message)
+exit=2
+$ sha256sum -c before.sum
+.taskrail/installed.json: OK
+$ git status --short
+M  .claude/skills/taskrail/SKILL.md
+UU .taskrail/installed.json
+```
+
+After resolving the conflict (`git checkout --theirs .taskrail/installed.json`), `init
+--github-workflow` succeeds and the manifest keeps what both branches recorded:
+
+```
+$ taskrail init --github-workflow
+9 file(s) already up to date
+exit=0
+integrations: ['claude', 'opencode'] extras: {'github_workflow': True} files: 7
+```
+
+Other shapes, `upgrade` in a fresh repository each:
+
+```
+--- [empty]      taskrail: .taskrail/installed.json cannot be read (Expecting value: line 1 column 1 (char 0)); resolve any merge conflict or fix the file, or delete it to reinstall from scratch   exit=2
+--- [[]]         taskrail: .taskrail/installed.json cannot be read (expected a JSON object, found list); …   exit=2
+--- [0xff]       taskrail: .taskrail/installed.json cannot be read ('utf-8' codec can't decode byte 0xff in position 13: invalid start byte); …   exit=2
+--- [directory]  taskrail: .taskrail/installed.json cannot be read (Is a directory); …   exit=2
+--- [mode 000]   taskrail: .taskrail/installed.json cannot be read (Permission denied); …   exit=2
+--- [{}]         taskrail: .taskrail/installed.json not found; run `taskrail init` first   exit=3
+                 $ taskrail init → 3 file(s) already up to date   exit=0
+```
+
+Missing manifest, unchanged:
+
+```
+$ taskrail upgrade
+taskrail: .taskrail/installed.json not found; run `taskrail init` first
+exit=3
+$ taskrail init --integration claude
+0 file(s) already up to date
+exit=0
+```
