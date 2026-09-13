@@ -1,6 +1,6 @@
 # T026 — Refuse --column for core columns in new
 
-Kind: bug · Epic: E02 · Status: diagnosed
+Kind: bug · Epic: E02 · Status: fixed
 
 ## Symptom
 
@@ -204,3 +204,168 @@ lower-case spelling) in a repository without aliases, and over an unaliased core
 repository that aliases another one; assert exit 2, the flag hint in stderr, `TODO.md`
 unchanged, and the next reserved ID not consumed. Add one `CHANGELOG.md` bullet and widen the
 DESIGN.md sentence to all core columns.
+
+## Regression test (observed failing first)
+
+Decisions from the diagnose gate: exit code 2; `fix`, not breaking, with the behaviour change
+stated in the changelog; DESIGN.md §3.2 updated in the fix commit; the `--workspace` case
+included in the tests.
+
+Tests added before touching `cli.py`:
+
+- `tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag` — no
+  aliases; the seven core columns plus `id=T9` and ` kind =feature`, each with `--pts 5`; asserts
+  exit 2, no stdout, the exact message, `TODO.md` unchanged, and `T004` still the next ID.
+- `tests/test_column_aliases.py::test_new_column_for_an_unaliased_core_column_is_refused_when_another_is_aliased`
+  — `Pts` aliased to `Size`; `Kind=feature` and `ID=T9` are refused with the plain message.
+- `tests/test_workspace.py::test_column_for_a_core_column_is_refused_before_the_workspace_exists`
+  — `new --workspace --column Kind=feature` exits 2 with no `.worktrees`, no task branch, a clean
+  working tree and `T004` still the next ID.
+
+Run against the unfixed code (`uv run --directory tools/taskrail pytest -q --color=no --tb=line -k
+"refuses_column_for_a_core_column or refused_before_the_workspace_exists or unaliased_core_column_is_refused"`):
+
+```
+FFFFFFFFFFFF                                                             [100%]
+E   assert 0 == 2
+tests/test_column_aliases.py:183: assert 0 == 2
+E   assert 0 == 2
+tests/test_column_aliases.py:183: assert 0 == 2
+E   AssertionError: 
+    assert 0 == 2
+tests/test_workspace.py:24: AssertionError:
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert (0, 'T004\n') == (2, '')
+      
+      At index 0 diff: 0 != 2
+      Use -v to get more diff
+tests/test_write.py:123: AssertionError: assert (0, 'T004\n') == (2, '')
+E   AssertionError: assert 'taskrail: th...column(s): id' == 'taskrail: --...krail sets it'
+      
+      - taskrail: --column cannot set core column ID; taskrail sets it
+      + taskrail: the task table has no column(s): id
+tests/test_write.py:124: AssertionError: assert 'taskrail: th...column(s): id' == 'taskrail: --...krail sets it'
+E   AssertionError: assert 'taskrail: th...lumn(s): kind' == 'taskrail: --...t with --kind'
+      
+      - taskrail: --column cannot set core column Kind; set it with --kind
+      + taskrail: the task table has no column(s): kind
+tests/test_write.py:124: AssertionError: assert 'taskrail: th...lumn(s): kind' == 'taskrail: --...t with --kind'
+FAILED tests/test_column_aliases.py::test_new_column_for_an_unaliased_core_column_is_refused_when_another_is_aliased[Kind=feature-Kind---kind]
+FAILED tests/test_column_aliases.py::test_new_column_for_an_unaliased_core_column_is_refused_when_another_is_aliased[ID=T9-ID-taskrail sets it]
+FAILED tests/test_workspace.py::test_column_for_a_core_column_is_refused_before_the_workspace_exists
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[\u2713=\u2705-\u2713-taskrail sets it]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[ID=T9-ID-taskrail sets it]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[Kind=feature-Kind-set it with --kind]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[Depends On=T001-Depends On-set it with --depends-on]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[Title=Other-Title-set it with --title]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[Pts=3-Pts-set it with --pts]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[Description=Other-Description-set it with --description]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[id=T9-ID-taskrail sets it]
+FAILED tests/test_write.py::test_new_refuses_column_for_a_core_column_and_names_the_flag[ kind =feature-Kind-set it with --kind]
+12 failed, 237 deselected in 0.83s
+```
+
+Each failure matches the root cause: exact-case core names were accepted (exit 0, a row
+written as `T004`), other letter cases reached the writer's misleading unknown-column error,
+and the workspace was created (exit 0) for `--kind bug` while the row recorded `feature`.
+
+A guard, `tests/test_write.py::test_new_still_fills_a_custom_column`, checks that a declared
+custom column is still filled; it passes on both the unfixed and the fixed code (`1 passed`).
+
+## Fix
+
+`cmd_new` in `tools/taskrail/src/taskrail/cli.py` now builds one case-insensitive lookup of
+every core column name (`CORE_TASK_COLUMNS`) and every alias, mapped to its core column, and
+refuses any `--column` name found there with exit 2, before an ID is reserved or a workspace
+opened. The message names the alias only when the column is aliased:
+
+```
+taskrail: --column cannot set core column Kind; set it with --kind
+taskrail: --column cannot set core column Pts (named `Size` here); set it with --pts
+taskrail: --column cannot set core column ID; taskrail sets it
+```
+
+Also: one `CHANGELOG.md` bullet under *Unreleased* stating the behaviour change, and DESIGN.md
+§3.2 widened from aliased columns to every core column.
+
+## Verification
+
+- Regression tests after the fix, with T021's aliased-column tests:
+  `uv run --directory tools/taskrail pytest -q --color=no -k "refuses_column_for_a_core_column or
+  refused_before_the_workspace_exists or unaliased_core_column_is_refused or
+  aliased_core_column_names_the_flag"` → `17 passed, 232 deselected in 1.27s`.
+- Check `test`: `uv run --directory tools/taskrail pytest -q` → `250 passed in 15.51s`.
+- Check `lint`: not configured — `.taskrail/config.toml` `[checks]` defines only `test`.
+- `taskrail validate` → `26 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
+- The reproduction from *Evidence*, re-run after the fix — every case exits 2 and writes no row
+  (`row: <none>` for all 30):
+
+  ```
+  plain   --column "✓=✅"            exit=2 out=taskrail: --column cannot set core column ✓; taskrail sets it
+  plain   --column "ID=T9"              exit=2 out=taskrail: --column cannot set core column ID; taskrail sets it
+  plain   --column "Kind=feature"       exit=2 out=taskrail: --column cannot set core column Kind; set it with --kind
+  plain   --column "Depends On=T001"    exit=2 out=taskrail: --column cannot set core column Depends On; set it with --depends-on
+  plain   --column "Title=Other"        exit=2 out=taskrail: --column cannot set core column Title; set it with --title
+  plain   --column "Pts=3"              exit=2 out=taskrail: --column cannot set core column Pts; set it with --pts
+  plain   --column "Description=Other"  exit=2 out=taskrail: --column cannot set core column Description; set it with --description
+  plain   --column "id=T9"              exit=2 out=taskrail: --column cannot set core column ID; taskrail sets it
+  plain   --column "kind=feature"       exit=2 out=taskrail: --column cannot set core column Kind; set it with --kind
+  plain   --column "pts=3"              exit=2 out=taskrail: --column cannot set core column Pts; set it with --pts
+  partial --column "✓=✅"            exit=2 out=taskrail: --column cannot set core column ✓; taskrail sets it
+  partial --column "ID=T9"              exit=2 out=taskrail: --column cannot set core column ID; taskrail sets it
+  partial --column "Kind=feature"       exit=2 out=taskrail: --column cannot set core column Kind; set it with --kind
+  partial --column "Depends On=T001"    exit=2 out=taskrail: --column cannot set core column Depends On; set it with --depends-on
+  partial --column "Title=Other"        exit=2 out=taskrail: --column cannot set core column Title; set it with --title
+  partial --column "Pts=3"              exit=2 out=taskrail: --column cannot set core column Pts (named `Size` here); set it with --pts
+  partial --column "Description=Other"  exit=2 out=taskrail: --column cannot set core column Description; set it with --description
+  partial --column "id=T9"              exit=2 out=taskrail: --column cannot set core column ID; taskrail sets it
+  partial --column "kind=feature"       exit=2 out=taskrail: --column cannot set core column Kind; set it with --kind
+  partial --column "pts=3"              exit=2 out=taskrail: --column cannot set core column Pts (named `Size` here); set it with --pts
+  full    --column "✓=✅"            exit=2 out=taskrail: --column cannot set core column ✓ (named `Status` here); taskrail sets it
+  full    --column "ID=T9"              exit=2 out=taskrail: --column cannot set core column ID (named `Key` here); taskrail sets it
+  full    --column "Kind=feature"       exit=2 out=taskrail: --column cannot set core column Kind (named `Type` here); set it with --kind
+  full    --column "Depends On=T001"    exit=2 out=taskrail: --column cannot set core column Depends On (named `Blocked By` here); set it with --depends-on
+  full    --column "Title=Other"        exit=2 out=taskrail: --column cannot set core column Title (named `Summary` here); set it with --title
+  full    --column "Pts=3"              exit=2 out=taskrail: --column cannot set core column Pts (named `Size` here); set it with --pts
+  full    --column "Description=Other"  exit=2 out=taskrail: --column cannot set core column Description (named `Notes` here); set it with --description
+  full    --column "id=T9"              exit=2 out=taskrail: --column cannot set core column ID (named `Key` here); taskrail sets it
+  full    --column "kind=feature"       exit=2 out=taskrail: --column cannot set core column Kind (named `Type` here); set it with --kind
+  full    --column "pts=3"              exit=2 out=taskrail: --column cannot set core column Pts (named `Size` here); set it with --pts
+
+  $ taskrail new --epic E01 --kind bug --title T --column Kind=feature --workspace
+  taskrail: --column cannot set core column Kind; set it with --kind
+  exit=2
+  $ git branch
+  * main
+  $ ls -a <repo>
+  .  ..  .git  .taskrail  TODO.md
+  ```
