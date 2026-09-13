@@ -1,6 +1,6 @@
 # T023 — Report signs of prior work on a task in show
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 ## Behaviour
 
@@ -83,6 +83,24 @@ the signals never block on their own.
 10. The core skill's step 2 tells the agent what to do with the signals; installed copies are
     refreshed with `taskrail upgrade`, and `DESIGN.md`, `README.md` and `CHANGELOG.md` describe
     the field.
+
+## Test coverage
+
+In `tools/taskrail/tests/test_prior.py`, against temporary git repositories and a bare local
+remote.
+
+| Criterion | Tests |
+|---|---|
+| 1. Nothing found | `test_nothing_found_reports_empty_signals` |
+| 2. Artifact in the working tree and on branch tips | `test_artifact_in_the_working_tree_only`, `test_artifact_on_local_and_remote_tracking_branch_tips`, `test_artifact_check_reads_branch_tips_not_history` |
+| 3. Task branch locally and on remotes | `test_task_branch_locally_and_on_a_remote`, `test_a_branch_sharing_the_prefix_is_not_the_task_branch` |
+| 4. Subject forms, unmerged branches, non-matches | `test_commit_subject_forms` (8 cases), `test_subjects_that_do_not_name_the_task` (6 cases), `test_commits_on_unmerged_local_and_remote_branches` |
+| 5. Claim refs and tags excluded; no duplicates | `test_claim_refs_and_tags_are_not_searched_and_commits_appear_once` |
+| 6. Cap and total | `test_commits_are_capped_newest_first` |
+| 7. Exit code and state unchanged; outside git | `test_signals_never_change_exit_code_or_state`, `test_state_is_the_same_with_and_without_signals`, `test_outside_git_only_the_working_tree_is_checked`, `test_repository_without_commits` |
+| 8. Text output | `test_text_output_lists_each_kind_of_signal` |
+| 9. Not in `list` and `next` | `test_list_and_next_do_not_search_for_prior_work` |
+| 10. Skill and documentation | reviewed at the implement gate; `test_skills_have_only_frontmatter_every_agent_accepts` still passes |
 
 ## Affected areas
 

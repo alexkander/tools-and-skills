@@ -1,5 +1,5 @@
 {
-  "version": "taskrail-v0.1.0",
+  "version": "taskrail-v0.2.0",
   "integrations": [
     "claude"
   ],
@@ -9,7 +9,7 @@
     ".claude/skills/taskrail-chore/SKILL.md": "a9bb64718816008d4185eb64d0e95a7759f537a2631d678d9987f6e2c962b880",
     ".claude/skills/taskrail-feature/SKILL.md": "93aefeb985279c1d0b094bca45850d9a64ed23d8756029ed3202fb8e2becb9f8",
     ".claude/skills/taskrail-spike/SKILL.md": "1e7ba5592f0597806d66064e9ef9c6e2ca9a083dfe9b738070dfdcd1db6a4399",
-    ".claude/skills/taskrail/SKILL.md": "4b9d513ecd4893e0dc74c8183b8c8c6a51f622a899a912d33a48defcc10ae58f",
+    ".claude/skills/taskrail/SKILL.md": "f4b808a335717de9b1d8c6264ac5f3ebb28201a89f2b9e5f6f65abf256b9f90f",
     ".taskrail/bin/taskrail": "3d28495e28f640bc63eefa2d40edcfe04642691dd520ee4556797595c788f10d"
   }
 }
