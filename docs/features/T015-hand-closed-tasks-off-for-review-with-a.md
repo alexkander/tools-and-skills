@@ -155,3 +155,22 @@ Configuration: `test_push_defaults_to_true_and_provider_is_checked`.
 - The plan is approved as written.
 - `review` requires the task to be done on its branch: reviewing follows closing.
 - This repository's config switches `push_task_branch` to `true`, matching the new default.
+
+## Verification
+
+Run through this repository's wrapper on the task branch, against its real GitHub remote
+(`git@github.com:alexkander/tools-and-skills.git`):
+
+- Before `taskrail done T015`, `taskrail review T015` exited 5 with `T015 is pending on this
+  branch; run taskrail done T015 first`.
+- After closing, `taskrail review T015 --json` fetched `origin`, detected `github` from the scp-like
+  remote URL, chose `origin/main` ("up to date with or ahead of main") with no rebase needed, and
+  rendered `feat: hand closed tasks off for review with a merge request link (T015)`.
+- `taskrail review T015 --publish --scope taskrail --json` pushed the new branch with
+  `git push --set-upstream origin HEAD:refs/heads/T015-…` (remote and local both at `51bc3df`) and
+  returned the `quick_pull` link with the scoped title and the description; the link answered
+  HTTP 200.
+- Publishing again after this note was committed pushed with `--force-with-lease` on the
+  remote's commit, since the branch already existed.
+
+No difference from the plan was found.
