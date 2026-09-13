@@ -1,13 +1,13 @@
 # T030 — Dispatch autopilot lanes with autopilot next
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: plan approved (Q3 and Q7 changed at the gate)
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12 (§12.1 *Skill and CLI*,
 §12.4 *State*, §12.7 *Resources*, §12.9 *Configuration*), and the evidence behind it in
 `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`. Builds on T029 (run files,
 `lane`, `status`, `AutopilotConfig`), T020 and T035 (the column predicate in `predicates.py`),
 and T017/T019 (`done-branch`, stacked bases, `branches.task_branch`). The plan-gate decisions
-will be recorded in `docs/autopilot/decisions/T030-dispatch-autopilot-lanes-with-autopilot.md`.
+are recorded in `docs/autopilot/decisions/T030-dispatch-autopilot-lanes-with-autopilot.md`.
 
 ## Behaviour
 
@@ -40,12 +40,15 @@ After this change:
   3. **Candidates** are `taskrail next`'s eligible tasks in its order (points ascending, then file
      position), across backlogs: pending, unclaimed, not `done-branch`, not blocked — one
      dependency done only on its unmerged branch still counts as a stacked base (T017). Of those,
-     a task is left out when its kind is not the run's (Q7), and skipped with a reason when it is
+     a task is left out when its kind is not one the run drives (Q7): the intersection of the
+     run's `kinds` and `[autopilot].kinds` when both are set, whichever is set otherwise, and
+     every allowed kind when neither is. It is skipped with a reason when it is
      dispatched in a run already, recorded `failed` in run R, a member of a group at its limit,
      or when `show`'s `base` is diverged or has no `onto` (Q8).
   4. **Capacity** is the smallest of: free lanes (`max_lanes` minus occupied), the run's remaining
      target (`count` minus its tasks that are dispatched, `running`, `gate`, `escalated`,
-     `done-branch`, `handed-off` or `done-merged`; Q3), and the free values of each resource.
+     `failed`, `done-branch`, `handed-off` or `done-merged` — only `discarded` and `pending` run
+     tasks leave their place free; Q3), and the free values of each resource.
      Candidates are taken in order until capacity runs out; each one taken counts immediately
      toward the lanes, the target, its groups and the resources for the next one.
   5. **Groups**: a task is a member of a column group when the predicate matches its row, and of a
@@ -104,10 +107,12 @@ After this change:
 6. Lanes are counted across runs: a claim in run A occupies a lane seen by `next --run B`; a task
    dispatched in run A is skipped by run B with reason `dispatched`.
 7. The run target limits dispatch: with count 1 and nothing dispatched, `next` dispatches one task
-   and reports `limited_by: "count"`; a failed or discarded run task frees its share of the target.
+   and reports `limited_by: "count"`; a run task recorded `failed` keeps its place (nothing more is
+   dispatched), and a discarded run task frees its place.
 8. Kinds: a run started with `--kinds bug` dispatches only bug tasks; a run with empty kinds uses
-   `[autopilot].kinds` when set, otherwise every allowed kind. Tasks of other kinds are not listed
-   in `skipped`.
+   `[autopilot].kinds` when set, otherwise every allowed kind; a run with `bug,chore` under
+   `[autopilot].kinds = ["chore", "feature"]` dispatches only chore tasks, and one with `bug` under
+   `["feature"]` dispatches nothing. Tasks of other kinds are not listed in `skipped`.
 9. A column group `ui` with `limit = 1` matching `Area = ui`: with two `ui` tasks and one other,
    one `next` dispatches one `ui` task and the other task, and skips the second `ui` task with reason
    `group ui is full`; while the first `ui` lane runs, a later `next` still skips it; once that lane is
@@ -171,7 +176,9 @@ After this change:
 
 ## Open questions and risks
 
-Decisions for the plan gate, each with a recommendation:
+Decisions for the plan gate, each with a recommendation. The gate decided Q3 and Q7 differently
+(marked below) and every other question as recommended; the record is
+`docs/autopilot/decisions/T030-dispatch-autopilot-lanes-with-autopilot.md`.
 
 - **Q1 — What occupies a lane?** Recommended: derived `running` (stale claims included, reported
   with their stale reason, since the task is still blocked), `gate`, `escalated`, and a dispatch
@@ -183,10 +190,10 @@ Decisions for the plan gate, each with a recommendation:
   share three lanes. Alternative: per run (two orchestrators double the lanes and can break "one
   UI lane"). Claims without a run are not lanes and occupy nothing, but their tasks stay
   ineligible.
-- **Q3 — The run's `count` in dispatch.** §12.1 does not list it. Recommended: dispatch at most
-  the remaining target, with `failed` and `discarded` tasks freeing their share so a replacement
-  can start. Alternatives: ignore `count` (a run of 1 would start three lanes); count failed tasks
-  too (a failure permanently shrinks the run).
+- **Q3 — The run's `count` in dispatch.** §12.1 does not list it. *Decided (changed from the
+  recommendation):* dispatch at most the remaining target; a `discarded` task frees its place, a
+  `failed` task keeps counting, since it keeps its claim and waits for a human, and replacing it
+  would start more work than the human asked for.
 - **Q4 — What `next` records.** Recommended: `dispatched` and `resources` per task. Without a
   record, a second `next` before the lanes claim — minutes, while each lane reads its skills and
   creates a worktree — would offer the same tasks again and exceed `max_lanes`. The dispatch
@@ -200,17 +207,18 @@ Decisions for the plan gate, each with a recommendation:
   reports them in `released`. Release has to be lazy anyway, because `done-branch` and
   `done-merged` are derived from git, with no autopilot command at those transitions. Clearing
   (rather than only ignoring old values) keeps a failed lane resumed later, or a reopened task,
-  from holding a value already given to another lane. Risk: the orchestrator's re-run of checks
-  at hand-off (§12.8) has no reserved value. Alternatives: hold until `done-merged` or
+  from holding a value already given to another lane. *Decided as recommended*, and §12.7 states
+  that the orchestrator re-runs a lane's checks — at a gate or at hand-off (§12.8) — before its
+  next `next`, while the lane's value is still held. Alternatives: hold until `done-merged` or
   `discarded` (the sequential review queue then starves the pools); release also on
   `lane --state failed` (a second release point for the same rule).
 - **Q6 — `dispatched` in `status`.** Recommended: yes, a one-branch change in `status.py`, which
   the lane brief did not list; without it `status` shows a dispatched lane as `pending` with
   resources. Alternative: leave `status` unchanged and rely on `next`'s output.
-- **Q7 — Allowed kinds.** Recommended: the run's `kinds` when non-empty (an explicit
-  `start --kinds` wins), else `[autopilot].kinds` when non-empty (the config may have changed
-  since `start`), else every allowed kind. Alternative: the intersection of both (a run started
-  with `--kinds bug` under `kinds = ["feature"]` would dispatch nothing).
+- **Q7 — Allowed kinds.** *Decided (changed from the recommendation):* the intersection of the
+  run's `kinds` and `[autopilot].kinds` when both are set — the configuration limits what the
+  autopilot may drive, and a run may narrow it, never widen it; whichever is set otherwise; every
+  allowed kind when neither is. An empty intersection dispatches nothing.
 - **Q8 — Stacked bases and blocked tasks.** Recommended: reuse `query.eligible`, so a single
   unmerged dependency gives a stacked base and anything else blocked is not a candidate; skip a
   diverged or missing base with its reason, since the lane would stop at step 3 and §12.6 makes a
