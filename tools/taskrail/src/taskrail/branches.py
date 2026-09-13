@@ -131,7 +131,14 @@ def invalid_name(project: Project, name: str) -> str | None:
 
 
 def owner_of(project: Project, name: str, except_id: str | None = None) -> str | None:
-    """The ID of another task whose branch is `name`."""
+    """The ID of another task whose branch is `name`.
+
+    Records count even for a task whose row is not in this checkout yet, such as one created
+    with `new --workspace`, whose row lives only on its own branch.
+    """
+    for found in _records(project).values():
+        if found.id != except_id and found.branch == name:
+            return found.id
     for task in project.tasks:
         if task.id != except_id and task_branch(task, project) == name:
             return task.id

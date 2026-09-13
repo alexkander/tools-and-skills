@@ -254,6 +254,18 @@ def test_branch_refuses_another_tasks_branch(lanes, capsys):
     assert record(lanes.root, "T001") is None
 
 
+def test_branch_refuses_the_recorded_branch_of_a_task_created_in_its_own_workspace(lanes, capsys):
+    code, _, err = new_workspace(lanes.root, "--branch", "feature/fresh", capsys=capsys)
+    assert code == 0, err
+    assert "| T004 |" not in (lanes.root / "TODO.md").read_text()  # the row lives in T004's workspace
+    code, _, err = run(lanes.root, "branch", "T002", "feature/fresh", capsys=capsys)
+    assert code == 5
+    assert "T004" in err
+    code, _, err = new_workspace(lanes.root, "--branch", "feature/fresh", capsys=capsys)
+    assert code == 5
+    assert "T004" in err
+
+
 def test_branch_refuses_an_existing_target_while_the_old_branch_exists(lanes, capsys):
     lanes.open_lane(T001)
     git(lanes.root, "branch", "other")

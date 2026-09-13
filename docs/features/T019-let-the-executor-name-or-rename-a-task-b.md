@@ -1,6 +1,6 @@
 # T019 — Let the executor name or rename a task branch
 
-Kind: feature · Epic: E05 · Status: implemented
+Kind: feature · Epic: E05 · Status: verified
 
 Source: the accepted autopilot design, `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
 (*T017 and T019 should not run in parallel*), and `tools/taskrail/DESIGN.md` §6–§7 as of T017.
@@ -152,7 +152,8 @@ In `tools/taskrail/tests/test_task_branch.py`: a repository with a local bare `o
 in worktrees under the test's temporary directory; no network. Run against this branch's code
 before the implementation — the test file plus `branches.py` alone, not yet wired into any
 command — all 35 tests failed (`35 failed in 7.58s`); after it, the whole suite passes
-(`335 passed`), with no existing test changed.
+(`335 passed`), with no existing test changed. Verification added a 36th test (see *Verification*),
+observed failing (`assert 0 == 5`) before its fix; the suite then gave `336 passed`.
 
 | Criterion | Tests |
 |---|---|
@@ -162,7 +163,7 @@ command — all 35 tests failed (`35 failed in 7.58s`); after it, the whole suit
 | 4. `review` head, push command, refusal on the old name, pull request link | `test_review_runs_on_the_renamed_branch`, `test_the_pull_request_link_names_the_renamed_branch` |
 | 5. Adopting a manual `git branch -m` | `test_a_manual_git_rename_is_adopted` |
 | 6. `new --workspace --branch`, its refusals, `--branch` without `--workspace` | `test_new_workspace_with_a_chosen_branch`, `test_new_workspace_refuses_a_bad_branch_and_frees_the_id` (4 cases), `test_new_branch_needs_workspace` |
-| 7. `branch` refusals and `--force` | `test_branch_refuses_invalid_names_and_mainlines` (6 cases), `test_branch_refuses_another_tasks_branch`, `test_branch_refuses_an_existing_target_while_the_old_branch_exists`, `test_branch_refuses_a_pushed_branch_unless_forced`, `test_branch_refuses_a_name_taken_on_the_remote_unless_forced`, `test_branch_refuses_a_task_claimed_by_someone_else_unless_forced`, `test_branch_on_an_unknown_task`, `test_branch_to_the_same_name_only_records_it` |
+| 7. `branch` refusals and `--force` | `test_branch_refuses_invalid_names_and_mainlines` (6 cases), `test_branch_refuses_another_tasks_branch`, `test_branch_refuses_the_recorded_branch_of_a_task_created_in_its_own_workspace`, `test_branch_refuses_an_existing_target_while_the_old_branch_exists`, `test_branch_refuses_a_pushed_branch_unless_forced`, `test_branch_refuses_a_name_taken_on_the_remote_unless_forced`, `test_branch_refuses_a_task_claimed_by_someone_else_unless_forced`, `test_branch_on_an_unknown_task`, `test_branch_to_the_same_name_only_records_it` |
 | 8. Remote claim re-pushed with a lease; `--local-only` | `test_a_rename_re_pushes_the_remote_claim`, `test_local_only_rename_leaves_the_remote_claim` |
 | 9. A record survives a title edit | `test_a_recorded_branch_survives_a_title_edit` |
 | 10. `claim` freezes the template name | `test_claim_freezes_the_template_name`, `test_claim_on_a_recorded_branch_writes_nothing` |
@@ -178,6 +179,47 @@ Deviations from the plan's wording:
   repository root when the worktree is inside it.
 - If re-pushing the remote claim fails after the local rename, `taskrail branch` exits 2 with the
   push error; the branch, the record and the local claim already carry the new name.
+
+## Verification
+
+The real CLI from this branch, in a throwaway repository under `/tmp` with a local bare `origin`
+(`worktree = "required"`), deleted afterwards:
+
+- `git worktree add .worktrees/T001-base-task -b T001-base-task origin/main`, then `claim T001`
+  in it: `"branch_recorded": true, "warning": null`.
+- `branch T001 feature/base-task` inside that worktree: `"renamed": true, "claim_updated": true`,
+  `worktree` the unmoved directory; `git branch --show-current` printed `feature/base-task`,
+  `git worktree list` showed `.worktrees/T001-base-task … [feature/base-task]`, and `claims`
+  printed `T001 lane feature/base-task live`.
+- `done T001` and a commit there: `claims --json` was empty; `review T001 --no-fetch` printed
+  `T001 ready for review against main`.
+- After pushing `feature/base-task`: `branch T001 feature/other` exited 5 with
+  `origin/feature/base-task exists: the pushed branch and any pull request from it would stay
+  behind; pass --force to go ahead (the remote is never changed)`; with `--force` it renamed,
+  `"remote_copies": ["origin/feature/base-task"]`, and `git ls-remote --heads origin` still listed
+  only `feature/base-task` and `main`.
+- From the main checkout: `show T001` gave `done-branch feature/other recorded
+  .worktrees/T001-base-task ['feature/other']`, still `feature/other recorded` with the title
+  edited by hand; `list` showed T001 `done-branch`; T002's base was `feature/other` with
+  dependency `T001`.
+- In T001's worktree, `review T001 --json --no-fetch` gave head `feature/other`, and
+  `review --publish --no-push` printed `git push --set-upstream origin HEAD:refs/heads/feature/other`
+  and the title `feat: base task (T001)`; from another branch `review T001` exited 5 with
+  `run review on the task branch feature/other (current: elsewhere)`.
+- `claim T002` on branch `elsewhere` exited 0, printed `taskrail: warning: T002 was claimed on
+  branch elsewhere, but its branch is T002-depends-on-base; work on that branch, or run
+  `taskrail branch T002 <NAME>` to name the branch the task is worked on`, and returned it in
+  `warning` with `branch_recorded: false`.
+- `new --workspace --branch feature/fresh` created `.worktrees/feature/fresh` on `feature/fresh`
+  as T003. `--branch=-x` exited 2 (`` `-x` is not a valid branch name ``), `--branch main` exited 2
+  (`` `main` is a mainline, not a task branch ``), `--branch feature/other` exited 5
+  (`feature/other is the branch of T001`), `--branch` without `--workspace` exited 2, and
+  `reserve-id` then returned `T004`.
+
+**Gap found and fixed:** `branch T002 feature/fresh` from the main checkout exited 0, although
+T003 records `feature/fresh`. T003's row exists only in its own workspace, and the uniqueness check
+looked only at tasks in the current checkout. `owner_of` now also checks every record; regression
+test `test_branch_refuses_the_recorded_branch_of_a_task_created_in_its_own_workspace`.
 
 ## Affected areas
 
