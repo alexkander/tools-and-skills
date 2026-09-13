@@ -37,6 +37,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T014 | feature | 3   | T001       | Add an edit command for existing task rows | Fix T001 friction F4: change dependencies, points, title, description or custom columns without hand edits. |
 | ⬜ | T024 | feature | 8   | T007, T017 | Implement taskrail's autopilot and install it with the other skills | An agent-agnostic orchestrator skill with CLI support, installed by init; each repository decides whether to use it. |
 | ✅ | T026 | bug     | 1   | —          | Refuse --column for core columns in new | new --column ID=T9 exits 0 and silently ignores the value; refuse every core column and name the flag to use. |
+| ⬜ | T027 | bug     | 1   | —          | Stop init and upgrade on an unreadable installed.json | A manifest with conflict markers makes upgrade report it missing (exit 3) and init silently reset its integrations, extras and digests; stop with exit 2 naming the file (T007 E3). |
 
 ## E03 — caveman skill
 
