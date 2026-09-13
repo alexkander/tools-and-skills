@@ -1,6 +1,6 @@
 # T006 — Add a reopen command for tasks marked done by mistake
 
-Kind: feature · Epic: E02 · Status: plan approved
+Kind: feature · Epic: E02 · Status: implemented
 
 ## Behaviour
 
@@ -39,6 +39,21 @@ and as `dependents` in the JSON, so the caller can decide whether they need reop
 8. After reopening, `taskrail show` reports the task as `pending` (or `blocked`) and it can be
    claimed again.
 
+## Test coverage
+
+All in `tools/taskrail/tests/test_write.py`.
+
+| Criterion | Tests |
+|---|---|
+| 1. One cell changes on a done task | `test_reopen_changes_only_the_status_cell_and_suggests_a_commit_message` |
+| 2. Discarded tasks | `test_reopen_accepts_a_discarded_task` |
+| 3. Pending task refused | `test_reopen_refuses_a_pending_task` |
+| 4. Unknown ID; missing or blank reason | `test_reopen_refuses_an_unknown_task`, `test_reopen_requires_a_reason` |
+| 5. Invalid backlog refused | `test_reopen_refuses_an_invalid_backlog` |
+| 6. Suggested commit message | `test_reopen_changes_only_the_status_cell_and_suggests_a_commit_message`, `test_reopen_prints_the_suggested_message_in_text_output` |
+| 7. Done or claimed dependents | `test_reopen_lists_dependents_that_are_done_or_claimed`, `test_reopen_reports_done_dependents_in_text` |
+| 8. Pending again and claimable | `test_a_reopened_task_can_be_claimed_again` |
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/cli.py` — the `reopen` subcommand and its handler, reusing
@@ -54,7 +69,7 @@ and as `dependents` in the JSON, so the caller can decide whether they need reop
 
 - Storing the reason in the backlog, a separate log file or a new column.
 - `taskrail validate` detecting a reopen committed without the trailer — it has to read git
-  history; a follow-up task.
+  history; follow-up task T012.
 - Committing from the CLI; taskrail never commits the backlog.
 - Reopening dependents automatically.
 - Handling reopen in the git merge driver; that belongs to T004, which should honour the same
