@@ -140,3 +140,24 @@ remote.
 - **Expected signals once work starts.** After the claim, `show` run from the task's own
   worktree reports its own branch, and later its artifact and commits. The skill places the
   check at step 2, before the workspace exists, so these do not read as someone else's work.
+
+## Verification
+
+Run through this repository's wrapper (`.taskrail/bin/taskrail show <ID>`, text and `--json`)
+in the task worktree, against the real history with the `main`, `origin/main` and four task
+branches present:
+
+- `T013` (done, squash-merged): `artifact` lists the working tree, every task branch, `main` and
+  `origin/main`; one commit, `d3d308e … (T013) (#4)`, matched as `suffix`. The T015 squash
+  commit, whose body mentions T013, is not reported.
+- `T001` (done, merged with a merge commit): four commits — `f76164b Merge pull request #1 from
+  …/T001-validate-the-taskrail-skills-by-working` as `branch`, and three `chore(T001)` /
+  `docs(T001)` subjects as `scope`.
+- `T014` (pending): all lists empty and no `prior work:` line, although the subject
+  `chore(T001): open follow-ups T013 and T014, …` mentions it.
+- `T023` (claimed, from its own worktree): its artifact in the working tree and on its branch,
+  its branch, and its two commits ending in `(T023)` as `suffix`; the orchestrator's
+  `docs(taskrail): record the autopilot's T023 …` commits only mention the ID and are not
+  reported.
+
+No difference from the plan was found.
