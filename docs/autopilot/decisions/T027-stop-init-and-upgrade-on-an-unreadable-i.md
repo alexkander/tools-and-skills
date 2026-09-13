@@ -27,3 +27,14 @@ a re-run of the suite in the lane's worktree (284 passed).
 | 1 | Approve the fix | approve · request changes | **approve** | Every read failure now raises the existing `ConfigError` path (exit 2) before anything is written; a missing manifest and `{}` keep their behaviour. |
 | 2 | Keep "or delete it to reinstall from scratch" in the message | keep · drop | **keep** | Checked in a throwaway repository: after deleting the manifest, a plain `init` re-records all five unedited skill copies (their content matches), and only locally edited copies would stay unmanaged — the safe outcome. The advice is accurate. |
 | 3 | Follow-ups for the claims and ID-reservation readers | none · open tasks | **none** | That state is local and never committed, so it cannot arrive broken through a merge. |
+
+## rebase after T028
+
+T028 was squash-merged into `main` as `2b617b6`. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` | keep both rows · stop | **keep both** | Both sides add an index row; a known additive class. |
+| 2 | Conflict in `TODO.md` | union by ID · stop | **union by ID, `✅` wins** | T028 is `✅` on `main`, T027 is `✅` on this branch; no `Reopens:` commit for either. |
+
+After the rebase: no conflict markers, `pytest -q` 284 passed, `taskrail validate` 0 errors, T027 `done`.
