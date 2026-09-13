@@ -23,3 +23,20 @@ Reviewed: the plan in `docs/features/T029-add-the-autopilot-configuration-runs-a
 
 Plan approved with the Q4 addition. The lane must remove its scratch repositories under a
 temporary directory when it no longer needs them.
+
+## implement gate
+
+Reviewed: commit `3679fc7` (`autopilot/runs.py`, `status.py`, `commands.py`, `config.py`
+`AutopilotConfig`, `claims.py` `run`, `cli.py` wiring, DESIGN.md §4, §6, §7, §12, README,
+CHANGELOG, `tests/test_autopilot.py`). Re-ran `uv run --directory tools/taskrail pytest -q` in the
+lane's worktree: 339 passed. Run files are created by hard-linking a complete temporary file,
+changed under `ids.lock`, replaced atomically, and not written when the update block raises.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Deviation: `claim --run` also lists the task in the run file | accept · drop it · have `done` record membership | **accept** | Otherwise a lane that finishes before the orchestrator calls `lane` disappears from `status`; `done` is being changed by T019. |
+| 2 | Other deviations: `done_merged`, `fetched`, tasks missing from the backlog, template check at load | accept · drop | **accept** | Small, tested, and each prevents a silent gap. |
+| 3 | Deviation: tests written after the implementation, contrary to the executor skill's implement step | accept as is · require evidence the tests detect breakage | **require evidence at verify** | A `ModuleNotFoundError` against the base proves only that the module is new. At the verify stage, break three behaviours one at a time — the exit-5 refusal while disabled, the state precedence (`done-branch` over a recorded `gate`), and `handed-off` without `done-branch` — show the matching tests fail, restore, and record it in the artifact. |
+| 4 | Duplicated lookups | keep · align | **align at the close rebase** | `status.py` calls `stack.task_branch`, which T019 removes, and has its own `_worktrees_by_branch`, which T019 adds as `gitutil.worktree_branches`. Once T019 is on `origin/main`, use `branches.task_branch` and `gitutil.worktree_branches`, and drop the local copy. |
+
+Implementation approved with items 3 and 4.
