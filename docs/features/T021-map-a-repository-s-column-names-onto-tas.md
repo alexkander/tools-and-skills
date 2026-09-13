@@ -141,3 +141,35 @@ All in `tools/taskrail/tests/test_column_aliases.py`.
 | 8. ID allocation, working tree and branches | `test_id_allocation_sees_an_aliased_id_column` |
 | 9. Conflicting configuration refused, exit 2 | `test_conflicting_aliases_are_refused` (9 cases) |
 | 10. No aliases: unchanged | the existing suite, unchanged and passing |
+
+## Verification
+
+Run through this branch's own wrapper (`.taskrail/bin/taskrail`, pinned to `local:tools/taskrail`)
+in a scratch clone of the branch, on this repository's real backlog (24 tasks, five task tables).
+`Pts` was renamed to `Size` and `Depends On` to `Blocked By` in every task table header:
+
+- Without aliases, `validate` exited 1 with `task table is missing column(s): Depends On` for
+  each of the five tables. After adding
+  `aliases = { Pts = "Size", "Depends On" = "Blocked By" }` it exited 0 with
+  `24 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
+- `show T021 --json` reported `points: 2`, `depends_on: []`, `columns: {}`; `list --epic E05`
+  and `next` printed points and dependencies as before.
+- `new --epic E05 --kind chore --title "Scratch aliased row" --pts 5 --depends-on T021
+  --description verify` printed `T025` (T024 already exists), and `diff` showed one added row:
+  `| ⬜ | T025 | chore   | 5    | T021       | Scratch aliased row ...`.
+- `new ... --column Size=3` exited 2 with `taskrail: --column cannot set core column Pts
+  (named `Size` here); set it with --pts`.
+- `discard T024` and then `reopen T024 --reason "verify reopen"` changed only the status cell,
+  `✅`/`❌`/`⬜` as expected.
+- Putting `Pts` back in one table's header made `validate` exit 1 with `TODO.md:17: error:
+  [columns].aliases names column(s) differently: use `Size` instead of `Pts` [column-alias]`,
+  plus a knock-on `depends-unknown`, because that table's tasks are skipped, as with any
+  table that fails `task-columns`.
+- `epic add --name Scratch` followed by `new --epic E06` created the epic's table by copying
+  the backlog's aliased header (`| ✓  | ID   | Kind    | Size | Blocked By | ...`), and
+  `validate` exited 0. The path that builds a header from defaults, when no table exists to
+  copy, is covered by `test_new_table_without_a_template_uses_the_alias_names`.
+- `aliases = { Pts = "Size", Description = "size" }` made `validate` exit 2 with
+  `columns.aliases: alias `size` is given to both Pts and Description`.
+
+No difference from the plan was found.
