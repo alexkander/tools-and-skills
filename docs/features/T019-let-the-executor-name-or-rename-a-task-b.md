@@ -1,6 +1,6 @@
 # T019 — Let the executor name or rename a task branch
 
-Kind: feature · Epic: E05 · Status: plan approved
+Kind: feature · Epic: E05 · Status: implemented
 
 Source: the accepted autopilot design, `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
 (*T017 and T019 should not run in parallel*), and `tools/taskrail/DESIGN.md` §6–§7 as of T017.
@@ -145,6 +145,39 @@ T003 independent; lanes in worktrees under a temporary directory; no network.
     prior work), `README.md` where it lists commands, the core skill's steps 3, 4 and 8, and
     `CHANGELOG.md` (one bullet) describe the behaviour; the installed skill copy matches its
     source after `taskrail upgrade`.
+
+## Test coverage
+
+In `tools/taskrail/tests/test_task_branch.py`: a repository with a local bare `origin` and lanes
+in worktrees under the test's temporary directory; no network. Run against this branch's code
+before the implementation — the test file plus `branches.py` alone, not yet wired into any
+command — all 35 tests failed (`35 failed in 7.58s`); after it, the whole suite passes
+(`335 passed`), with no existing test changed.
+
+| Criterion | Tests |
+|---|---|
+| 1. Naming before a workspace; `branch_source`; record contents | `test_naming_a_task_before_its_workspace_exists` |
+| 2. Rename inside the worktree: branch, upstream, claim, `claims`, `show`'s `worktree` | `test_renaming_inside_the_worktree_renames_the_branch_and_follows_the_claim` |
+| 3. `done-branch`, `next`, `prior_work`, dependent's base, remote-only copy | `test_a_renamed_task_done_on_its_branch_is_still_found` |
+| 4. `review` head, push command, refusal on the old name, pull request link | `test_review_runs_on_the_renamed_branch`, `test_the_pull_request_link_names_the_renamed_branch` |
+| 5. Adopting a manual `git branch -m` | `test_a_manual_git_rename_is_adopted` |
+| 6. `new --workspace --branch`, its refusals, `--branch` without `--workspace` | `test_new_workspace_with_a_chosen_branch`, `test_new_workspace_refuses_a_bad_branch_and_frees_the_id` (4 cases), `test_new_branch_needs_workspace` |
+| 7. `branch` refusals and `--force` | `test_branch_refuses_invalid_names_and_mainlines` (6 cases), `test_branch_refuses_another_tasks_branch`, `test_branch_refuses_an_existing_target_while_the_old_branch_exists`, `test_branch_refuses_a_pushed_branch_unless_forced`, `test_branch_refuses_a_name_taken_on_the_remote_unless_forced`, `test_branch_refuses_a_task_claimed_by_someone_else_unless_forced`, `test_branch_on_an_unknown_task`, `test_branch_to_the_same_name_only_records_it` |
+| 8. Remote claim re-pushed with a lease; `--local-only` | `test_a_rename_re_pushes_the_remote_claim`, `test_local_only_rename_leaves_the_remote_claim` |
+| 9. A record survives a title edit | `test_a_recorded_branch_survives_a_title_edit` |
+| 10. `claim` freezes the template name | `test_claim_freezes_the_template_name`, `test_claim_on_a_recorded_branch_writes_nothing` |
+| 11. `claim` on another branch warns | `test_claim_on_another_branch_warns_and_records_nothing`, `test_claim_on_the_mainline_warns`, `test_claim_on_the_template_branch_of_a_renamed_task_warns_and_keeps_the_record` |
+| 12. Outside git; one resolver | `test_outside_git_the_template_applies`, `test_only_the_resolver_renders_the_branch_template`, and the existing suite unchanged |
+| 13. Documentation and skill | reviewed at the implement gate: `DESIGN.md` §6.1, new §6.4, §7 table, §7.1, *Done on its branch*, §7.2; `README.md`; core skill steps 3, 4 and 8, installed with `taskrail upgrade`; `CHANGELOG.md` |
+
+Deviations from the plan's wording:
+
+- `stack.task_branch` is removed rather than delegating: `stack.py` calls
+  `branches.task_branch` directly.
+- `taskrail branch` returns `worktree` as an absolute path; `show` keeps a path relative to the
+  repository root when the worktree is inside it.
+- If re-pushing the remote claim fails after the local rename, `taskrail branch` exits 2 with the
+  push error; the branch, the record and the local claim already carry the new name.
 
 ## Affected areas
 
