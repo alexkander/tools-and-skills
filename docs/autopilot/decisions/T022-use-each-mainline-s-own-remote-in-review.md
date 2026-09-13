@@ -31,3 +31,20 @@ Reviewed independently of the lane's report: the source diff `80151d1..a0cb76e` 
 | 2 | Updating the expected `base` in `test_show_reports_the_base` | accept · report the fields outside `base` | **accept** | The change only adds the two approved keys to an object the test compares whole; moving them would contradict the plan. |
 | 3 | Keep the `installed.json` version and hash change from `upgrade` | keep · commit only the hash | **keep** | It is what `upgrade` writes; conflicts are resolved by re-running it. |
 | 4 | Unwrapped changelog line | keep · rewrap now | **keep** | Keeps parallel merges trivial; rewrap when the release is prepared. |
+
+## rebase after T018 and T023 merged
+
+This branch was rebased onto `origin/main` (`e85bcff`), which carries T018 (#8) and T023 (#9).
+Every conflict fell in a class agreed before the lanes started; none needed escalation:
+
+| File | Conflict | Resolution |
+|---|---|---|
+| `docs/features/README.md`, `docs/autopilot/decisions/README.md` | appended index rows | kept every row |
+| `tools/taskrail/CHANGELOG.md` | `Unreleased` bullets | kept every bullet |
+| `tools/taskrail/src/taskrail/skills/taskrail/SKILL.md` | T023's step 2 sentence next to this branch's step 3 | kept both edits |
+| `tools/taskrail/DESIGN.md` | the `show` row: this branch's `base` wording and T023's `prior_work` | one row carrying both |
+| `.claude/skills/taskrail/SKILL.md`, `.taskrail/installed.json` | installed copy and its hash | manifest made valid first, then regenerated with `taskrail upgrade --force` from the merged source |
+| `TODO.md` | status cells of T022 and T023, plus T025 | rows united by ID; T022 and T023 ✅ (no `Reopens:`), T025 kept |
+
+After the rebase: no conflict markers, 212 tests passed, `validate` clean, installed skills and
+manifest matching their sources, and `show T022` reporting both its base remote and prior work.
