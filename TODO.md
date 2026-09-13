@@ -39,6 +39,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ✅ | T026 | bug     | 1   | —          | Refuse --column for core columns in new | new --column ID=T9 exits 0 and silently ignores the value; refuse every core column and name the flag to use. |
 | ⬜ | T027 | bug     | 1   | —          | Stop init and upgrade on an unreadable installed.json | A manifest with conflict markers makes upgrade report it missing (exit 3) and init silently reset its integrations, extras and digests; stop with exit 2 naming the file (T007 E3). |
 | ⬜ | T028 | chore   | 2   | —          | Write the autopilot design into DESIGN.md | Move the design accepted in [T007](docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md) into DESIGN.md, so the autopilot tasks build from it. |
+| ⬜ | T029 | feature | 5   | T017, T028 | Add the autopilot configuration, runs, and the start, lane and status commands | [autopilot] table, local run files beside claims, derived task states; autopilot start refuses with exit 5 until [autopilot].enabled is true. |
 
 ## E03 — caveman skill
 
