@@ -119,3 +119,30 @@ All in `tools/taskrail/tests/test_allowed_kinds.py`.
 Decisions at the plan gate: an allowlist named `[kinds] allowed`; tasks of a disallowed kind are
 errors whatever their status; skipping the skills of disallowed kinds at install time stays out
 of scope and becomes a follow-up task.
+
+## Verification
+
+Run through the real CLI (`uv run --project tools/taskrail taskrail`) in a throwaway git
+repository created with `taskrail init`, holding one epic and three tasks (T001 `bug`, T002
+`feature`, T003 `chore`), after appending `[kinds]` with `allowed = ["bug", "chore"]`:
+
+- `validate` exited 1 with `TODO.md:14: error: kind `feature` is not allowed (kinds.allowed:
+  bug, chore) [task-kind-disallowed]`; `show T001` refused with exit 1 for the invalid backlog.
+- `kind list` printed only `bug` and `chore`, both `core`.
+- With T002 retyped as `chore`, `validate` reported 0 errors and `show T001` printed the `bug`
+  stages and `skill taskrail-bug`.
+- `new --kind feature` exited 1 with `task-kind-disallowed` and `nothing was written`; `git
+  status --porcelain` was empty. With `--workspace` it exited 2 with `kind `feature` is not
+  allowed (kinds.allowed: bug, chore)`, and `git branch --list` still showed only `main`, with no
+  `.worktrees` directory. `new --kind spec --workspace` exited 2 with `kind `spec` is not
+  defined`.
+- With a local `research` kind, an override of `spike` and `allowed = ["bug", "chore", "spec"]`,
+  `validate` exited 1 with `kind-allowed-unknown` for `spec` and a `kind-not-allowed` warning
+  for each of `.taskrail/overrides/spike/kind.toml` and `.taskrail/types/research/kind.toml`.
+- With `allowed = ["bug", "chore", "research"]` and T002 retyped as `research`, `validate`
+  exited 0 with only the `spike` override warning, and `kind list` added `research local`.
+- `allowed = []` exited 2 with `kinds.allowed must name at least one kind; omit it to allow
+  every kind`.
+- Without `[kinds]`, `kind list` printed all four core kinds and `validate` reported 0 errors.
+
+No difference from the plan was found.
