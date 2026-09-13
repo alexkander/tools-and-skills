@@ -1,6 +1,6 @@
 # T028 — Write the autopilot design into DESIGN.md
 
-Kind: chore · Epic: E02 · Status: scoped
+Kind: chore · Epic: E02 · Status: implemented
 
 ## Goal
 
@@ -65,6 +65,21 @@ mappings, short bullets, `§` cross-references, no evidence transcripts.
 6. **README.md.** It does not mention the autopilot, planned or otherwise. Recommended: **no
    change**; the README gains the autopilot when T029 or T024 ships it.
 
+## Decisions at the scope gate
+
+Recorded in [the autopilot decision record](../autopilot/decisions/T028-write-the-autopilot-design-into-design-m.md):
+
+1. Append the new section as §12.
+2. Link to the spike's *Options considered*, with one sentence each for a CLI that launches
+   agents and for enabled-only installation.
+3. Add `--group G` to `autopilot lane` in §12.1.
+4. Follow design point 5 (conflict classification is judgement) and note that T032 settles it
+   at its own gate; T032's row is not edited.
+5. No changelog bullet.
+6. No README change.
+
+The change set and its boundary were approved as scoped.
+
 ## Out of scope
 
 - DESIGN.md §6 (claims) and §7 (`show`, `next`, base): T017 specifies `done-branch`, the stacked
@@ -91,3 +106,40 @@ mappings, short bullets, `§` cross-references, no evidence transcripts.
   current behaviour.
 - `.taskrail/bin/taskrail validate` passes, and the stage's `test` check
   (`uv run --directory tools/taskrail pytest -q`) passes unchanged. `lint` is not configured.
+
+### Results
+
+- `git diff origin/main --stat` → `tools/taskrail/DESIGN.md` (280 insertions, 2 deletions), this
+  artifact, `docs/chores/README.md`, and the orchestrator's T028 decision record with its index
+  row. No other file.
+- `git diff -U0 origin/main -- tools/taskrail/DESIGN.md` → two hunks: `@@ -25 +25,2 @@` (§1)
+  and `@@ -499 +500,276 @@` (§11's phase 2 item, then §12 appended). The only removed lines are
+  the old §1 autopilot bullet and the last line of §11's phase 2 item; no heading of §2–§11
+  changed, and §6 and §7 are untouched.
+- Point-by-point check against the spike's design points 1–8: every backticked term of the spike's
+  *Design* section was searched for in §12. The only misses are respellings — `taskrail autopilot
+  start` and `[autopilot] notify` written as `autopilot start` and `[autopilot].notify`,
+  `fetch --prune` as `git fetch --prune` — and two signatures completed:
+  - `autopilot lane` gains `--group G` (scope decision 3);
+  - `autopilot status` gains `[--fetch]`, the flag its own description in the spike names
+    ("never fetches unless `--fetch`").
+
+  The `[autopilot]` TOML block is identical to the spike's (`diff` empty).
+- Additions beyond the spike's *Design* section, each taken from elsewhere in the spike:
+  - the merge-detection order and the confirm-only role of the ✅ row and `(ID)` title, from E4
+    and *Options considered*;
+  - the delivery table, T019/T020/T004/T005 notes, deferred follow-ups and "what would change",
+    from *Recommendation* and *What would change the decision*;
+  - the lane's group in the run file, which follows from `lane --group`;
+  - exit 5 gaining the "disabled autopilot" meaning in §7.1's table, which follows from
+    `autopilot start` refusing with exit 5.
+- Relative links in §12 → all three resolve (spike, T007 decision record, reference behaviour).
+- Every task ID in §12.10 was checked with `taskrail show --json`; kinds and dependencies match
+  the backlog (T029 depends on T017, T028; T030–T032 on T029; T024 on T030, T031, T032; T033 on
+  T024).
+- `grep -n -i autopilot tools/taskrail/DESIGN.md` before §12 → only the §1 non-goal and §11's
+  phase 2 item, both pointing at §12 as planned; §12 opens with "planned, not implemented".
+- `.taskrail/bin/taskrail validate` → `33 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`,
+  exit 0.
+- `uv run --directory tools/taskrail pytest -q` → `262 passed`. The stage's `lint` check is not
+  configured in this repository.
