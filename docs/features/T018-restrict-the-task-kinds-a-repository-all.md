@@ -1,6 +1,6 @@
 # T018 — Restrict the task kinds a repository allows
 
-Kind: feature · Epic: E05 · Status: planned
+Kind: feature · Epic: E05 · Status: implemented
 
 ## Behaviour
 
@@ -58,18 +58,37 @@ Without `[kinds]`, behaviour is unchanged.
 8. `new --kind <disallowed>` writes nothing and exits non-zero, both without `--workspace`
    (exit 1) and with it (exit 2, before any branch or worktree is created).
 
+## Test coverage
+
+All in `tools/taskrail/tests/test_allowed_kinds.py`.
+
+| Criterion | Tests |
+|---|---|
+| 1. No `[kinds]` table: unchanged | `test_without_kinds_table_every_defined_kind_is_allowed` |
+| 2. Only allowed kinds resolve; `kind list` | `test_only_allowed_core_kinds_resolve` |
+| 3. `task-kind-disallowed` vs `task-kind-unknown` | `test_task_of_a_disallowed_kind_is_an_error_naming_the_allowed_kinds`, `test_closed_tasks_of_a_disallowed_kind_are_errors_too`, `test_undefined_kind_is_still_unknown_with_an_allowlist` |
+| 4. Local kinds | `test_allowed_local_kind_resolves_and_validates_its_tasks`, `test_local_kind_left_out_of_the_allowlist_is_excluded_with_a_warning` |
+| 5. Overrides | `test_override_of_a_disallowed_kind_is_excluded_with_a_warning`, `test_override_of_an_allowed_kind_still_replaces_it` |
+| 6. `kind-allowed-unknown` | `test_allowed_name_that_no_layer_defines_is_an_error` |
+| 7. Configuration errors | `test_malformed_kinds_table_is_a_configuration_error` (six cases) |
+| 8. `new` writes nothing | `test_new_with_a_disallowed_kind_writes_nothing`, `test_new_in_a_workspace_with_a_disallowed_kind_refuses_before_branching`, `test_new_in_a_workspace_with_an_undefined_kind_says_it_is_not_defined` |
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/config.py` — a new `allowed_kinds: tuple[str, ...]` field on
   `Config` and a self-contained block parsing `[kinds]`. Kept to small, separate hunks because
   T021 (column aliases) edits the same file in parallel.
 - `tools/taskrail/src/taskrail/kinds.py` — `load_kinds` applies the allowlist after resolution
-  and reports `kind-allowed-unknown` and `kind-not-allowed`. Its signature does not change.
-- `tools/taskrail/src/taskrail/project.py` — `_check_tasks` reports `task-kind-disallowed`.
+  and reports `kind-allowed-unknown` and `kind-not-allowed`. Its signature does not change. A
+  new `defined_kind_names(config)` lists every kind a layer has a descriptor for, so callers can
+  tell a kind the allowlist excluded from one nothing defines; the layer tuple moved into a
+  `_layers(config)` helper both functions share.
+- `tools/taskrail/src/taskrail/project.py` — `_check_tasks` reports `task-kind-disallowed` for a
+  kind that is defined but excluded, and keeps `task-kind-unknown` for any other.
 - `tools/taskrail/src/taskrail/cli.py` — the `new --workspace` refusal message distinguishes a
   disallowed kind from an undefined one.
-- `tools/taskrail/tests/test_kinds.py`, `test_validate.py`, `test_cli.py` or `test_write.py` —
-  tests for the criteria.
+- `tools/taskrail/tests/test_allowed_kinds.py` — a new file with the tests for the criteria, so
+  no existing test file changes.
 - `tools/taskrail/DESIGN.md` (§3.3 `Kind` value, §4 configuration example, §5.2 resolution),
   `tools/taskrail/README.md` (Task kinds) and one line under `## Unreleased` in
   `tools/taskrail/CHANGELOG.md`.
@@ -96,3 +115,7 @@ Without `[kinds]`, behaviour is unchanged.
   equally well.
 - **Parallel edits to `config.py`.** T021 also changes config loading; the hunks here are kept
   small so a rebase conflict, if any, is mechanical.
+
+Decisions at the plan gate: an allowlist named `[kinds] allowed`; tasks of a disallowed kind are
+errors whatever their status; skipping the skills of disallowed kinds at install time stays out
+of scope and becomes a follow-up task.
