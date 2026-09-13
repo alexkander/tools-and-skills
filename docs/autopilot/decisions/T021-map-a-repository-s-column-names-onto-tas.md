@@ -30,3 +30,21 @@ suite in the lane's worktree (177 passed).
 | 1 | Approve the implementation? | approve · request changes | **approve** | Aliases apply to task tables only; every conflict rule in the plan is enforced and tested; tests were observed failing first; a new test file avoids clashes with other lanes. |
 | 2 | Follow-up for `new --column ID=T9` being silently ignored | open a bug · leave it | **open a bug** | Exit 0 while discarding an explicit value is a defect, independent of aliases; the fix mirrors the refusal T021 adds. |
 | 3 | Possible conflict with T018 near the end of `config.py` | accept · move the function now | **accept** | T018's hunks sit before `[checks]` and at the end of `Config`; any conflict keeps both sides. |
+
+## rebase after T018, T023 and T022 merged
+
+This branch was rebased onto `origin/main` (`fa05757`), which carries T018 (#8), T023 (#9) and
+T022 (#10). `config.py` and the `install.py` template merged without conflicts, since each lane
+had kept to its own section. The conflicts that did occur were all in agreed classes:
+
+| File | Resolution |
+|---|---|
+| `docs/features/README.md`, `docs/autopilot/decisions/README.md`, `tools/taskrail/CHANGELOG.md` | kept every row and bullet |
+| `TODO.md` | rows united by ID: T021, T022 and T023 ✅ (no `Reopens:`), T025 and T026 kept |
+
+Checked after the rebase, because `config.py` merged automatically: both new fields and parsing
+blocks present, the `init` template still parses, no conflict markers, 237 tests passed,
+`validate` clean, installed skills matching their sources. A scratch repository with
+`aliases = { Pts = "Size" }` and `allowed = ["bug", "chore"]` confirmed the features work
+together: the aliased header was written, a disallowed kind and `--column Size` were refused, and
+`show` reported `base` with its remote and `prior_work`.
