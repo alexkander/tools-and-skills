@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from taskrail import claims as claims_module
-from taskrail import gitutil, stack
+from taskrail import branches, gitutil, stack
 from taskrail.claims import Claim
 from taskrail.model import Project, Status, Task
 from taskrail.query import base_dict, blocked_by
@@ -60,18 +60,6 @@ def task_state(task: Task, project: Project, run: dict, claim: Claim | None) -> 
     if claim is not None:
         return "running"
     return "pending"
-
-
-def _worktrees_by_branch(root: Path) -> dict[str, str]:
-    output = gitutil.run(root, "worktree", "list", "--porcelain", check=False).stdout
-    found: dict[str, str] = {}
-    path = None
-    for line in output.splitlines():
-        if line.startswith("worktree "):
-            path = line[len("worktree "):]
-        elif line.startswith("branch refs/heads/") and path:
-            found[line[len("branch refs/heads/"):]] = path
-    return found
 
 
 def _changed_in_worktree(worktree: str | None) -> list[str]:
@@ -139,8 +127,9 @@ def _lane_details(task: Task, project: Project, run: dict, claim: Claim | None, 
     config = project.config
     root = config.root
     lane = run["tasks"].get(task.id) or {}
-    branch = claim.branch if claim and claim.branch else stack.task_branch(task, project)
-    worktree = claim.worktree if claim and claim.worktree else worktrees.get(branch)
+    branch = claim.branch if claim and claim.branch else branches.task_branch(task, project)
+    checked_out = worktrees.get(branch)
+    worktree = claim.worktree if claim and claim.worktree else (str(checked_out) if checked_out else None)
     head = _branch_ref(root, branch)
 
     changed = _changed_in_worktree(worktree) if state in WITH_BRANCH else []
@@ -216,7 +205,7 @@ def run_status(project: Project, run: dict, claimed: dict[str, Claim], now: date
     now = now or datetime.now(timezone.utc)
     config = project.config
     if worktrees is None:
-        worktrees = _worktrees_by_branch(config.root)
+        worktrees = gitutil.worktree_branches(config.root)
     members = list(run["tasks"])
     members += sorted(task_id for task_id, claim in claimed.items() if claim.run == run["id"] and task_id not in run["tasks"])
     rows = []
@@ -255,7 +244,7 @@ def run_status(project: Project, run: dict, claimed: dict[str, Claim], now: date
 
 
 def status(project: Project, runs: list[dict], claimed: dict[str, Claim], now: datetime | None = None) -> dict:
-    worktrees = _worktrees_by_branch(project.config.root) if runs else {}
+    worktrees = gitutil.worktree_branches(project.config.root) if runs else {}
     reports = [run_status(project, run, claimed, now, worktrees) for run in runs]
     touched_by: dict[str, set[str]] = {}
     for report in reports:

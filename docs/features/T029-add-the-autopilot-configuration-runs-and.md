@@ -67,8 +67,8 @@ After this change:
     `gate`, then `running` (a claim of this task, stale or not), then `pending`, with
     `blocked_by`;
   - the lane's `handle`, `group`, `reason` and `resources` (empty until T030), its `branch` and
-    `worktree` (from the claim, else the kind's branch template through `stack.task_branch` and
-    the worktree that has it checked out), and the claim with its `stale` reason, if any (Q8);
+    `worktree` (from the claim, else T019's `branches.task_branch` — a recorded name, else the
+    kind's template — and the worktree `gitutil.worktree_branches` finds it checked out in), and the claim with its `stale` reason, if any (Q8);
   - `idle_minutes`: minutes since the latest of the branch tip's commit time, the modification
     time of any file `git status` reports changed in the worktree, the claim's creation and the
     lane's last `lane` update; `silent` is true when a `running` lane is idle past
@@ -161,7 +161,7 @@ After this change:
 
 In `tools/taskrail/tests/test_autopilot.py`: throwaway repositories with a local bare `origin` and
 lanes in their own worktrees; no network. Against the base code the file fails at collection
-(`ModuleNotFoundError` for `taskrail.autopilot`); after the implementation it has 39 passing tests.
+(`ModuleNotFoundError` for `taskrail.autopilot`); after the implementation it has 39 passing tests, and 41 after the rebase onto T019.
 
 | Criterion | Tests |
 |---|---|
@@ -170,17 +170,18 @@ lanes in their own worktrees; no network. Against the base code the file fails a
 | 3. `--count` required and positive | `test_start_needs_a_positive_count` |
 | 4. Run file, IDs, worktrees, ordering | `test_start_creates_a_run_file_in_the_common_directory`, `test_concurrent_starts_take_the_next_free_number` |
 | 5. Kinds; invalid backlog | `test_start_stores_and_checks_kinds`, `test_start_refuses_an_invalid_backlog` |
-| 6. `claim --run` | `test_claim_records_the_run`, `test_the_remote_claim_carries_the_run`, `test_claim_files_without_a_run_still_load` |
+| 6. `claim --run` | `test_claim_records_the_run`, `test_claim_run_on_the_template_branch_still_records_the_branch` (after T019), `test_the_remote_claim_carries_the_run`, `test_claim_files_without_a_run_still_load` |
 | 7. `lane` records | `test_lane_records_handle_state_reason_and_group`, `test_run_files_keep_keys_this_version_does_not_know` |
 | 8. `handed-off` | `test_handed_off_needs_done_branch_and_keeps_the_order` |
 | 9. `decision` | `test_decision_appends_to_the_run` |
 | 10. Derived states | `test_status_derives_every_state`, `test_a_stale_claim_stays_running_with_its_reason` |
 | 11. Silent lanes | `test_a_running_lane_idle_past_silent_minutes_is_silent` |
 | 12. Touched files and overlaps | `test_touched_files_and_overlaps_between_lanes`, `test_a_stacked_lane_does_not_list_its_dependency_files` |
+| 12a. Branch lookup after T019 (a renamed branch) | `test_status_follows_a_renamed_task_branch` |
 | 13. Hand-off queue | `test_handoff_queue_puts_dependencies_first` |
 | 14. Decision record paths | `test_status_renders_decision_record_paths` |
 | 15. `status` edges | `test_status_without_runs_and_for_an_unknown_run`, `test_status_lists_every_run_newest_first`, `test_status_fetches_only_when_asked`, `test_status_lane_and_decision_work_while_disabled`, `test_status_refuses_an_invalid_backlog_unless_allowed` |
-| 16. Existing behaviour | the whole suite, 339 passed; one existing assertion gained only the new key (below) |
+| 16. Existing behaviour | the whole suite, 339 passed before T019 and 410 after the rebase onto it; one existing assertion gained only the new key (below) |
 | 17. Documentation | reviewed at the implement gate: `DESIGN.md` §4, §6.1, §6.2, §7, §12.1, §12.2, §12.4, §12.9, §12.10; `README.md`; `CHANGELOG.md` |
 
 Existing test changed: `tests/test_claims.py::test_remote_claim_does_not_publish_machine_details`
@@ -449,6 +450,21 @@ FAILED tests/test_autopilot.py::test_handed_off_needs_done_branch_and_keeps_the_
 After restoring the files, `git status --short` was empty and the full suite passed again:
 `339 passed in 21.67s`.
 
+### After rebasing onto T019
+
+T019 (`1543057`) merged while this branch waited, replacing `stack.task_branch` with
+`branches.task_branch` and adding `gitutil.worktree_branches`. At the rebase, `status.py` switched
+to both and dropped its own worktree listing (T019's returns `Path` values, rendered as strings in
+`status`); `claim` keeps T019's branch freeze and warning and then lists the task in the run. Two
+tests were added: `claim --run` on the template branch still reports `branch_recorded: true`, a
+recorded `branch_source` and the task in the run; and `status` of a finished lane whose branch was
+renamed with `taskrail branch` reports `done-branch` on the new name, its worktree and its files.
+Conflicts were all both-sides additions: the two indexes, the changelog, the §7 claim row next to
+T019's `branch` row, `cli.py`'s imports and the end of `cmd_claim`. After it:
+`uv run --directory tools/taskrail pytest -q` gave `410 passed`, `taskrail validate` gave
+`36 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`, and `taskrail upgrade --json` created,
+updated and removed nothing.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/autopilot/` (new package): `__init__.py`, `runs.py`, `status.py`,
@@ -458,7 +474,8 @@ After restoring the files, `git status --short` was empty and the full suite pas
 - `tools/taskrail/src/taskrail/claims.py` — `Claim.run` and the `run` argument of `claim()`.
 - `tools/taskrail/src/taskrail/cli.py` — `claim --run` (check the run, record it, list the task in
   the run) and one call registering the `autopilot` group in `build_parser`.
-- Reused, not changed: `stack.done_on_branch`, `stack.task_branch`, `stack._read_statuses`,
+- Reused, not changed: `stack.done_on_branch`, `branches.task_branch` and
+  `gitutil.worktree_branches` (T019), `stack._read_statuses`,
   `query.base_dict`, `query.blocked_by`, `review.resolve_remote`, `ids.id_lock`,
   `templates.render`, `claims.stale_reason`, `cli._emit`, `cli._load`, `cli._refuse_if_invalid`.
 - `tools/taskrail/DESIGN.md` §4, §6.1, §6.2, §7 and §12; `tools/taskrail/README.md`;
@@ -487,7 +504,7 @@ Risks:
 
 - **Parallel lanes.** T019 changes branch lookup in `claims.py` and `cli.py`'s claim path, where
   this task adds `run` and `--run`: small textual conflicts are likely, resolved at rebase.
-  `status` calls `stack.task_branch` rather than a lookup of its own, so it follows T019's change.
+  `status` used `stack.task_branch` rather than a lookup of its own, so it followed T019's change.
   T020 edits one sentence in §12.7; this task changes §12's heading, status line, §12.1, §12.2,
   §12.4, §12.9 and §12.10, not §12.7.
 - **Cost.** `status` runs a few git commands per lane (merge-base, diff, status, log). Fine for a

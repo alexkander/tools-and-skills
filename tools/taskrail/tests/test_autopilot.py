@@ -289,6 +289,27 @@ def test_claim_records_the_run(pilot, capsys):
     assert path.is_dir()
 
 
+def test_claim_run_on_the_template_branch_still_records_the_branch(pilot, capsys):
+    run_id = start(pilot.root, capsys)
+    path = pilot.root.parent / "t003-lane"
+    git(pilot.root, "worktree", "add", "-q", str(path), "-b", BRANCHES["T003"], "origin/main")
+    result = data(path, "claim", "T003", "--run", run_id, capsys=capsys)
+    assert (result["branch_recorded"], result["warning"], result["claim"]["run"]) == (True, None, run_id)
+    assert data(pilot.root, "show", "T003", capsys=capsys)["branch_source"] == "recorded"
+    assert list(runs.read(load_config(pilot.root), run_id)["tasks"]) == ["T003"]
+
+
+def test_status_follows_a_renamed_task_branch(pilot, capsys):
+    run_id = start(pilot.root, capsys)
+    path = pilot.lane("T003", run_id)
+    pilot.finish(path, "T003")  # releases the claim, so status resolves the branch itself
+    assert run(pilot.root, "branch", "T003", "T003-renamed", capsys=capsys)[0] == 0
+    found = row(status_of(pilot.root, capsys, run_id), "T003")
+    assert (found["state"], found["branch"]) == ("done-branch", "T003-renamed")
+    assert found["worktree"] == str(path.resolve())
+    assert found["touched"] == ["TODO.md"]
+
+
 def test_the_remote_claim_carries_the_run(pilot, capsys):
     configure(pilot, ENABLED + '[git]\nclaim_remote = "origin"\n')
     run_id = start(pilot.root, capsys)
