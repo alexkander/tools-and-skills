@@ -41,6 +41,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T028 | chore   | 2   | —          | Write the autopilot design into DESIGN.md | Move the design accepted in [T007](docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md) into DESIGN.md, so the autopilot tasks build from it. |
 | ⬜ | T029 | feature | 5   | T017, T028 | Add the autopilot configuration, runs, and the start, lane and status commands | [autopilot] table, local run files beside claims, derived task states; autopilot start refuses with exit 5 until [autopilot].enabled is true. |
 | ⬜ | T030 | feature | 3   | T029       | Dispatch autopilot lanes with autopilot next | Tasks to start now within max_lanes, allowed kinds, group limits, claims and stacked bases, with resource pool values allocated per lane. |
+| ⬜ | T031 | feature | 3   | T029       | Detect squash merges by content and follow through with autopilot merged | Ancestor, tree, patch-id, then merge-tree after fetch --prune; --cleanup removes branch and worktree; list rebase --onto for stacked dependents. |
 
 ## E03 — caveman skill
 
