@@ -1,6 +1,6 @@
 # T022 — Use each mainline's own remote in review
 
-Kind: feature · Epic: E05 · Status: implemented
+Kind: feature · Epic: E05 · Status: verified
 
 ## Behaviour
 
@@ -147,3 +147,31 @@ Recorded in `docs/autopilot/decisions/T022-use-each-mainline-s-own-remote-in-rev
   change.
 - Core skill step 3 fetches `<base.remote>`; the close step names the mainline's remote.
 - No follow-up tasks: a separate push remote and `branch.<mainline>.merge` stay out of scope.
+
+## Verification
+
+Run with this branch's CLI (`uv run --directory tools/taskrail taskrail --root <scratch>`) in a
+scratch repository with two backlogs — `template` on `main`, `product` on `dev` — and two local
+bare remotes: `main` tracking `upstream`, `dev` tracking `origin`, `[review].remote = "origin"`.
+`upstream/main` and `origin/dev` were each one commit ahead of the local branches.
+
+- `show T002 --json` reported `base` `upstream/main` with `remote` `upstream` and
+  `remote_source` `branch.main.remote`; `show A001 --json` reported `origin/dev` with `origin` and
+  `branch.dev.remote`. The text form printed `base upstream/main (…)`.
+- `new --backlog product … --workspace` created `A002-log-in` from `origin/dev` (at the `dev`
+  commit), and `new --backlog template … --workspace` created `T003-negative-totals` from
+  `upstream/main` (at the `up` commit).
+- With both bare remotes advanced again, `review T003 --json` in T003's worktree reported
+  `remote` `upstream`, `remote_source` `branch.main.remote`, `fetched` true and
+  `rebase.onto` `upstream/main` with `needed` true. `upstream/main` moved to the bare's new commit,
+  while `origin/dev` stayed at its old commit: only the mainline's remote was fetched.
+- After `git rebase upstream/main`, `review T003 --publish` printed
+  `pushed T003-negative-totals to upstream`. The `upstream` bare held the branch at HEAD; the
+  `origin` bare still had only `dev` and `main`.
+- With the remote URLs set to `git@github.com:acme/template.git` (upstream) and
+  `git@github.com:acme/product.git` (origin), `review T003 --no-fetch --json` returned provider
+  `github` and `https://github.com/acme/template/compare/main...T003-negative-totals?quick_pull=1&…`.
+- With `branch.main.remote` set to `.`, `show T002` fell back to `origin/main` with
+  `remote_source` `[review].remote`.
+
+No difference from the plan was found.
