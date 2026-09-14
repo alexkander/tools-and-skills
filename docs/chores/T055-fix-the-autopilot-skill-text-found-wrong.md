@@ -273,3 +273,33 @@ And its row in `docs/chores/README.md`.
   note.
 - The `test` check (`uv run --directory tools/taskrail pytest -q`); `lint` is not configured.
 - `taskrail validate`.
+
+Decisions 1–6 were approved at the scope gate as recommended; see the task's
+[decision record](../autopilot/decisions/T055-fix-the-autopilot-skill-text-found-wrong.md). The
+orchestrator's touch map also leaves the *Supervise* `overlaps` bullet to T051; this change does not
+touch it.
+
+Results:
+
+- The five new tests, before any skill edit: `15 failed, 25 deselected` — each test failing for the
+  source, the `claude` copy and the `opencode` copy, on `the branch` (F4),
+  `without waiting for its hand-off` (F5), `` `taskrail new` reserves each id `` (F6),
+  `a dispatch expires` (F7) and `no section 'Resume a run'` (F2). After the edits:
+  `tests/test_autopilot_skill.py` `40 passed`, including the existing check that every `taskrail`
+  command and flag the skill shows exists.
+- Throwaway `git init` repository under `/tmp`, `taskrail --root <dir> init --integration claude
+  --integration opencode` from this branch's source: the installed
+  `.claude/skills/taskrail-autopilot/SKILL.md` has `## Resume a run` between `## After a merge` and
+  `## Known conflict classes`, and the five new rules once each; the installed
+  `references/lane-brief.md` has its two rules (lines 9 and 68), the ID bullet under
+  `## How to work`, and `## Workspace (restart from the branch)` after the second rule.
+- F6, in the same repository with an epic committed and two worktrees on branches `lane-a` and
+  `lane-b`: `taskrail new --epic E01 --kind chore` in lane A returned `T001` and in lane B `T002`,
+  with both rows still uncommitted (`TODO.md | 4 ++++` in each). The repository and worktrees were
+  deleted afterwards.
+- `.taskrail/bin/taskrail upgrade --json`: `updated` `.claude/skills/taskrail-autopilot/SKILL.md` and
+  `references/lane-brief.md`, nothing skipped. The installed `lane-brief.md` is identical to the
+  source; the installed `SKILL.md` differs from it only where the harness marker becomes the Claude
+  Code note.
+- `test`: `846 passed in 110.02s`. `lint`: not configured.
+- `taskrail validate`: `56 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
