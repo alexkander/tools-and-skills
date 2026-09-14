@@ -50,3 +50,15 @@ lane's worktree: 846 passed.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · wording changes | **approve** | Each finding (F2, F4, F5, F6, F7) maps to text and a test seen failing first; the diff stays inside the touch map. |
+
+## close gate
+
+Reviewed: `e366fe2` (artifact *Docs*: the taskrail README needs no change; the T007 and T033 spike
+documents keep their historical wording) and `8c888af` (`taskrail done T055` on its own, changing only
+T055's row). No code, skill or test changed after the checks re-run at the implement gate (846
+passed). `taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed`
+false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `docs(taskrail)`** | Skill text, lane brief, design text and tests; no CLI behaviour changes, as for T056. |
