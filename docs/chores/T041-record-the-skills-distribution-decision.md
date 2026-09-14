@@ -1,6 +1,6 @@
 # T041 — Record the skills distribution decision in CLAUDE.md
 
-Kind: chore · Epic: E04 · Status: implemented
+Kind: chore · Epic: E04 · Status: documented
 
 ## Goal
 
@@ -133,3 +133,10 @@ Recorded in the
   one `strict: false` entry per skill sourced from `./skills/<name>`. All three match.
 - `uv run --directory tools/taskrail pytest -q` → 823 passed in 91.39s. `lint` is not configured.
 - `.taskrail/bin/taskrail validate` → 42 task(s) in 1 backlog(s): 0 error(s), 0 warning(s).
+
+## Docs
+
+The change is itself the documentation. Nothing else describes distribution: a search of the
+Markdown files outside T009's and this task's documents finds only `CLAUDE.md` and the E04 rows in
+`TODO.md`. The root `README.md` has no install section, and per-skill install steps are T042. No
+follow-up tasks were opened.
