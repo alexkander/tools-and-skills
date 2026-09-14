@@ -53,6 +53,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ✅ | T040 | feature | 3   | T004       | Merge appended changelog bullets without duplicating moved ones | Resolve the rest of conflict class 2 (DESIGN §12.8): bullets both sides append to a changelog, without duplicating a bullet one side moved; follows T004's merge driver. |
 | ⬜ | T047 | feature | 3   | —          | Keep a stacked task's fork point after done | Record base.commit in the run file at claim and use it in autopilot merged before merge-base, so a dependency rebased at hand-off still yields a rebase --onto command (T033 F1). |
 | ⬜ | T048 | feature | 2   | —          | Add autopilot close to abandon a run | Release a run's dispatches and resources and hide it from next and status, so a rewound or stale orchestrator session leaves nothing holding lanes (T033 F7). |
+| ⬜ | T049 | feature | 1   | —          | Stop flagging governing paths once a task is done on its branch | status keeps escalation governing after the human approved the edit, through done-branch and handed-off; drop it as escalate_gate is dropped (T033 F9). |
 
 ## E03 — caveman skill
 
