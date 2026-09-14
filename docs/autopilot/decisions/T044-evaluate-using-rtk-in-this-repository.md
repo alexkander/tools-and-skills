@@ -19,3 +19,18 @@ the primary sources read on 2026-09-14, and the limits.
 | D4 | Time box | 2 points · 3 with a PR build | **2 points** (orchestrator) | Follows D2. |
 
 Frame approved.
+
+## decide gate — decided by the human
+
+Reviewed: the completed artifact (commit `7226f68`): 53 raw-versus-rewritten cases with RTK v0.49.0
+in isolation, the hook payload and install/uninstall footprint in a throwaway home, and source
+reading at `b1c0dc0`, `develop` `d402152` and PR #3577's diff. Exit codes were kept in every case,
+but `uv run … taskrail … --json` came out as invalid JSON, `git log` lost a `Reopens:` trailer, and
+`git diff` and `head` were truncated. The human's shell and agent configuration digests matched,
+except Claude Code's `known_marketplaces.json`, whose only field is a refresh timestamp; RTK never
+ran with the real home, so that change is attributed to Claude Code, not proven.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Verdict | no adoption · hook with per-user exclusions | **no adoption** — decided by the human | The rewritten `--json` output breaks under the frame's rule, and exclusions are per user and would leak into other projects. |
+| 2 | Follow-ups | CLAUDE.md note · taskrail `--json` test through `uv run` · none | **both** — decided by the human | The note protects contributors who install RTK globally; the test guards the JSON contract procedures here rely on. The CLAUDE.md wording is shown to the human before publishing. |
