@@ -35,3 +35,13 @@ the code.
 | 1 | Approve the implementation | approve · changes | **approve** | Follows decisions 1–8; one cell-writing helper now serves `done`, `discard`, `reopen` and `edit`. |
 | 2 | Separate "Editing tasks" section in the core skill | keep · fold into "Creating tasks" | **keep** | It is its own procedure with its own refusals; step 8's conflict rule is untouched. |
 | 3 | `--title ""` | validation error, exit 1 · usage error, exit 2 | **exit 1** | The same `task-title` check `validate` applies to any empty title. |
+
+## verify and close
+
+The verify stage ran `taskrail edit` in a throwaway repository — the missing-dependency case from
+T001's friction note, every refusal, several flags at once, a closed and a `done-branch` task, a
+claim held by someone else, branch recording after a title change, repairing a cycle with
+`--allow-invalid`, and an epic in its own file — with no gap against the plan. No rebase was needed
+(`origin/main` is `977064f`). Checked before publishing: `TODO.md` differs from `main` only in T014
+`✅`, the full suite passes, `taskrail validate` 0 errors, `upgrade` reports nothing to create or
+update, no upstream.
