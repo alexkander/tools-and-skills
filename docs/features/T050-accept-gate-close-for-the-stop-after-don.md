@@ -1,6 +1,8 @@
 # T050 — Accept --gate close for the stop after done
 
-Kind: feature · Epic: E02 · Status: planned (awaiting plan approval)
+Kind: feature · Epic: E02 · Status: implemented (plan approved: D2–D5 as recommended; D1, the
+DESIGN.md text, taken to the human and not yet applied). Record:
+`docs/autopilot/decisions/T050-accept-gate-close-for-the-stop-after-don.md`.
 
 Source: finding F10 of `docs/spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md`. Builds on
 T032, which added `autopilot lane --gate` (`autopilot/commands.py`, `_gate_problem`) and the
@@ -56,6 +58,21 @@ After this change:
    stages and `close`.
 6. The shipped `taskrail-autopilot` skill's close section contains the `--gate close` command, and
    the installed copy under `.claude/skills/` matches it after `taskrail upgrade`.
+
+## Tests per criterion
+
+All in `tools/taskrail/tests/`; each was observed failing before the implementation (the two lane
+tests with `` `close` is not a stage of kind bug `` and `` kind `mystery` is not defined ``, exit 2;
+the skill test with the phrase missing).
+
+| Criterion | Test |
+|-----------|------|
+| 1 | `test_autopilot_notify.py::test_lane_records_close_for_the_stop_after_done_in_every_kind` (feature task T001: JSON result and run file carry `close`) |
+| 2 | same test (bug task T003); `test_lane_records_close_for_a_task_whose_kind_is_not_defined` (D2: an undefined kind accepts `close` and still refuses a stage name) |
+| 3 | `test_lane_records_close_for_the_stop_after_done_in_every_kind` (T001 done and committed, then `--gate close`; `status` row `done-branch`, `close`, `escalate_gate: null`, `escalation: []` with `escalate_gates = ["feature:close"]`) |
+| 4 | same test (`--state running`, `--state failed --reason`, and no `--state` on a running lane: exit 2, run file byte-identical) |
+| 5 | same test (`--gate nope` on the bug task: exit 2, message contains `(diagnose, fix, impact) or `close``, run file unchanged); T032's `test_lane_records_the_gate_a_lane_is_stopped_at` still checks `plan, implement, verify` |
+| 6 | `test_autopilot_skill.py::test_skill_records_the_close_stop_as_a_gate` (shipped source). The installed copy is not a tool test: `taskrail upgrade` updated `.claude/skills/taskrail-autopilot/SKILL.md` and its digest in `.taskrail/installed.json`, and a `diff` of the two *Close and hand off* sections is empty |
 
 ## Affected areas
 
