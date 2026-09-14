@@ -303,3 +303,9 @@ Results:
   Code note.
 - `test`: `846 passed in 110.02s`. `lint`: not configured.
 - `taskrail validate`: `56 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
+
+## Docs
+
+The skill, its installed copies, DESIGN.md and the CHANGELOG changed in the implement stage. The
+taskrail README describes the autopilot only at a level these fixes do not contradict, and the
+T007 and T033 spike documents keep their historical wording. No follow-up tasks were opened.
