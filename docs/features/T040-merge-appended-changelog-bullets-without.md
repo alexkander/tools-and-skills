@@ -1,0 +1,348 @@
+# T040 — Merge appended changelog bullets without duplicating moved ones
+
+Kind: feature · Epic: E02 · Status: planned
+
+Source: T004's plan-gate decision Q7
+([decisions](../autopilot/decisions/T004-add-a-git-merge-driver-for-status-cells.md)), which
+left changelog bullets out of the merge driver because "keep both" duplicates a bullet one side
+moved; `tools/taskrail/DESIGN.md` §7.4 (the driver) and §12.8 (conflict class 2: "changelog
+bullets by hand until T040"). Stacked on T004, which is done on its unmerged branch; this branch
+starts from `origin/T004-add-a-git-merge-driver-for-status-cells`. No prior work: `show` reported
+no artifact, branch or commit for T040.
+
+## Behaviour
+
+Today two branches that each append one bullet at the end of `## Unreleased` in a changelog
+conflict every time (*Evidence* E1, case 1), even with T004's driver installed: the changelog is
+not in the driver's `.gitattributes` block, and the driver only understands tables. Worse, the
+by-hand rule "keep both" is wrong when one side **moved** a bullet: a branch commit that moves
+its own bullet from the top of the section to the end, replayed by a rebase onto a mainline that
+added a bullet at the top, conflicts at the top; keeping both leaves the moved bullet twice
+(E1, case 2).
+
+After this change, in a clone with the driver installed, git merges bullet lists the way the
+driver already merges table rows: bullets both sides add are all kept, a bullet one side moved
+appears once at its new place, and conflict markers remain only around a bullet both sides
+changed differently.
+
+### What gets list merging
+
+- **Every file the driver receives** has its bullet lists merged, after its tables (backlog files,
+  epic files and artifact indexes included — a bullet list in an epic's introduction merges the
+  same way). The driver does not look at the path.
+- **`init --merge-driver` adds changelogs to the block.** Every file named `CHANGELOG.md`
+  (case-insensitive) that `git ls-files` reports — tracked, or untracked and not ignored — outside
+  the configured `worktree_dir` gets a `/<path> merge=taskrail` line in the block, next to the
+  backlog, epic and index files. `upgrade` and `init` refresh it while the extra is recorded, so a
+  changelog created later is picked up by the next `upgrade`. In this repository that would list
+  `/tools/taskrail/CHANGELOG.md` (this task does not install the block here — see *Out of scope*).
+- **Any other file** (a `CHANGES.md`, `HISTORY.md`, release notes) opts in with its own
+  `merge=taskrail` line written **outside** the marked block, which taskrail never touches. This
+  needs no code: the attribute is what routes a file to the driver.
+
+### The unit: a bullet in a list under a heading
+
+1. **Headings.** ATX headings (`#` to `######`) outside fenced code define a heading path: a
+   heading of level *L* replaces every open heading of level *L* or deeper. The text before the
+   first heading has the empty path. `## Unreleased` › `### Added` is a different path from
+   `## 0.1.0` › `### Added`.
+2. **Bullet.** A line outside fenced code starting at column 0 with `- `, `* ` or `+ `, plus every
+   following non-blank line that starts with whitespace (wrapped text, nested bullets, indented
+   code). Ordered items (`1.`) are not bullets: their numbers change when items are added.
+3. **List.** A maximal run of consecutive bullets with no blank line between them (a tight list).
+   A blank line, a heading, or any non-indented line that is not a bullet ends it.
+4. **Identity.** A list is identified by its heading path and its position among the lists under
+   that path. A list is merged only when the path has the **same number of lists** in every version
+   that has the path, and the path exists on both the current and the other side; the base's list
+   is empty when the base lacks the path. Otherwise the lists under that path are left to
+   `git merge-file` untouched.
+5. **Key.** A bullet's key is its text, every line with its trailing whitespace and line ending
+   removed — so a CRLF file and its LF copy have equal keys. A list whose keys are not unique in
+   any version is left to git.
+
+### How a list is merged
+
+1. **Edits are paired.** For each side, `difflib.SequenceMatcher` over base keys and that side's
+   keys (`autojunk=False`). In every `replace` block, the base bullets whose key the side no longer
+   has anywhere are *removed*, the side's bullets whose key the base has nowhere are *added*; when
+   both counts are equal and non-zero they pair up in order as **edits** of the base bullet (its
+   identity stays the base key). When both are non-zero and differ, the list is left to git. A
+   bullet whose text is present in the base and in the side is never an edit, wherever it sits.
+2. **Each identity is merged three-way**, like a table row:
+   - in the base and on both sides: equal texts are kept; a side that left it as in the base takes
+     the other side's text; two different edits are **unresolved**;
+   - in the base and on one side only: removed when that side left it unchanged; **unresolved**
+     when that side edited it (modify/delete);
+   - only in the base: removed by both;
+   - not in the base: added once, whether one side or both added it.
+3. **Moves are recognised**, never duplicated. Among the bullets present in the base and on both
+   sides, a side **moved** a bullet when it is outside the matching blocks of `SequenceMatcher`
+   over the base's order and that side's order of those bullets. A bullet moved on one side takes
+   that side's position; moved on both sides, the current side's.
+4. **Order**, extending the table rule: the current side's surviving bullets, without those only
+   the other side moved; then, walking the other side's order, each bullet not yet placed (added
+   by the other side, moved by it, or an unresolved one only the other side has) goes right after
+   its nearest predecessor there that is already placed, past bullets new on the current side that
+   follow it. Both sides appending therefore gives the current side's bullets first, then the
+   other's — in a rebase, the mainline's first. Prototype results over bullet keys
+   (*Evidence* E2): base `XY`, current `XYA`, other `XYB` → `XYAB`; base `NXY`, current `MNXY`,
+   other `XYN` → `MXYN`.
+5. **Never twice.** If the merged list would hold two bullets with the same key (for example one
+   side adds a bullet whose text equals the other side's edit of an existing one), the list is left
+   to git instead.
+6. **Placed into all three inputs**, exactly as tables are: every merged list is replaced by its
+   merged bullets in the base, current and other texts — identical, so they are context — except
+   unresolved bullets, which keep each version's own text at their merged position (absent where
+   that version has none). `git merge-file` then merges the rest and marks only the unresolved
+   bullets. Line endings and a missing final newline are kept as `_region` keeps them for tables.
+
+### Where it lives in the driver
+
+`merge_text` runs `merge_tables` (unchanged), then a new `merge_lists` over the three texts it
+returns, then `git merge-file` once. Tables and bullets never share lines (a table line starts with
+`|`), so the two stages are independent; the fallback to `git merge-file` on any exception covers
+both. `DRIVER_NAME` stays `taskrail backlog tables`, so no clone's git config changes.
+
+### Documentation
+
+- DESIGN §7.4: a *Bullet lists* paragraph after the tables, the changelog lines of the block, and
+  the "outside the block" opt-in. §12.8 class 2: changelog bullets by the driver where the
+  changelog has the attribute, by hand otherwise — keeping a moved bullet only at its new place.
+- CHANGELOG: one bullet at the end of `## Unreleased`.
+
+## Acceptance criteria
+
+Each criterion is tested against real `git merge` or `git rebase` in a throwaway repository with
+the driver installed, unless it says *unit*, which calls `merge_text` on three strings.
+
+1. Both sides append one bullet at the end of `## Unreleased`: `git merge` and `git rebase`
+   complete with no conflict, each bullet once, the current side's first (the mainline's first in
+   the rebase).
+2. **The moved bullet.** A branch adds N at the top of `## Unreleased` in one commit and moves it to
+   the end in the next; the mainline meanwhile adds M at the top and P at the end. `git rebase
+   main` completes with no conflict, and the section holds M, the old bullets, P and N, each once.
+   *Unit:* base `N X Y`, current `M N X Y`, other `X Y N` → `M X Y N`, clean.
+3. A move on one side and an append on the other at the move's destination, both ways round
+   (*unit*): no duplicate, no conflict, the documented order.
+4. A bullet with wrapped continuation lines and a nested sub-bullet merges, moves and conflicts as
+   one unit; a bullet added identically on both sides appears once (*unit*).
+5. The same bullet edited differently on both sides: markers around that bullet's lines only,
+   every other bullet and prose change merged, exit 1. Edited on one side and deleted on the other:
+   marked. Edited on one side while the other appends: clean, with the edit.
+6. A bullet deleted on one side and unchanged on the other is removed, also when the other side
+   appends next to it (*unit*).
+7. Lists left to git give exactly the `git merge-file` result of the original inputs (*unit*, byte
+   for byte, in a file with no tables): the heading renamed or removed on one side; a different
+   number of lists under the heading; a duplicate bullet in one version; a `replace` block with
+   unequal removed and added counts; a merge that would hold the same text twice. Ordered items and
+   bullets inside a fenced code block are not merged as lists.
+8. Lists are told apart by heading path: both sides appending under `### Added` of
+   `## Unreleased`, while one also appends under `### Fixed`, merge cleanly, and a bullet under
+   `## 0.1.0` › `### Added` is never moved into `## Unreleased` › `### Added` (*unit*).
+9. Prose right after a merged list merges cleanly; two different edits of one prose line conflict
+   as git would (*unit*).
+10. A backlog file whose epic introduction holds a bullet list: rows and bullets appended on both
+    sides merge in one pass (*unit*).
+11. CRLF line endings and a missing final newline after a list are kept (*unit*).
+12. `init --merge-driver` lists every `CHANGELOG.md` (any directory, any letter case, tracked or
+    untracked-not-ignored) in the block and skips ones under `worktree_dir`; a changelog added later
+    appears after `upgrade`; outside a git repository the block holds no changelog lines and
+    `init` still succeeds.
+13. A file outside the block given `merge=taskrail` by its own `.gitattributes` line gets its
+    bullets merged by a real `git merge`, and `upgrade` keeps that line.
+14. An exception raised inside the list stage makes the driver produce exactly the
+    `git merge-file` result, with the warning, exit 0 or 1 (*unit*); every T004 test still passes.
+
+## Affected areas
+
+- `tools/taskrail/src/taskrail/mergedriver.py`: a list scanner (headings, bullets, lists outside
+  fences), `merge_lists` (pairing, three-way identities, move-aware order, rendering into the three
+  inputs), `merge_text` calling it after `merge_tables`, and `attribute_paths` adding changelogs
+  found with `git ls-files -z --cached --others --exclude-standard`.
+- `tools/taskrail/tests/test_merge_driver.py`: unit and real-git cases above, plus install cases.
+- `tools/taskrail/DESIGN.md` §7.4 and §12.8; `tools/taskrail/CHANGELOG.md`.
+- Reused without change: `_region`'s end-of-line handling (generalised only if it cannot take
+  bullets as they are), `_merge_file`, `update_attributes`, `attribute_line`.
+- Not touched: `config.py`, `install.py`, `cli.py`, the skills and their installed copies.
+
+## Out of scope
+
+- **Release rotation.** One side renames `## Unreleased` to `## 0.2.0` and opens a new, empty
+  `## Unreleased` while the other appends a bullet to the old one: the path has no list on one side,
+  so git merges it as today and it conflicts. Where the bullet belongs is a decision.
+- **Loose lists** (blank lines between bullets), ordered lists, setext headings and lazy
+  continuation lines: left to git.
+- **A configurable list of changelog paths** in `.taskrail/config.toml` (see Q1's alternative).
+- **Adopting the driver in this repository** (T004's Q9), and installing it into this checkout.
+- **The by-hand rule in the skills.** The autopilot skill's class 2 already says "one entry per
+  task"; changing skill text means reinstalling copies, which parallel lanes conflict on (class 3).
+
+## Open questions and risks
+
+Decisions for the plan gate, each with a recommendation:
+
+- **Q1 — Which files, and how `init --merge-driver` learns the changelog path.** Recommended: the
+  block lists every `CHANGELOG.md` found by `git ls-files` (case-insensitive name, outside
+  `worktree_dir`), and any other file opts in with a `merge=taskrail` line outside the block.
+  Alternatives: (a) a config key such as `[merge_driver].files = ["tools/taskrail/CHANGELOG.md"]`
+  rendered into the block — explicit and covers any name, but a new config table in `config.py`
+  and DESIGN §4, and nothing happens until a repository sets it; (b) no automatic lines at all,
+  only the documented manual line; (c) `init --merge-driver --changelog PATH` recorded in
+  `installed.json` — touches `install.py` and the manifest.
+- **Q2 — Where list merging applies.** Recommended: every file the driver receives, without looking
+  at the path. Alternative: only files whose `%P` is named `CHANGELOG.md` or listed — safer for
+  backlog files, but a manually opted-in `CHANGES.md` would then need a second mechanism.
+- **Q3 — The unit and list boundaries.** Recommended: column-0 `-`/`*`/`+` bullets with indented
+  continuation lines, tight lists only, identity by heading path and position with equal list
+  counts. Alternative: allow blank lines inside a list — covers loose lists, but a blank line then
+  cannot tell a list's end from its next item, and prose after a list is easily swallowed.
+- **Q4 — Recognising a move.** Recommended: identical text present in the base and both sides,
+  outside the `SequenceMatcher` matching blocks on one side; the moving side's position wins,
+  the current side's when both moved it. Alternatives: a bullet moved differently on both sides is
+  a conflict (an ordering disagreement in a changelog rarely deserves a human); or detect only
+  "removed at one place and added at another by the same side" — the same thing once keys are
+  texts, but it misses a move whose surroundings were also edited.
+- **Q5 — Edits and what stays a conflict.** Recommended: pair removed and added bullets inside a
+  `replace` block of equal counts as edits; two different edits and edit/delete are marked; unequal
+  counts, duplicate keys and a result with repeated text leave the list to git. Alternative: no
+  edit pairing — simpler, but two different edits of one bullet would then silently become two
+  bullets, which is exactly the duplication this task removes.
+- **Q6 — Order of bullets both sides append.** Recommended: the current side's first, as for rows.
+  Alternative: the other side's first, so a rebase keeps the branch's bullet last — but it would
+  differ from rows in the same file and from `git merge-file --union`.
+- **Q7 — Structure.** Recommended: a second stage `merge_lists` after the unchanged `merge_tables`,
+  each placing its merged regions into all three inputs, then one `git merge-file`; `DRIVER_NAME`
+  unchanged. Alternative: one combined region pass (shared line-index bookkeeping, but it rewrites
+  T004's tested code), or renaming the driver (every clone's config is rewritten by `upgrade`).
+- **Q8 — Documentation reach.** Recommended: DESIGN §7.4 and §12.8 and the CHANGELOG only. The
+  README's `--merge-driver` bullet says "conflicts … in backlog tables"; a half-sentence there
+  ("and bullets appended to changelogs") is outside this lane's listed files. Recommended: include
+  that half-sentence; alternative: leave the README to a later docs pass.
+
+Risks:
+
+- **Merging lists in backlog and index files** changes a result that is today git's: bullets both
+  sides add next to each other merge instead of conflicting. Every rule falls back to git where it
+  cannot tell, but a list meant to conflict (two people rewording the same checklist differently in
+  a `replace` block of unequal size) is left to git, not marked by the driver — same as today.
+- **`git ls-files` cost** in `attribute_paths`, which `epic add --own-file` and `epic split` also
+  call: one process, bounded by the repository's file list; `--others --exclude-standard` walks
+  untracked directories. If that proves slow, tracked files only.
+- **Automatic lines for changelogs nobody asked for** — for example a vendored third-party
+  `CHANGELOG.md`: its merges become list-aware too. The attribute is still only active in a clone
+  that opted in with `init --merge-driver`.
+- **Size.** Three points; the list merge is about the size of T004's row merge. If it must shrink,
+  drop Q1's automatic changelog lines first (the manual line still works) and keep the merge.
+- **Parallel lanes.** T039 edits `install.py` `workflow()` only; T009 is docs only. This task does
+  not touch `install.py`. It stacks on T004, so T004's merge will require rebasing this branch.
+
+## Evidence
+
+Throwaway files under `/tmp`, git 2.55.0, deleted afterwards.
+
+**E1 — `git merge-file` on changelog bullets today.** A `# Changelog` with `## Unreleased` and a
+`## 0.1.0` section below it:
+
+```
+### case 1: both append at the end
+# Changelog
+
+## Unreleased
+
+- X one.
+- Y two.
+<<<<<<< current
+- A mine.
+=======
+- B theirs.
+>>>>>>> other
+
+## 0.1.0
+
+- First release.
+exit=1
+### case 2: other moves N to the end; current added M at the top
+# Changelog
+
+## Unreleased
+
+<<<<<<< current
+- M mainline.
+- N branch bullet,
+  wrapped.
+=======
+>>>>>>> other
+- X one.
+- Y two.
+- N branch bullet,
+  wrapped.
+
+## 0.1.0
+
+- First release.
+exit=1
+### case 2 resolved by keep-both (--union)
+# Changelog
+
+## Unreleased
+
+- M mainline.
+- N branch bullet,
+  wrapped.
+- X one.
+- Y two.
+- N branch bullet,
+  wrapped.
+
+## 0.1.0
+
+- First release.
+### case 3: other moves N to the end; current appended P at the end
+# Changelog
+
+## Unreleased
+
+- M mainline.
+- X one.
+- Y two.
+<<<<<<< current
+- P later.
+=======
+- N branch bullet,
+  wrapped.
+>>>>>>> other
+
+## 0.1.0
+
+- First release.
+exit=1
+### case 3 --union
+# Changelog
+
+## Unreleased
+
+- M mainline.
+- X one.
+- Y two.
+- P later.
+- N branch bullet,
+  wrapped.
+
+## 0.1.0
+
+- First release.
+```
+
+Case 2 is this run's real duplicate: "keep both" at the top conflict keeps the current side's N,
+while the other side's N at the end is already merged in.
+
+**E2 — The ordering rule, prototyped** over one-letter keys (a throwaway script, not committed):
+
+```
+both append                                   base=XY current=XYA other=XYB -> XYAB
+other moves N to end, current adds M at top   base=NXY current=MNXY other=XYN -> MXYN
+other moves N to end, current appends P       base=NXY current=NXYP other=XYN -> XYPN
+current moves N to end, other appends P       base=NXY current=XYN other=NXYP -> XYPN
+both move N to end                            base=NXY current=XYN other=XYN -> XYN
+other deletes X, current appends              base=NXY current=NXYA other=NY -> NYA
+```
