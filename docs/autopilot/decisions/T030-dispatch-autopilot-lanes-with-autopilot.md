@@ -57,3 +57,16 @@ leaves that as is, since a dispatch expires after the claim grace period and idl
 lanes that have started. No rebase was needed (`origin/main` is `2312a2a`). Checked before
 publishing: `pytest -q` 505 passed, `taskrail validate` 0 errors, `upgrade` reports nothing to
 create or update, the CHANGELOG bullet is last in Unreleased, and the branch has no upstream.
+
+## rebase after T034, T037 and T036
+
+T034 (`0f01370`), T037 (`d092c96`) and T036 (`591fa5b`) were squash-merged into `main`. The branch
+was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/features/README.md` and `docs/autopilot/decisions/README.md` | keep both rows · stop | **keep both** | Rows added on both sides. |
+| 2 | CHANGELOG conflicts, including the commit that moved this bullet to the end | keep both, then remove the duplicate · stop | **keep one bullet, at the end** | Keeping both sides of the move commit left the bullet twice; the orchestrator removed the copy at its old position. |
+
+After the rebase: no conflict markers, one T030 bullet at the end of Unreleased, `pytest -q` 536
+passed, `taskrail validate` 0 errors, `upgrade` reports nothing to create or update.
