@@ -48,6 +48,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ✅ | T036 | feature | 3   | T019       | Mirror branch records to a remote ref | Push each task's branch record next to refs/taskrail/claims, so another clone resolves a renamed branch in show, review and done-branch detection. |
 | ✅ | T037 | bug     | 1   | —          | Delete remote claims with a lease on their recorded commit | release --force and done exit 2 when claim_remote is set: _delete_remote leases without an expected commit, so git finds no tracking ref and rejects the delete. |
 | ✅ | T038 | chore   | 1   | —          | Create task branches without tracking the mainline | git worktree add -b <branch> origin/<mainline> sets the task branch to track the mainline, so a plain git push can target it; branch with --no-track in the skill and in new --workspace. |
+| ⬜ | T039 | chore   | 1   | —          | Fetch full history in the generated GitHub workflow | The workflow init --github-workflow writes checks out one commit, so validate's reopen history check (T012) examines nothing; set fetch-depth: 0. |
 
 ## E03 — caveman skill
 
