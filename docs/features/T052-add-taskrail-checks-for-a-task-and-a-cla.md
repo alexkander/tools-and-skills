@@ -1,6 +1,6 @@
 # T052 — Add taskrail checks for a task and a Claude Code note on command shape
 
-Kind: feature · Epic: E02 · Status: implemented (plan approved: D1–D7 as recommended; D4, D5 and
+Kind: feature · Epic: E02 · Status: verified (plan and implementation approved: D1–D7 as recommended; D4, D5 and
 D6 applied as written; D7 opened as T063). Record:
 `docs/autopilot/decisions/T052-add-taskrail-checks-for-a-task-and-a-cla.md`.
 
@@ -113,6 +113,39 @@ Implementation details the plan left open:
   so a typo is not silently a pass.
 - A task whose kind is not defined in the worktree's configuration exits 2.
 - In text mode each check's output is inherited by the terminal, not captured, so long runs stream.
+
+## Verify
+
+The real CLI from this branch (`<worktree>/.taskrail/bin/taskrail`, pinned to the branch's source),
+invoked with `--root` at this repository's main checkout, so neither the shell nor the `--root`
+pointed at the worktree. T052 was claimed in run `20260914-1` with no resources configured.
+
+```text
+$ taskrail --root <main checkout> checks T052 --stage implement --json      # exit 0
+"worktree": "<main checkout>/.worktrees/T052-add-taskrail-checks-for-a-task-and-a-cla",
+"run": "20260914-1", "resources": {}, "environment": {}, "stage": "implement",
+"checks": [
+  {"name": "test", "command": "uv run --directory tools/taskrail pytest -q", "status": "passed", "exit": 0,
+   "output": "…841 passed in 87.55s (0:01:27)…"},
+  {"name": "lint", "command": null, "status": "not-configured", "exit": null, "output": null}],
+"passed": true
+
+$ taskrail --root <main checkout> checks T052 --stage implement              # exit 0
+== test: uv run --directory tools/taskrail pytest -q
+…841 passed in 86.15s (0:01:26)
+== lint: not configured
+passed test
+not configured lint
+T052 in <main checkout>/.worktrees/T052-add-taskrail-checks-for-a-task-and-a-cla: passed
+
+$ taskrail --root <main checkout> checks T057 --json
+taskrail: T057 has no worktree to run its checks in: no claim records an existing worktree, and its branch `T057-check-autopilot-compaction-and-old-lane` is not checked out in any worktree
+exit=5
+```
+
+No gap against the plan. The captured output carries pytest's colour codes because the agent's
+shell exports `FORCE_COLOR=3`, which the check inherits along with the rest of the environment,
+as §7.5 says.
 
 ## Affected areas
 
