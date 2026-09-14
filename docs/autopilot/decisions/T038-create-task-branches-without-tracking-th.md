@@ -22,3 +22,17 @@ with `branch.autoSetupMerge=always`; `new --workspace` sets `branch.<task>.merge
 | 4 | Existing branches that track the mainline | no migration, mention the fix in the CHANGELOG · follow-up check | **no migration; the CHANGELOG bullet names `git branch --unset-upstream`** | Few branches are affected and the fix is one command; a detector is not worth its code. |
 
 Change set approved.
+
+## implement gate
+
+Reviewed: commit `fb7c080` (`--no-track` in `_open_workspace`, core skill step 3 on top of T036's
+text, DESIGN.md's two clauses, CHANGELOG, `test_workspace_branch_has_no_upstream`). Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 504 passed. The new test failed
+on the old code in all four cases (remote and local start points, both worktree modes). The
+throwaway runs showed a plain push refused under `push.default=upstream`, `review --publish` setting
+the task's own remote branch as upstream, and a stacked base left untracked.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Start point as a second test parameter | accept · two remote-base cases only | **accept** | Only a local start point exercises `branch.autoSetupMerge=always`. |
+| 2 | Scope commit without attribution trailers | leave · reword | **leave** | The pull request is squash-merged, so branch commits never reach `main`; rewording would rewrite the orchestrator's decision commit too. |
