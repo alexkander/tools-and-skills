@@ -94,5 +94,5 @@ Done when: caveman is usable here and the decision on RTK is recorded
 
 | ✓  | ID   | Kind    | Pts | Depends On | Title                          | Description                    |
 |----|------|---------|-----|------------|--------------------------------|--------------------------------|
-| ⬜ | T043 | chore   | 1   | —          | Move caveman to .claude/skills for use in this repository only | caveman is used here, not distributed: move skills/caveman to .claude/skills/caveman keeping its upstream pin, markers and licence, and drop the consumer install wording. |
+| ✅ | T043 | chore   | 1   | —          | Move caveman to .claude/skills for use in this repository only | caveman is used here, not distributed: move skills/caveman to .claude/skills/caveman keeping its upstream pin, markers and licence, and drop the consumer install wording. |
 | ⬜ | T044 | spike   | 2   | —          | Evaluate using RTK in this repository | Decide whether agents working on this repository use RTK, not whether to distribute it; start once rtk-ai/rtk PR #3577 is merged and issue #3230 is closed. |
