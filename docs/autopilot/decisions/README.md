@@ -35,3 +35,4 @@
 | T043 | Move caveman to .claude/skills for use in this repository only | [T043-move-caveman-to-claude-skills-for-use-in.md](T043-move-caveman-to-claude-skills-for-use-in.md) |
 | T044 | Evaluate using RTK in this repository | [T044-evaluate-using-rtk-in-this-repository.md](T044-evaluate-using-rtk-in-this-repository.md) |
 | T033 | Trial the autopilot on a real backlog with each supported agent | [T033-trial-the-autopilot-on-a-real-backlog-wi.md](T033-trial-the-autopilot-on-a-real-backlog-wi.md) |
+| T050 | Accept --gate close for the stop after done | [T050-accept-gate-close-for-the-stop-after-don.md](T050-accept-gate-close-for-the-stop-after-don.md) |
