@@ -65,3 +65,19 @@ human's delegation.
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch for hand-off | queue · changes | **queue, as `feat(taskrail)`, after T050's pull request is merged** | Every close check holds; hand-off is sequential and T050 is in review. |
 | 2 | "running; handed off" wording of `lane --state handed-off` | follow-up · ignore | **ignore for now** | Pre-existing text, outside T049; the state shown is the recorded lane state, and the hand-off is reported in the same line. |
+
+## rebase after T050
+
+T050 was merged into `main` (`1631ab8`). The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md` and `docs/autopilot/decisions/README.md` | keep both · stop | **keep both** | Class 2: appended index rows, one per task. |
+| 2 | Conflict in `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2: appended *Unreleased* bullets, T050's then T049's. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s line, then `taskrail upgrade --force`, committed as `3d653d1`** | Class 3; the rewritten digest matches the merged skill source. |
+| 4 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID: T049 ✅ and T050 ✅** | Class 1; no `Reopens:` commit on either side. |
+| 5 | Conflict in `tools/taskrail/tests/test_autopilot_skill.py` | keep both · stop | **keep both functions** | T050 and T049 each added a new test function at the same place and changed no existing line; kept as two functions, the same append case as class 2. |
+
+After the rebase: no conflict markers (`git diff --check` clean), DESIGN.md §12.1 and §12.6 carry both
+T050's and T049's text, `uv run --directory tools/taskrail pytest -q` 840 passed, `taskrail validate`
+0 errors.
