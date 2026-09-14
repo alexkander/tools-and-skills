@@ -239,6 +239,11 @@ def merge_tables(
     return results[0], results[1], results[2]
 
 
+def merge_lists(base: str, current: str, other: str) -> tuple[str, str, str]:
+    """The three inputs with every bullet list mergeable item by item replaced by its merged bullets."""
+    return base, current, other  # stub: lists are left to git
+
+
 def _merge_file(base: str, current: str, other: str, labels: tuple[str, str, str], marker_size: int) -> tuple[str, bool]:
     with tempfile.TemporaryDirectory(prefix="taskrail-merge-") as directory:
         paths = {}
@@ -270,6 +275,7 @@ def merge_text(
     `labels` are the current, base and other labels of the conflict markers, in `git merge-file` order.
     """
     merged = merge_tables(base, current, other, aliases=aliases, reopened=reopened)
+    merged = merge_lists(*merged)
     return _merge_file(*merged, labels, marker_size)
 
 
