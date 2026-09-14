@@ -51,3 +51,18 @@ local notify script, and found no gap against the plan. The lane rebased onto `o
 conflicted. Checked by the orchestrator before publishing: `TODO.md` differs from `main` only in
 T032 `✅`, `pytest -q` 524 passed, `taskrail validate` 0 errors, `upgrade` reports nothing to create
 or update.
+
+## rebase after T036 and T030
+
+T036 (`591fa5b`) and T030 (`53bd1fb`) were squash-merged into `main`. The orchestrator rebased the
+branch onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the docs indexes and CHANGELOG | keep both · stop | **keep both** | Rows and bullets added on both sides; one T032 bullet remains. |
+| 2 | Conflicts in `autopilot/commands.py`, `runs.py`, `status.py` | keep both · stop | **keep both** | Each hunk was an import or constant added on both sides: `dispatch` and `notify` imported together, `DISPATCHED` beside `GATE_STATES`/`GATE_CLEARING`, `runs_module` beside `escalation`. |
+| 3 | Conflicts in DESIGN.md §7, §12 intro, §12.1 and §12.4 | merge both texts · stop | **merge both** | T030's implemented `next` row and group check, T032's `--gate` sentence and escalation fields; `status` lists `dispatched` (T030) and the escalation reasons (T032); the run file lists both `gate` and `dispatched`. |
+
+The full suite ran on the conflict-resolved commit before continuing (576 passed). After the rebase:
+no conflict markers, `pytest -q` 576 passed, `taskrail validate` 0 errors, `upgrade` reports nothing
+to create or update.
