@@ -1,6 +1,6 @@
 # T004 — Add a git merge driver for status cells and appended rows
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: the core skill's step 8 (how an agent resolves backlog conflicts by hand today),
 `tools/taskrail/DESIGN.md` §3 (file format), §6.3 (IDs are never reused, so an ID is a stable row
@@ -287,6 +287,64 @@ Risks:
 - **Parallel lanes.** T024 edits `install.py` (skill and reference files) and the skills; this task
   touches `install.py` only in `install()`'s extras and edits step 8 of the core skill, so a
   rebase conflict with T024 is possible there and small.
+
+## Plan-gate decisions
+
+Approved as recommended (Q1–Q9), recorded in
+`docs/autopilot/decisions/T004-add-a-git-merge-driver-for-status-cells.md`. Q7's follow-up is T040,
+"Merge appended changelog bullets without duplicating moved ones" (E02, depends on T004).
+
+## Changes at implementation
+
+- **A `merge.taskrail` section with a `name` but no `driver` makes git fail** (`fatal: custom merge
+  driver taskrail lacks command line`), found while testing criterion 17. E4 holds for a clone with
+  no such section; DESIGN §7.4 tells a clone to opt out with
+  `git config --remove-section merge.taskrail`, and `upgrade` never removes or half-writes the
+  section.
+- **Test corrections before implementing.** The "section removed" case of criterion 9 removed the
+  table neither side appended to, so the other table was rightly merged row by row; it now removes
+  the table both sides change. The expected quoted `.gitattributes` line had one backslash where
+  git's C-style quoting needs two; the test now asks `git check-attr -z` whether each path, and
+  only it, gets `merge=taskrail`.
+- **Artifact indexes with per-task placeholders** (`{id}`, `{slug}`) are skipped when listing paths;
+  `{epic}` renders once per epic of the backlog.
+
+## Test coverage
+
+All in `tools/taskrail/tests/test_merge_driver.py`.
+
+| # | Criterion | Tests |
+|---|---|---|
+| 1 | rows appended on both sides, `merge` and `rebase`, validate passes | `test_rows_appended_on_both_sides_are_all_kept_current_first`, `test_git_merge_keeps_rows_appended_on_both_branches`, `test_git_rebase_replays_rows_and_a_done_mark_onto_new_rows` |
+| 2 | `✅` next to an appended row; other cells of the same row | `test_a_status_flip_merges_with_a_row_appended_right_after_it`, `test_different_cells_of_one_row_changed_on_each_side_are_both_kept`, `test_git_rebase_replays_rows_and_a_done_mark_onto_new_rows`, `test_git_cherry_pick_of_a_done_mark_next_to_an_appended_row` |
+| 3 | an identical row replayed | `test_a_row_added_identically_on_both_sides_appears_once`, `test_a_rebase_replaying_a_row_already_done_upstream_keeps_it_done` |
+| 4 | same new ID, `✅` against `⬜`, with and without `Reopens:` | `test_the_same_new_row_done_on_one_side_and_pending_on_the_other` (4 cases), `test_a_reopen_commit_on_the_pending_side_keeps_it_pending[True/False]`, `test_reopen_commits_patch_equivalent_on_both_sides_cancel_out`, `test_a_rebase_replaying_a_row_already_done_upstream_keeps_it_done` |
+| 5 | status conflicts with a base | `test_done_wins_over_discarded_without_a_reopen_check`, `test_pending_against_discarded_on_a_done_row_is_marked_alone` |
+| 6 | labels that are not commits | `test_a_status_conflict_that_needs_the_reopen_check_stays_marked_when_sides_are_unknown` |
+| 7 | the same cell changed differently | `test_the_same_cell_changed_differently_marks_only_that_row_with_the_marker_size`, `test_a_real_conflict_is_left_with_markers_around_the_row_only` |
+| 8 | prose next to a table; conflicting prose | `test_prose_right_after_a_merged_table_merges_cleanly`, `test_the_same_prose_line_changed_differently_conflicts_as_git_would` |
+| 9 | tables not mergeable by row equal `git merge-file` | `test_a_table_that_cannot_be_merged_by_row_gets_git_merge_file_result` (4 cases) |
+| 10 | deleted rows | `test_a_deleted_row_is_removed_unless_the_other_side_changed_it` |
+| 11 | a row moved between tables | `test_a_row_moved_to_another_table_is_not_duplicated` |
+| 12 | Epics table and artifact index | `test_the_epics_table_and_an_artifact_index_merge_by_their_first_key` |
+| 13 | aliases; unreadable config | `test_aliased_status_and_id_columns_are_honoured`, `test_the_driver_reads_aliases_from_the_working_tree_config_and_ignores_an_unreadable_one` |
+| 14 | fallback to `git merge-file`; exit 0/1 only | `test_the_driver_falls_back_to_git_merge_file` (no tables, not UTF-8, internal error), `test_the_driver_writes_the_result_over_current_and_exits_0_or_1`, `test_a_driver_that_cannot_start_falls_back_to_an_ordinary_merge` |
+| 15 | `init --merge-driver`, idempotent; nothing without the flag | `test_init_merge_driver_writes_attributes_config_and_the_extra`, `test_init_without_the_flag_installs_no_merge_driver`, `test_attribute_lines_match_exactly_their_path` (4 cases) |
+| 16 | `upgrade` refresh; epic commands | `test_upgrade_refreshes_the_block_and_only_updates_an_existing_definition`, `test_epic_commands_add_their_file_to_an_existing_block`, `test_epic_commands_create_no_block_when_none_exists` |
+| 17 | a clone without the definition | `test_a_clone_without_the_driver_definition_uses_git_text_merge` |
+
+Also: `test_line_endings_and_a_missing_final_newline_are_kept` (CRLF and no final newline).
+
+## Implementation evidence
+
+- Tests first: against a stub `mergedriver.py` whose functions raise `NotImplementedError`,
+  `uv run pytest -q tests/test_merge_driver.py` gave `31 failed, 2 passed, 10 errors`; the two passes
+  were the negative install checks (no block or config without the flag), true before the change.
+- Mutation check: with `merge_tables` returning its inputs unchanged, 25 of the 46 tests failed,
+  among them every real `git merge`, `rebase` and `cherry-pick` scenario
+  (`CONFLICT (content): Merge conflict in TODO.md`); the 21 left are the fallback, install and
+  plain-merge equivalence tests, which do not depend on row merging.
+- Full suite after implementing: `687 passed` (641 before, plus 46); `688 passed` with the aliases test.
 
 ## Evidence
 

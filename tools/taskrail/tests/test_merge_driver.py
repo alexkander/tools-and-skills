@@ -190,7 +190,7 @@ UNMERGEABLE = {
     "header changed on one side": lambda text: text.replace("| Description |\n|----|", "| Notes       |\n|----|", 1),
     "duplicate keys": lambda text: text.replace(BASE_ROWS[2], BASE_ROWS[2] + BASE_ROWS[2]),
     "a row with the wrong cell count": lambda text: text.replace(BASE_ROWS[2], BASE_ROWS[2].rstrip("\n") + " extra |\n"),
-    "section removed": lambda text: text[: text.index("## E02")].rstrip("\n") + "\n",
+    "section removed": lambda text: text[: text.index("## E01")] + text[text.index("## E02") :],
 }
 
 
@@ -252,6 +252,15 @@ def test_aliased_status_and_id_columns_are_honoured():
     assert (text, conflicted) == (current, False)
     _, conflicted = merge(base, current, other, reopened=lambda task_id: set())
     assert conflicted  # without the aliases `Done` is an ordinary cell
+
+
+def test_the_driver_reads_aliases_from_the_working_tree_config_and_ignores_an_unreadable_one(tmp_path):
+    (tmp_path / ".taskrail").mkdir()
+    config = tmp_path / ".taskrail/config.toml"
+    config.write_text('[[backlog]]\nname = "main"\nprefix = "T"\nfile = "TODO.md"\n\n[columns]\naliases = { ID = "Key" }\n')
+    assert mergedriver._aliases(tmp_path) == {"ID": "Key"}
+    config.write_text("<<<<<<< HEAD\nversion = 1\n=======\n")
+    assert mergedriver._aliases(tmp_path) is None
 
 
 def test_line_endings_and_a_missing_final_newline_are_kept():
@@ -455,7 +464,7 @@ def test_a_driver_that_cannot_start_falls_back_to_an_ordinary_merge(driven, monk
 
 
 def test_a_clone_without_the_driver_definition_uses_git_text_merge(driven):
-    git(driven, "config", "--local", "--unset", "merge.taskrail.driver")
+    git(driven, "config", "--local", "--remove-section", "merge.taskrail")
     git(driven, "switch", "-q", "-c", "topic")
     commit(driven, backlog([*BASE_ROWS], e02=[row("✅", "T009")]), "done T009")
     git(driven, "switch", "-q", "main")
@@ -558,6 +567,15 @@ def test_epic_commands_create_no_block_when_none_exists(plain, capsys):
     assert not (plain / ".gitattributes").exists()
 
 
-def test_attribute_paths_with_spaces_or_glob_characters_are_quoted_or_escaped():
+@pytest.mark.parametrize("path", ["TODO.md", "my backlog/E01 [x].md", 'odd "name"*?.md', "back\\slash.md"])
+def test_attribute_lines_match_exactly_their_path(plain, path):
     assert mergedriver.attribute_line("TODO.md") == "/TODO.md merge=taskrail"
-    assert mergedriver.attribute_line("my backlog/E01 [x].md") == '"/my backlog/E01 \\[x].md" merge=taskrail'
+    (plain / ".gitattributes").write_text(mergedriver.attribute_line(path) + "\n")
+
+    def merge_attribute(name: str) -> str:
+        output = subprocess.run(["git", "check-attr", "-z", "merge", "--", name], cwd=plain, capture_output=True, text=True).stdout
+        return output.split("\0")[2]
+
+    assert merge_attribute(path) == "taskrail"
+    assert merge_attribute("sub/" + path) == "unspecified"
+    assert merge_attribute("TODO.mdx") == "unspecified"
