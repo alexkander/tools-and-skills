@@ -21,3 +21,16 @@ brief placed T005 in E05; the backlog has it in E02, and the lane rightly left t
 | 7 | Scope | 5 points, no follow-ups now · open follow-ups | **as recommended** | `--single-epic` and ID-less tables wait for a consumer that needs them. |
 
 Plan approved. The lane uses invented data only and removes its scratch repositories when done.
+
+## implement gate
+
+Reviewed: commit `0218316` (`importer.py`, one registration hunk in `cli.py`, DESIGN.md §1, §7,
+§7.3, §11, README, CHANGELOG, `tests/test_import.py`). Re-ran `uv run --directory tools/taskrail
+pytest -q` in the lane's worktree: 501 passed. The 32 new tests, on invented data, failed before the
+code; the first run with code exposed a real bug (a seeded `# TODO` heading counted as prose), fixed
+before commit. The importer reuses the existing cell and ID helpers without changing them.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Changes from the plan: Depends On after Kind; `--write` replaces only a target with nothing but headings and empty tables; only the target file's errors block; `already_imported` and exit 4 for a busy lock | accept · Depends On after ID, whole-project validation | **accept** | Each is safer or more precise than the plan's wording: a target with its own prose is never overwritten, and a broken unrelated backlog does not block adopting another. |
+| 2 | Approve the implementation | approve · changes | **approve** | Criteria 1–15 map to tests seen failing. |
