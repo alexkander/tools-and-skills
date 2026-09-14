@@ -56,3 +56,16 @@ tests and three skill tests were shown failing before the code. Re-ran
 Resource values after a refill: once `next` releases a finished lane's values, `taskrail checks` for
 that task passes none, so at hand-off the orchestrator still chooses values no lane in use holds, as
 T055's skill text says.
+
+## close gate
+
+Reviewed: `cf0e254` (verification: this branch's CLI with `--root` at the main checkout found T052's
+worktree and run, ran `test` there, 841 passed, reported `lint` not configured, exit 0 in JSON and
+text; a task with no worktree exited 5) and `ed9d1dc` (`taskrail done T052` on its own). The backlog
+differs from its base only in T052's row and the T063 row. No code changed after the checks re-run at
+the implement gate (841 passed). `taskrail validate`: 0 errors. No upstream is configured.
+`review --json`: `rebase.needed` false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification ran the new command on the task itself. |
