@@ -22,7 +22,8 @@ and `<run>` is `claude` or `opencode`.
 | A3 | Escalation about T004 changing `docs/policy.md` (a governing document) | `Approved: document exit code 1 for an unreadable file in docs/policy.md, as planned.` | planned |
 | A4 | Escalation of T005's decide gate | `Accept the recommendation as written.` (In the new-session probe this answer is part of P3.) | planned |
 | A5 | Escalation of a merge or rebase conflict in `wordstat/__init__.py` or `tests/` between T001, T002 and T003 | `Keep both behaviours: the corrected word count and the line count. Re-run the checks and show me the result before publishing.` | planned |
-| A6 | A hand-off gives you a branch and a pull request title | Run `<K>/bin/squash-merge.sh <run> <branch> "<title>"` with the branch and title exactly as given, then type `<ID> is merged.` If the branch name was not given, find it with `.taskrail/bin/taskrail show <ID>` and log that as friction. | planned |
+| A6 | A hand-off gives you a branch and a pull request title | Run `<K>/bin/squash-merge.sh <run> <branch> "<title>"` with the branch and title exactly as given, then type `<ID> is merged.` | planned |
+| A6b | A hand-off, or a message saying a task is handed off, lacks the branch or the title | `Give me the branch and the exact pull request title for <ID>.` Then A6. Do not look them up yourself. | unplanned |
 | A7 | `squash-merge.sh` reports a conflict or "changes nothing" | `The squash merge of <branch> failed: <paste its message>. Bring the branch up to date and hand it off again.` | unplanned |
 | A8 | Any other question or escalation (contradicting lanes, false premise, a choice between options) | `Decide from AGENTS.md and docs/policy.md; where they do not settle it, take your recommendation.` | unplanned |
 | A9 | In the new-session probe, the orchestrator says it cannot resume a lane by its handle | `Restart that lane from its branch and artifacts, and continue.` | planned probe outcome |

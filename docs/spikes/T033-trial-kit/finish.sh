@@ -26,16 +26,27 @@ if [ -d "$HOME/.claude/projects/$project" ]; then
   mkdir -p "$RUN/evidence/transcripts/claude"
   cp -R "$HOME/.claude/projects/$project/." "$RUN/evidence/transcripts/claude/"
 fi
-# OpenCode: export every session whose directory is this run's clone or one of its worktrees.
+# OpenCode: `session list` shows only top-level sessions, so export those in this run's clone and
+# every lane's child session, whose IDs are the lane handles recorded in the run files.
 if command -v opencode > /dev/null 2>&1; then
   mkdir -p "$RUN/evidence/transcripts/opencode"
-  (cd "$RUN/repo" && opencode session list --format json < /dev/null 2> /dev/null) \
-    | python3 -c 'import json, sys
+  {
+    (cd "$RUN/repo" && opencode session list --format json < /dev/null 2> /dev/null) \
+      | python3 -c 'import json, sys
 text = sys.stdin.read().strip()
 for s in (json.loads(text) if text else []):
     if s.get("directory", "").startswith(sys.argv[1]):
-        print(s["id"])' "$RUN/repo" \
-    | while read -r id; do opencode export "$id" < /dev/null > "$RUN/evidence/transcripts/opencode/$id.json" 2> /dev/null || true; done
+        print(s["id"])' "$RUN/repo"
+    common=$(git -C "$RUN/repo" rev-parse --path-format=absolute --git-common-dir)
+    python3 -c 'import glob, json, sys
+for path in glob.glob(sys.argv[1] + "/taskrail/runs/*.json"):
+    for task in json.load(open(path)).get("tasks", {}).values():
+        handle = task.get("handle") or ""
+        if handle.startswith("ses_"):
+            print(handle)' "$common"
+  } | sort -u | while read -r id; do
+    (cd "$RUN/repo" && opencode export "$id" < /dev/null > "$RUN/evidence/transcripts/opencode/$id.json" 2> /dev/null) || true
+  done
   rmdir "$RUN/evidence/transcripts/opencode" 2> /dev/null || true
 fi
 echo "evidence closed: $RUN/evidence (see final.txt)"

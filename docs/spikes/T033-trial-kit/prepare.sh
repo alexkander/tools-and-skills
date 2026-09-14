@@ -15,8 +15,8 @@ SOURCE_REPO=$(git -C "$HERE" rev-parse --show-toplevel)
 mkdir -p "$KIT/bin" "$KIT/taskrail" "$KIT/runs" "$KIT/seed"
 git -C "$SOURCE_REPO" archive "$COMMIT" tools/taskrail | tar -x -C "$KIT/taskrail"
 git -C "$SOURCE_REPO" rev-parse "$COMMIT^{commit}" > "$KIT/taskrail/COMMIT"
-for f in "$HERE"/*.sh "$HERE"/*.json "$HERE"/*.md; do [ ! -e "$f" ] || cp "$f" "$KIT/bin/"; done
-chmod +x "$KIT"/bin/*.sh
+for f in "$HERE"/*.sh "$HERE"/*.py "$HERE"/*.json "$HERE"/*.md; do [ ! -e "$f" ] || cp "$f" "$KIT/bin/"; done
+chmod +x "$KIT"/bin/*.sh "$KIT"/bin/*.py
 
 S="$KIT/seed/repo"
 git init -q -b main "$S"

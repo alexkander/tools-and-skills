@@ -34,6 +34,17 @@ the same commit. `check-kit.sh` exercises the kit through the taskrail CLI alone
 
 ## Each run
 
+Four moments are easy to miss; keep this list in view during the run:
+
+- step 6: the disabled refusal is observed before the autopilot is enabled;
+- step 10: `/compact` after the first answered gate;
+- step 11: the new-session probe at T005's decide gate;
+- every hand-off: merge at once, and log whether the orchestrator gave the branch and the title.
+
+Whoever runs the helper scripts and keeps the timeline, every prompt and answer typed in terminal A
+goes into the timeline as it happens; the analysis cannot recover an unlogged answer from the
+status captures.
+
 Do the Claude Code run first. For the OpenCode run, repeat every step with `opencode` as the run
 name; the differences are marked.
 
@@ -55,11 +66,17 @@ name; the differences are marked.
    a row.
 
 4. **Start the agent.** In terminal A:
-   - Claude Code: `cd $K/runs/claude/repo && claude`. Trust the folder when asked. Run `/model`
-     and log the model shown; keep the default.
-   - OpenCode: first check that `env | grep OPENCODE_EXPERIMENTAL` prints nothing, then
-     `cd $K/runs/opencode/repo && opencode`. Check that the model shown is
-     `github-copilot/claude-opus-5` (set by `opencode.json`) and log it.
+   - Claude Code: `cd $K/runs/claude/repo && claude --permission-mode manual`. Trust the folder
+     when asked. Check that the footer shows no permission mode such as *auto* or *accept edits*
+     (Shift+Tab cycles it; leave it on manual), run `/model`, and log both; keep the default
+     model. Auto mode changes which commands prompt, so the two agents would no longer run under
+     the same allowlist.
+   - OpenCode: first check that `env | grep OPENCODE_EXPERIMENTAL` prints nothing and that
+     `opencode models | grep -x github-copilot/claude-opus-5` prints the model. **If it does not,
+     stop here** and tell the T033 lane: the comparison needs the same model on both agents, and a
+     substitute is a decision for the spike, not for the run. Otherwise run
+     `cd $K/runs/opencode/repo && opencode`, check that the model shown is
+     `github-copilot/claude-opus-5` (set by `opencode.json`), and log it.
 
 5. **D1, no count.** Type **P1**. Expected: the orchestrator asks how many tasks and does nothing
    else. Answer **A1**.
@@ -70,7 +87,8 @@ name; the differences are marked.
    its changes with `git -C $K/runs/claude/repo checkout -- .` before going on.
 
 7. **Enable and start.** In terminal C: `$K/bin/enable-autopilot.sh claude`. Then type **P2** in
-   terminal A and log the time: the 3-hour limit counts from here.
+   terminal A as a single line, with nothing before or after it, and log the time: the 3-hour limit
+   counts from here.
 
 8. **While the run works.** Answer only from ANSWERS.md. Take a snapshot at each of these moments
    with `$K/bin/snapshot.sh claude <label>`, using labels such as `T004-escalation`,
@@ -90,10 +108,13 @@ name; the differences are marked.
 
    then type `<ID> is merged.` Merge each branch as soon as it is handed off.
 
-10. **D5, compaction.** The first time the orchestrator has answered a lane's gate and resumed it
-    (it says so, or `status` shows the lane `running` again after a `gate`), wait until the
-    orchestrator is idle — on OpenCode, until its task calls have returned — then type `/compact`
-    and take a snapshot labelled `after-compact`. Log the time.
+10. **D5, compaction — do not skip.** Put a note next to terminal A before the run starts, since
+    this probe comes while you are busy. The first time the orchestrator has answered a lane's
+    gate and resumed it (it says so, or `status` shows the lane `running` again after a `gate`),
+    wait until the orchestrator is idle — on OpenCode, until its task calls have returned — then
+    type `/compact`, take a snapshot labelled `after-compact`, and log the time. If the moment
+    passed unnoticed, do it at the next idle moment and log the delay; log "not exercised" only if
+    the run ends first.
 
 11. **D5, new session.** When T005's decide gate is escalated to you (**A4**), do not answer in
     that session. Wait until `status` shows no lane `running` (only `gate`, `escalated`,
