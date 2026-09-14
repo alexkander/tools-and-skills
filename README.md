@@ -19,11 +19,16 @@ Every item is one self-contained directory, grouped with everything it needs and
 nothing else in this repository. Taking one directory is enough to use it; siblings never have
 to come along.
 
+`.claude/skills/` is not part of that layout. It is this repository's own agent configuration,
+loaded by the agents that work on it — the skills taskrail installs (sources in
+`tools/taskrail`) and a vendored copy of caveman — and nothing in it is distributed.
+
 ## Third-party content
 
-Some items are vendored from upstream projects. Those carry their own licence and attribution
-inside their directory, pinned to a specific upstream commit. The MIT licence below covers the
-original work in this repository, not the vendored parts.
+Some content is vendored from upstream projects, such as caveman under `.claude/skills/`. It
+carries its own licence and attribution inside its directory, pinned to a specific upstream
+commit. The MIT licence below covers the original work in this repository, not the vendored
+parts.
 
 ## Licence
 
