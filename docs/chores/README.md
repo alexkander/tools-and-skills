@@ -11,3 +11,4 @@
 | T041 | Record the skills distribution decision in CLAUDE.md | [T041-record-the-skills-distribution-decision.md](T041-record-the-skills-distribution-decision.md) |
 | T043 | Move caveman to .claude/skills for use in this repository only | [T043-move-caveman-to-claude-skills-for-use-in.md](T043-move-caveman-to-claude-skills-for-use-in.md) |
 | T058 | Enable the autopilot in this repository | [T058-enable-the-autopilot-in-this-repository.md](T058-enable-the-autopilot-in-this-repository.md) |
+| T060 | Remove DESIGN.md and CLAUDE.md from the autopilot's governing paths | [T060-remove-design-md-and-claude-md-from-the.md](T060-remove-design-md-and-claude-md-from-the.md) |
