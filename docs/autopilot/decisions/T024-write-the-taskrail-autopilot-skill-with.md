@@ -28,3 +28,21 @@ the harness marker in every skill, and `autopilot start` refuses with exit 5 in 
 | Q10 | Starting from several unmerged dependencies | short paragraph: only on the human's explicit instruction, record the integration merge as the fork point, claim with `--ignore-deps --run R` · leave out | **include it** | The human asked for exactly this in this run, and the procedure worked. |
 
 Plan approved with Q7 changed.
+
+## implement gate
+
+Reviewed: commits `d0599f9` (tests alone) and `01ebfe1` (the skill, its three references, per-skill
+sections in the integration notes, `install.py` `harness_sections`/`skill_of`/`skill_files`,
+DESIGN.md §8–§10 and §12, README, CHANGELOG, this repository's installed copy). Read the portable
+`SKILL.md` in full: it names no agent and no private project, states the "only when asked with a
+count" and exit-5 rules in prose, and matches this run's practice. Re-ran `uv run --directory
+tools/taskrail pytest -q` in the lane's worktree: 629 passed. The 24 new tests failed before the
+code; six deliberate breakages (installing only `SKILL.md`, notes for every skill, removing only
+`SKILL.md` paths, an invented flag, dropping "stop and report", no `notify` in the skill) each failed
+the tests that cover them.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Follows Q1–Q10 with Q7 changed; criteria map to tests seen failing. |
+| 2 | Deviations: no separate escalations list in `SKILL.md`, `<SERVICES>` and `<CONTEXT>` placeholders, a per-skill column in the §8 notes table | accept · revert some | **accept all** | Small and visible; the record template keeps the escalation section. |
+| 3 | Rebase at close | lane rebases · orchestrator rebases at hand-off | **orchestrator at hand-off** | The skill this task writes says lanes stop after `review --json`; the orchestrator follows it. |
