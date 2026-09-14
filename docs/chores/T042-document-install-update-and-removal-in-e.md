@@ -1,6 +1,6 @@
 # T042 — Document install, update and removal in each skill README
 
-Kind: chore · Epic: E04 · Status: implemented
+Kind: chore · Epic: E04 · Status: done
 
 ## Goal
 
@@ -473,3 +473,17 @@ $ .taskrail/bin/taskrail validate
 ```
 
 `lint`: not configured in this repository.
+
+### Implement gate change
+
+At the implement gate the sentence claiming that a human can still type `/caveman` under `deny`
+was qualified, because only the model-side refusal was measured (`327b218`). It now reads: "Per
+OpenCode 1.15.13's source, a human still invokes it as `/caveman`, because OpenCode offers every
+discovered skill as a command." No minimum git version is stated.
+
+## Docs
+
+The change is itself the documentation: `skills/caveman/README.md` and the root `README.md`.
+Nothing else documents caveman's installation — a search of the Markdown outside `docs/` and
+`skills/caveman/` finds caveman only in `TODO.md` task rows, and the old install wording nowhere.
+`CLAUDE.md` *Distribution* is T041's. No follow-up tasks were opened (decision 8).
