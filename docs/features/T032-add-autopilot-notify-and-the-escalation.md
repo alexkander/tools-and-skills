@@ -1,6 +1,6 @@
 # T032 — Add autopilot notify and the escalation flags in autopilot status
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented (plan approved as recommended, D1–D9)
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12.1 (the `autopilot notify`
 row) and §12.6 (*Escalation, notification and supervision*), and the evidence behind it in
@@ -9,7 +9,8 @@ row) and §12.6 (*Escalation, notification and supervision*), and the evidence b
 `autopilot/commands.py`, and `AutopilotConfig`, which already parses and checks `governing`,
 `escalate_gates` (shaped `kind:stage`), `notify` and `notify_on` (`escalation`, `lane-done`,
 `lane-failed`). The questions this plan needs settled are D1–D8 below, each with a
-recommendation; the plan's wording assumes the recommendations.
+recommendation; the plan's wording assumes the recommendations. The plan gate approved D1–D9 as
+recommended; the record is `docs/autopilot/decisions/T032-add-autopilot-notify-and-the-escalation.md`.
 
 ## Today
 
@@ -142,6 +143,77 @@ After this change:
     describes the matching rule, the two computed reasons and D6's outcome; §12.10 marks T032
     implemented; `README.md` shows `notify`; `CHANGELOG.md` has one bullet under *Unreleased*.
 
+## Test coverage
+
+In `tools/taskrail/tests/test_autopilot_notify.py`, reusing `test_autopilot.py`'s `pilot` fixture
+(throwaway repositories with a local bare `origin` and lanes in their own worktrees). Every notify
+command is a local shell command writing to a temporary file; nothing goes over the network.
+
+The tests were written before the implementation. With the implementation set aside (the new
+`escalation.py` moved to a temporary directory and `status.py` restored from `HEAD`, then both put
+back; `notify.py`, `commands.py` and `runs.py` were not yet changed), from `tools/taskrail`,
+`uv run pytest -q -p no:cacheprovider -rf --tb=no tests/test_autopilot_notify.py` gave (ANSI colours
+removed; the 29 `test_governing_patterns` cases all failed the same way and are shortened to one line):
+
+```
+FAILED tests/test_autopilot_notify.py::test_lane_records_the_gate_a_lane_is_stopped_at - SystemExit: 2
+FAILED tests/test_autopilot_notify.py::test_governing_patterns[docs/adr-docs/adr/0001.md-True] - ImportError: cannot import name 'escalation' from 'taskrail.autopilot' (/th...
+  … the same ImportError for the other 28 test_governing_patterns cases …
+FAILED tests/test_autopilot_notify.py::test_status_flags_governing_paths_a_lane_touched - KeyError: 'governing_touched'
+FAILED tests/test_autopilot_notify.py::test_no_governing_flag_without_a_match_or_a_branch - KeyError: 'governing_touched'
+FAILED tests/test_autopilot_notify.py::test_status_flags_a_gate_listed_in_escalate_gates - KeyError: 'gate'
+FAILED tests/test_autopilot_notify.py::test_status_text_marks_flagged_lanes - SystemExit: 2
+FAILED tests/test_autopilot_notify.py::test_notify_runs_the_command_with_the_message_and_environment - SystemExit: 2
+FAILED tests/test_autopilot_notify.py::test_notify_skips_events_not_configured_and_an_empty_command - SystemExit: 2
+FAILED tests/test_autopilot_notify.py::test_a_failing_notify_command_is_reported_and_never_blocks - SystemExit: 2
+FAILED tests/test_autopilot_notify.py::test_a_notify_command_past_the_timeout_is_killed_with_its_children - ImportError: import error in taskrail.autopilot.notify: No module named 'ta...
+FAILED tests/test_autopilot_notify.py::test_notify_checks_its_arguments_before_running_anything - SystemExit: 2
+FAILED tests/test_autopilot_notify.py::test_status_never_runs_the_notify_command - SystemExit: 2
+40 failed in 1.97s
+```
+
+`SystemExit: 2` is argparse refusing `lane --gate` or `autopilot notify`. After the implementation:
+`40 passed`, and the whole suite `509 passed` (469 before this task).
+
+| Criterion | Tests |
+|---|---|
+| 1. `lane --gate` records, checks, keeps and clears the stage | `test_lane_records_the_gate_a_lane_is_stopped_at` |
+| 2. Governing matching: paths, directories, globs, uncommitted files | `test_governing_patterns` (29 cases), `test_status_flags_governing_paths_a_lane_touched` |
+| 3. No governing flag without a match, a branch, or once merged | `test_no_governing_flag_without_a_match_or_a_branch` |
+| 4. `escalate_gates` by kind, stage and derived state; both reasons | `test_status_flags_a_gate_listed_in_escalate_gates` |
+| 5. `ESCALATE:` in the text form | `test_status_text_marks_flagged_lanes` |
+| 6. Command, message, environment, working directory | `test_notify_runs_the_command_with_the_message_and_environment` |
+| 7. Skipped events and an empty command | `test_notify_skips_events_not_configured_and_an_empty_command` |
+| 8. Failure, missing command, timeout killing the process group | `test_a_failing_notify_command_is_reported_and_never_blocks`, `test_a_notify_command_past_the_timeout_is_killed_with_its_children` |
+| 9. Argument checks; disabled autopilot and invalid backlog | `test_notify_checks_its_arguments_before_running_anything` |
+| 10. `status` never notifies | `test_status_never_runs_the_notify_command` |
+| 11. Existing behaviour | the whole suite, with no existing test changed |
+| 12. Documentation | for review at the implement gate: `DESIGN.md` §7, §12 intro, §12.1, §12.4, §12.6, §12.10; `README.md`; `CHANGELOG.md` |
+
+As a further check, four behaviours were broken one at a time (each file copied aside first and
+restored afterwards, `cmp` identical) and the new tests run with
+`uv run pytest -q -p no:cacheprovider --tb=no -rf tests/test_autopilot_notify.py`:
+
+| Mutation | Result |
+|---|---|
+| (a) `cmd_notify` returns 1 when the command failed | `2 failed, 38 passed`: `test_a_failing_notify_command_is_reported_and_never_blocks` (`assert 1 == 0`), `test_a_notify_command_past_the_timeout_is_killed_with_its_children` (`assert (1 == 0)`) |
+| (b) `escalate_gate` ignores the derived state (`if kind and gate and …`) | `1 failed, 39 passed`: `test_status_flags_a_gate_listed_in_escalate_gates` (a `done-branch` lane still flagged) |
+| (c) the timeout kills only the shell (`process.kill()` instead of `os.killpg`) | `1 failed, 39 passed`: `test_a_notify_command_past_the_timeout_is_killed_with_its_children` (`AssertionError: child`) |
+| (d) a governing entry no longer covers files below it (no `(?:/.*)?` suffix) | `8 failed, 32 passed`: three `test_governing_patterns` cases and five status tests |
+
+Deviations from the plan's wording:
+
+- `lane --json` always includes `gate` in `task` (`null` when none is recorded), and the text form
+  prints ` at <stage>` after the state (`T001 in run R: gate at plan (plan gate)`).
+- The `taskrail: warning:` line for a failed command ends with the last line of the command's
+  stderr, when there is one.
+- Only a timeout kills the process group; a command that exits on its own may leave a background
+  child running, so a notifier that deliberately detaches keeps working.
+- A command the shell cannot find is reported by the shell's own status (`exit_code: 127`); the
+  "cannot be started" `error` remains for a shell that cannot start at all, which is not tested.
+- `runs.py` holds `GATE_STATES` (`gate`, `escalated`), which `escalation.py` imports.
+- DESIGN.md §7 lists `notify` in the autopilot row; the README shows `lane --gate` and `notify`.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/autopilot/notify.py` (new): message composition, running the
@@ -152,10 +224,10 @@ After this change:
   function applying the flags to each row.
 - `tools/taskrail/src/taskrail/autopilot/commands.py`: `cmd_notify` and its registration; `--gate`
   on `lane` and its checks; the `ESCALATE` text.
-- `tools/taskrail/src/taskrail/autopilot/runs.py`: `record_lane` takes `gate` (no change to
-  `_lane`'s defaults, which T030 edits; a missing key reads as `null`).
+- `tools/taskrail/src/taskrail/autopilot/runs.py`: `record_lane` takes `gate`, and `GATE_STATES`
+  (no change to `_lane`'s defaults, which T030 edits; a missing key reads as `null`).
 - `tools/taskrail/tests/test_autopilot_notify.py` (new), reusing `test_autopilot.py`'s fixtures.
-- `tools/taskrail/DESIGN.md` §12.1, §12.4, §12.6, §12.10; `tools/taskrail/README.md`;
+- `tools/taskrail/DESIGN.md` §7, §12 intro, §12.1, §12.4, §12.6, §12.10; `tools/taskrail/README.md`;
   `tools/taskrail/CHANGELOG.md`.
 - Not changed: `config.py` (T029's checks are enough for D1–D5).
 
