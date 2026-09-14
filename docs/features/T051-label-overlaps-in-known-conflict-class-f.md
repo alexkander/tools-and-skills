@@ -1,6 +1,6 @@
 # T051 — Label overlaps in known conflict-class files
 
-Kind: feature · Epic: E02 · Status: implemented, awaiting code review (plan approved: D1 with an
+Kind: feature · Epic: E02 · Status: verified (implementation approved at the implement gate; plan approved: D1 with an
 added clause, D2 include `installed`, D3 as written, D4 as recommended). Record:
 `docs/autopilot/decisions/T051-label-overlaps-in-known-conflict-class-f.md`.
 
@@ -100,6 +100,38 @@ skill edit temporarily reverted); then the whole suite passed: `837 passed`.
 | 6 | `tests/test_autopilot_overlaps.py::test_text_lists_real_overlaps_before_known_ones` |
 | 7 | `tests/test_autopilot_overlaps.py::test_the_merge_driver_paths_are_the_backlog_index_and_changelog_classes`, and the unchanged `.gitattributes` tests in `tests/test_merge_driver.py` |
 | 8 | `tests/test_autopilot_overlaps.py::test_the_skill_tells_the_orchestrator_known_overlaps_are_expected`; the installed copy refreshed by `taskrail upgrade` |
+
+## Verification
+
+This branch's CLI against this repository's live run, read-only and without fetch, after the
+implement gate:
+`uv run --quiet --project <worktree>/tools/taskrail taskrail --root <main checkout> autopilot status --run 20260914-1`,
+with and without `--json`. Nine lanes were listed (T047–T051, T053–T056). Text output, overlap
+part:
+
+```text
+files touched by more than one lane:
+  tools/taskrail/DESIGN.md: T048, T049, T051, T053, T054, T055, T056
+  tools/taskrail/src/taskrail/autopilot/commands.py: T048, T049, T051
+  tools/taskrail/src/taskrail/autopilot/dispatch.py: T048, T054
+  tools/taskrail/src/taskrail/autopilot/status.py: T048, T051, T053, T054
+  tools/taskrail/src/taskrail/skills/taskrail-autopilot/SKILL.md: T048, T049, T051, T055
+  tools/taskrail/tests/test_autopilot.py: T051, T053
+  tools/taskrail/tests/test_autopilot_skill.py: T049, T055, T056
+known conflict classes touched by more than one lane (resolved at hand-off):
+  .claude/skills/taskrail-autopilot/SKILL.md (installed): T048, T049, T051, T055
+  .taskrail/installed.json (installed): T048, T049, T051, T055
+  TODO.md (backlog): T048, T049, T053, T054, T056
+  docs/autopilot/decisions/README.md (index): T047, T048, T049, T051, T053, T054, T055, T056
+  docs/bugs/README.md (index): T053, T054
+  docs/chores/README.md (index): T055, T056
+  docs/features/README.md (index): T047, T048, T049, T051
+  tools/taskrail/CHANGELOG.md (changelog): T048, T049, T051, T053, T054, T055, T056
+```
+
+The JSON form carried the same seven paths in `overlaps` and the same eight in `known_overlaps`,
+each as `{"class": …, "tasks": […]}`, with `"fetched": []`. Before this change the same run's
+`overlaps` mixed both groups (13 entries at plan time). The behaviour matches the plan: no gap.
 
 ## Affected areas
 
