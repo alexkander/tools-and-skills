@@ -60,6 +60,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T053 | bug     | 1   | —          | Order the autopilot hand-off queue by completion, not branch tip time | The orchestrator's own rebases and decision-record commits move a task to the back of handoff.next; order by the done commit instead (T033 F8). |
 | ⬜ | T054 | bug     | 1   | —          | Reproduce a task shown pending between done and its commit | status showed a closing lane as pending, so next could offer it again once its dispatch passed the claim grace; reproduce before fixing (T033 F13). |
 | ⬜ | T055 | chore   | 2   | —          | Fix the autopilot skill text found wrong in the T033 trial | Hand-off message with branch, title and body; refill on done-branch; IDs unique across lanes; dispatch expiry; resuming a run from a new session with a restart-from-branch lane brief (T033 F2, F4-F7). |
+| ⬜ | T056 | chore   | 1   | —          | Add an OpenCode note on escalations during blocking lane batches | End the turn with the question instead of starting another blocking batch, record handles when a batch returns, and check silent lanes between batches (T033 F3). |
 
 ## E03 — caveman skill
 
