@@ -25,3 +25,26 @@ with `` `close` is not a stage of kind feature (plan, implement, verify) ``), an
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T050 owns `autopilot/commands.py` (`_gate_problem`, `--gate` help), its `--gate` tests in `tests/test_autopilot_notify.py`, and the *Close and hand off* section of the `taskrail-autopilot` skill source. T049 owns `autopilot/escalation.py` `flags()`, `_escalation_text()` in `autopilot/commands.py`, its governing tests, condition 1 of the skill's *Escalate* section and the *Close* section of `references/gate-review.md`. T053 owns the hand-off queue in `autopilot/status.py`. Each lane leaves the others' functions and sections alone; edits in different functions of one file are merged at hand-off.** | Built from the plans reached so far; extended as other lanes reach their first gate. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commit `bd1ae29` (range `26036d1..bd1ae29`): `_gate_problem` accepts `close` before the
+kind lookup, the `--gate` help, one sentence in the skill's *Close and hand off*, the installed copy
+and its digest, one CHANGELOG bullet, and two tests in `test_autopilot_notify.py` plus one in
+`test_autopilot_skill.py`, which the lane showed failing before the code. Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 831 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Tests cover criteria 1–5 and the shipped half of 6; the diff stays inside the touch map. |
+| 2 | DESIGN.md §12.1 and §12.6 text (plan-gate question 1) | approve as written · no change | **approve as written, in its own commit, then re-run the checks** | Decided by the orchestrator under the human's delegation below; the text matches the CLI. At hand-off, T049 edits the §12.6 *Governing paths* bullet just above T050's sentence; both edits are kept. |
+| 3 | Where the new skill test sits | keep · move to the end | **as recommended (keep)** | Adds a function without editing others. |
+
+## escalated to the human
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Who decides changes to the governing documents (`DESIGN.md`, `CLAUDE.md`) proposed by this run's lanes | the human per text · the orchestrator for this run · remove them from `governing` | **the orchestrator decides every `DESIGN.md` and `CLAUDE.md` change in this run; the human reviews them in the pull request. Also open a separate task removing both files from `[autopilot].governing`** | The human delegated the decisions to keep the lanes moving, and chose to make the change permanent. |
+
+Answered by the human (repository owner), in the orchestrator session.
+
