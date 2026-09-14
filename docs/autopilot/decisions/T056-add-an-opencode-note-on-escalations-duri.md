@@ -46,3 +46,14 @@ a Claude-plus-OpenCode install, shown failing on the old note. Re-ran
 
 The lane used `git stash push`/`pop` to check the test against the old note. The stash stack is
 shared by every worktree of this clone; use a temporary commit or a scratch copy instead.
+
+## close gate
+
+Reviewed: `a57b91a` (CHANGELOG bullet moved to the end of *Unreleased*) and `0f38eea`
+(`taskrail done T056` on its own, changing only T056's row). No code or test changed after the
+checks re-run at the implement gate (830 passed). `taskrail validate`: 0 errors. No upstream is
+configured. `review --json`: `rebase.needed` true onto `origin/main` (T050 merged).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `docs(taskrail)`** | The change is skill-note text, design text and a test; no CLI behaviour changes. Hand-off after T049, T060 and T053. |
