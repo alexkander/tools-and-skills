@@ -190,3 +190,37 @@ no `--epic` and no follow-up; exit 5 for closed and `done-branch` tasks with `--
 exit 4 on someone else's claim with `--force`; `--kind` editable; `--allow-invalid` writes only an
 error-free result; the old template branch name is recorded when that local branch exists,
 mirrored like `claim`; `--depends-on` replaces the list; the skill points to `taskrail edit` only.
+
+Decisions at the implement gate: the implementation is approved, the separate *Editing tasks*
+section stays, and `--title ""` stays a validation error (exit 1).
+
+## Verification
+
+Run through the real CLI (`uv run --project tools/taskrail taskrail --root <repo>`) against a
+throwaway git repository with a custom `Owner` column, `[points].scale = [1, 2, 3, 5, 8]`, one done
+task (T001), and two pending ones (T002 depending on T001, T003 with no dependency):
+
+- The F4 case, `edit T003 --depends-on T002 --json`, exited 0 with `changes.depends_on` from `[]`
+  to `["T002"]`; `git diff --word-diff` showed only `[-—-]{+T002+}` in T003's row.
+- `--depends-on T001,T003` on T002 printed `dependency cycle: T002 → T003 → T002 [depends-cycle]`
+  and `nothing was written` (exit 1); `--pts 4` printed `task-points-scale` (exit 1); `--pts x`
+  exited 2; `--title ""` printed `task-title` (exit 1); `--column Pts=3` exited 2 naming `--pts`;
+  no field flag exited 2.
+- `edit T002 --title "Retroactive repricing" --pts 5 --column owner=api --description ""` printed
+  one line per change plus `T002 branch: T002-repricing → T002-retroactive-repricing`, and changed
+  only T002's line. Repeating `--pts 5` printed `T002 unchanged`.
+- `edit T001 --title X` exited 5 (`T001 is done, not pending`); with `--force` it was written.
+  With T003 claimed by `alice`, `--owner bob` exited 4 and `--owner alice` changed the kind.
+- With a local branch `T002-retroactive-repricing`, a title change returned `branch.recorded:
+  true`, `show` reported that branch as `recorded`, and the git branch was unchanged; a second
+  title change returned `recorded: false` with the same name.
+- T003 marked done on its branch `T003-rounding-error`: `edit` on main exited 5 (`done on branch`),
+  and passed with `--force`.
+- A hand-made cycle (T001 → T002 → T001): a plain `edit` exited 1 up front; `--allow-invalid` with
+  an unrelated title change exited 1 with the cycle printed and nothing written; `edit T001
+  --depends-on "" --allow-invalid --force` exited 0 and `validate` reported 0 errors.
+- After `epic split E01`, `edit T002 --pts 8` wrote `todo/E01-billing.md`.
+
+The repository was deleted afterwards. In this repository, `.taskrail/bin/taskrail edit T099 --title x`
+exited 3, and an unchanged title on T014 returned empty `changes` and `files`. No difference from the
+plan was found.
