@@ -33,3 +33,17 @@ commit time" while §12.8 says "completion order". No code changed, so no checks
 
 Answered by the human (repository owner), in the orchestrator session.
 
+
+## fix gate
+
+Reviewed: commit `6614fb6` (range `b2667f4..6614fb6`): `_done_time` replaces `tip_time` in
+`autopilot/status.py` (author time of the newest first-parent commit off the mainline that turns
+the row ✅, on the local branch else the remote one, falling back to the tip's author time); three
+regression tests in `tests/test_autopilot.py`, shown failing on the unfixed code with
+`(['T004', 'T003'], 'T004')`; the `queue` phrase of DESIGN §12.1 exactly as approved; one CHANGELOG
+bullet. Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 831 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · make `stack._read_statuses` public | **approve, as recommended** | Covers the three scenarios of the diagnosis; renaming a private helper is a refactor outside the touch map. |
+| 2 | Fallback without its own test | accept · add a test | **as recommended (accept)** | Reached only when history no longer holds the done transition, and it keeps the previous behaviour with author time. |
