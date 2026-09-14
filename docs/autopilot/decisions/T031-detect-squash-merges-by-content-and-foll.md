@@ -45,3 +45,15 @@ cover them.
 | 1 | Approve, with `checks` as an object, `--owner`, `runs` listing only runs written, and the older-git `--ancestry-path` form | approve · list and no `--owner` | **approve** | `--owner` is what lets cleanup release the caller's own leftover claim and refuse another owner's; the rest is output shape and portability. |
 | 2 | Run a lint check | no, none configured · add ruff in a chore | **no** | The repository configures no lint; adding one is its own decision, outside this task. |
 | 3 | Update a rebased stacked dependent's claim `base` | follow-up only if the trial shows it matters · open now | **not now** | `touched` may over-report for that lane until its claim is released; T033's trial will show whether it misleads the orchestrator. |
+
+## verify, close and rebase after T034, T037, T036 and T030
+
+The verify stage found one gap: a dependent already rebased was offered the same rebase again from
+its claim's old fork point. The lane fixed it after the implement gate (`b5f9474`) under an assertion
+observed failing first; the orchestrator reviewed that commit before publishing: the claim's fork
+point is used only while the dependent's head still contains it, otherwise the merge-base with the
+dependency head applies. The lane rebased twice at close. Only both-sides additions conflicted: the
+docs indexes and CHANGELOG, the `commands.py` import line (now `dispatch, runs` plus the `merged`
+imports), and DESIGN.md rows, each keeping both T030's and T031's text. Checked before publishing:
+`TODO.md` differs from `main` only in T031 `✅`, `pytest -q` 565 passed, `taskrail validate` 0
+errors, `upgrade` reports nothing to create or update, no upstream.
