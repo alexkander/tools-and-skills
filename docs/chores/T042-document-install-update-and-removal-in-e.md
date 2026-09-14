@@ -1,6 +1,6 @@
 # T042 — Document install, update and removal in each skill README
 
-Kind: chore · Epic: E04 · Status: scoped
+Kind: chore · Epic: E04 · Status: implemented
 
 ## Goal
 
@@ -201,6 +201,9 @@ already states the no-self-activation guarantee in prose, which is what every ag
 
 ## Decisions needed
 
+Approved as recommended at the scope gate; recorded in
+[the decision record](../autopilot/decisions/T042-document-install-update-and-removal-in-e.md).
+
 1. **Where the steps live.** Recommendation: **the full steps in each skill README**. CLAUDE.md
    requires every item to be self-contained ("a consumer takes one directory and it works"); the
    README is copied with the skill, so the consumer's copy carries its own update and removal
@@ -293,3 +296,180 @@ session is started.
 8. **Checks.** `test`: `uv run --directory tools/taskrail pytest -q` (nothing under `tools/`
    changes, run anyway). `lint`: not configured in this repository. `taskrail validate` reports 0
    errors.
+
+### Results
+
+Applied in `2334de2`: `README.md`, `skills/caveman/README.md` and `skills/caveman/SKILL.md`, as
+approved. One deviation in punctuation only: in *What the local layer changes* the approved
+"— for example in its agent instructions file —" became ", for example in its agent instructions
+file," because the sentence already holds a pair of dashes.
+
+Tools: git 2.55.0, OpenCode 1.15.13, Claude Code 2.1.270. Every trial ran under `/tmp/t042`, with
+commits authored through `GIT_AUTHOR_*`/`GIT_COMMITTER_*` variables (no git configuration
+written), and was removed afterwards together with `/tmp/t042-oc`.
+
+**Isolation.** MD5 digests before and after all trials, identical:
+
+```text
+00727ef8abefed9be11fee6468d00b09  /home/…/.claude/settings.json
+2687f204f925fff9c7629641902b0848  /home/…/.claude/plugins/known_marketplaces.json
+1013d19ce8195663a389b6fc35418031  /home/…/.config/opencode/opencode.jsonc
+61b57c05f50886da87c19601ad97c4a6  /home/…/.config/opencode/package.json
+690960a5b0fb4c34e5378c12769e3a1c  /home/…/.config/opencode/package-lock.json
+```
+
+(`~/.claude/plugins/installed_plugins.json` does not exist, before or after.)
+
+**1. Install, verbatim.** The three `sh` blocks were extracted from the committed README with
+`awk` and run with `sh -eu` in a fresh consumer, against the public URL (the block pins
+`refs/heads/main`, then `8eeb8df`):
+
+```text
+$ sh -eu blocks/1.sh
+[master 50ea164] Add the caveman skill
+ 2 files changed, 279 insertions(+)
+ create mode 100644 .claude/skills/caveman/README.md
+ create mode 100644 .claude/skills/caveman/SKILL.md
+exit=0
+$ git log -1 --format='%(trailers)'
+Skill-Repository: https://github.com/alexkander/tools-and-skills
+Skill-Path: skills/caveman
+Skill-Commit: 8eeb8dfad7a6a946c54016892d7d40e442e82a5f
+$ sh -eu blocks/2.sh
+8eeb8dfad7a6a946c54016892d7d40e442e82a5f
+$ git status --short                                  (empty)
+$ diff -r <git archive 8eeb8df skills/caveman> .claude/skills/caveman
+identical
+```
+
+No `tmp.*` directory was left in `/tmp` by `mktemp -d`.
+
+**2. Update over a local edit.** A committed in-place edit (`<!-- LOCAL OVERRIDE: consumer rule -->`
+appended to the copy's `SKILL.md`), then block 1 again with only these lines changed, as the
+*Update* section says (a `file://` clone of this repository, because the branch is not pushed):
+
+```text
+< REPO=https://github.com/alexkander/tools-and-skills
+> REPO=file:///…/tools-and-skills
+< SHA=$(git ls-remote "$REPO" refs/heads/main | cut -f1)   # or any full commit SHA
+> SHA=2334de22015c51696537915fafff38ae88cdc106
+< git commit -m "Add the $SKILL skill" -m "Skill-Repository: $REPO
+> git commit -m "Update the $SKILL skill" -m "Skill-Repository: $REPO
+```
+
+Staged before committing (`warning: filtering not recognized by server, ignoring` is the local
+transport, as in T009):
+
+```text
+$ git diff --staged --stat
+ .claude/skills/caveman/README.md | 72 +++++++++++++++++++++++++++++++++++++---
+ .claude/skills/caveman/SKILL.md  |  6 ++--
+$ git diff --staged -- .claude/skills/caveman/SKILL.md
+-needs more — its own pipeline names, its own governed documents — adds them alongside this
+-file rather than editing the vendored text.
++needs more — its own pipeline names, its own governed documents — adds them outside this
++skill's directory, such as in its own agent instructions, rather than editing this file.
+@@ -225,5 +225,3 @@
+-
+-<!-- LOCAL OVERRIDE: consumer rule -->
+```
+
+The upstream change and the removed local edit both show. After the commit:
+
+```text
+[master fff5595] Update the caveman skill
+$ sh -eu blocks/2.sh
+2334de22015c51696537915fafff38ae88cdc106
+$ git status --short                                  (empty)
+$ diff -r <git archive 2334de2 skills/caveman> .claude/skills/caveman   → identical
+```
+
+The lookup skipped the local-edit commit, which has no trailers. (A first attempt at the commit
+failed with `SKILL: unbound variable` because the trial harness had split the block and dropped
+its variable lines; re-run with them, it passed. The README block itself was not at fault.)
+
+**3. Remove.**
+
+```text
+$ sh -eu blocks/3.sh
+[master 95f5540] Remove the caveman skill
+ 2 files changed, 343 deletions(-)
+exit=0
+$ git status --short                                  (empty)
+.claude gone
+```
+
+**4. OpenCode, isolated** (`HOME` and `XDG_{CONFIG,DATA,CACHE,STATE}_HOME` under `/tmp/t042/home-oc`).
+A new consumer with the copy installed by block 1; `opencode debug skill` reduced to name and
+location:
+
+```text
+A default                                      [('customize-opencode', '<built-in>'), ('caveman', '/tmp/t042/consumer-oc/.claude/skills/caveman/SKILL.md')]
+B OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1        [('customize-opencode', '<built-in>')]
+C OPENCODE_DISABLE_CLAUDE_CODE=1               [('customize-opencode', '<built-in>')]
+D B + opencode.json {"skills":{"paths":[".claude/skills"]}}, from the repository root
+                                               [('customize-opencode', '<built-in>'), ('caveman', '/tmp/t042/consumer-oc/.claude/skills/caveman/SKILL.md')]
+E same as D, run from sub/                     [('customize-opencode', '<built-in>')]
+F default, run from sub/                       [('customize-opencode', '<built-in>'), ('caveman', '/tmp/t042/consumer-oc/.claude/skills/caveman/SKILL.md')]
+```
+
+E confirms that a relative `skills.paths` entry resolves from the directory OpenCode runs in.
+
+Permission, with `opencode.json` = `{ "permission": { "skill": { "caveman": "deny" } } }`:
+
+```text
+$ opencode debug config            → permission: {"skill": {"caveman": "deny"}}
+$ opencode debug agent build       → { "permission": "skill", "pattern": "caveman", "action": "deny" }
+$ opencode debug agent build --tool skill --params '{"name":"caveman"}'
+exit=1
+Error: Unexpected error, …
+The user has specified a rule which prevents you from using this specific tool call. …
+  {"permission":"skill","pattern":"caveman","action":"deny"} …
+```
+
+And with `opencode.json` = `{}`, the same tool call as the model would make:
+
+```text
+exit=0
+"title": "Loaded skill: caveman"
+```
+
+So, measured: without `permission.skill`, OpenCode's model-side `skill` tool loads caveman despite
+`disable-model-invocation: true`; with `deny` it is refused. Not measured, because it needs a
+session or a server (not started): that `deny` also removes caveman from the model's
+`<available_skills>` list (`skill/index.ts:306-311`) and that `/caveman` stays available as a
+command (`command/index.ts:141-150`, commands built from the unfiltered `skill.all()`).
+`opencode debug skill` still lists caveman under `deny`, as expected, since it prints `all()`.
+
+**5. Claude Code, isolated** (`HOME`, `CLAUDE_CONFIG_DIR` under `/tmp/t042/home-cc`):
+
+```text
+$ claude plugin validate .claude/skills
+Validating components in: /tmp/t042/consumer-oc/.claude/skills
+✔ Validation passed
+exit=0
+```
+
+**6. Portability.** `/bin/sh` is bash, which runs in POSIX mode when invoked as `sh`; no `dash` or
+`busybox` is installed, so no run under a strictly POSIX shell was possible. `bash --posix -n` on
+block 1 passes, and a grep for bash-only constructs (`[[`, `$((`, `local`, `function`, `source`,
+`<<<`, `${var//}`, `pushd`, `echo -e`) in the three blocks finds none. The minimum git version for
+`sparse-checkout set --no-cone` and `%(trailers:key=…,valueonly)` was not established; 2.55.0 works.
+
+**7. Publishing constraint.** URLs added under `README.md` and `skills/`:
+
+```text
+$ git diff origin/main -- README.md skills | grep '^+' | grep -o -E '(https?|file)://[^ )`"]+' | sort -u
+https://github.com/alexkander/tools-and-skills
+```
+
+**8. Checks.**
+
+```text
+$ uv run --directory tools/taskrail pytest -q
+823 passed in 93.12s (0:01:33)
+$ .taskrail/bin/taskrail validate
+42 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)
+```
+
+`lint`: not configured in this repository.
