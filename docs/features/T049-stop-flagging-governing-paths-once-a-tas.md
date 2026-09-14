@@ -1,6 +1,6 @@
 # T049 — Stop flagging governing paths once a task is done on its branch
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: finding F9 of the autopilot trial
 ([T033](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md), Findings table and
@@ -74,7 +74,7 @@ pattern of `test_autopilot_notify.py` (a lane worktree, a commit touching a gove
 - `tools/taskrail/src/taskrail/skills/taskrail-autopilot/SKILL.md` (*Escalate*, condition 1) and
   `references/gate-review.md` (*Close*), then `.claude/skills/taskrail-autopilot/` through
   `.taskrail/bin/taskrail upgrade`.
-- `tools/taskrail/DESIGN.md` §12.4 (`autopilot status` row) and §12.6 (*Governing paths*) — a
+- `tools/taskrail/DESIGN.md` §12.1 (`autopilot status` row) and §12.6 (*Governing paths*) — a
   governing path, changed only with the human's approval of the exact text at the plan gate.
 - `tools/taskrail/CHANGELOG.md` — one *Unreleased* bullet (behaviour change).
 - `docs/features/README.md` — this document's row.
@@ -108,7 +108,7 @@ area T053 changes there is left alone.
 ## Plan-gate decisions
 
 Recorded in [the decision record](../autopilot/decisions/T049-stop-flagging-governing-paths-once-a-tas.md):
-the `DESIGN.md` text was taken to the human and is not applied on this branch yet; option A (keep
+the `DESIGN.md` text was taken to the human (approved at the implement gate); option A (keep
 `governing_touched`, drop the `governing` reason); the skill text change as proposed; the
 follow-up opened (T059).
 
@@ -121,7 +121,9 @@ follow-up opened (T059).
   `references/gate-review.md`; the installed copies and `.taskrail/installed.json` refreshed by
   `.taskrail/bin/taskrail upgrade`.
 - `CHANGELOG.md`: one *Unreleased* bullet, marked as a behaviour change.
-- `DESIGN.md`: not changed, pending the human's answer on the proposed text below.
+- `DESIGN.md`: the text below, approved at the implement gate (the orchestrator, by the human's
+  delegation for this run) and applied as written in its own commit; the full suite still passes
+  (837 passed). The plan called the `autopilot status` row §12.4; it is in §12.1.
 
 The new tests were run before the implementation and failed for the reason each criterion
 names: `['governing'] != []` at `done-branch` and `handed-off`, `ESCALATE: governing
@@ -142,9 +144,39 @@ All in `tools/taskrail/tests/`.
 | 6 | `test_autopilot_skill.py::test_governing_escalates_by_its_reason_and_the_close_review_checks_the_paths` |
 | 7 | `uv run --directory tools/taskrail pytest -q`: 837 passed |
 
-## Proposed DESIGN.md text
+## Verification
 
-**§12.4, `autopilot status` row** — replace
+The real CLI from this branch (`uv run --directory tools/taskrail taskrail --root …`) on a scratch
+repository outside this one: a backlog with T001 (bug) and T002 (feature), `[autopilot]` enabled
+with `governing = ["docs/adr"]` and `escalate_gates = ["bug:fix"]`, one worktree per task, both
+claimed in run `20260914-1`, and each lane committing a file under `docs/adr/`.
+
+1. T001 recorded at gate `fix`, T002 running — both flagged, as before:
+   ```
+   T001   gate         idle 0m  ESCALATE: governing docs/adr/0001.md; gate bug:fix
+   T002   running      idle 0m  ESCALATE: governing docs/adr/0002.md
+   ```
+2. T002 `done` and committed — no `ESCALATE:` for it, `governing_touched` kept:
+   ```
+   T002   done-branch  idle 0m
+   {"id":"T002","state":"done-branch","gate":null,"touched":["TODO.md","docs/adr/0002.md"],"governing_touched":["docs/adr/0002.md"],"escalate_gate":null,"escalation":[]}
+   ```
+3. `autopilot lane T002 --state handed-off` — the same:
+   ```
+   T002   handed-off   idle 0m
+   {"id":"T002","state":"handed-off","governing_touched":["docs/adr/0002.md"],"escalate_gate":null,"escalation":[]}
+   ```
+4. T001 `done` while its recorded gate is still `fix`, listed in `escalate_gates` — neither reason:
+   ```
+   T001   done-branch  idle 0m
+   {"id":"T001","state":"done-branch","gate":"fix","governing_touched":["docs/adr/0001.md"],"escalate_gate":null,"escalation":[]}
+   ```
+
+The behaviour matches the plan; no gap.
+
+## DESIGN.md text (approved at the implement gate, applied as written)
+
+**§12.1, `autopilot status` row** — replace
 
 > Per task, the escalation reasons of §12.6: `gate` (the recorded stage), `governing_touched` (the
 > `touched` files a `governing` entry matches), `escalate_gate` (`kind:stage` when the task is
