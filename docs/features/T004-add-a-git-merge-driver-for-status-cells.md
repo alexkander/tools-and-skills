@@ -1,6 +1,6 @@
 # T004 — Add a git merge driver for status cells and appended rows
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: the core skill's step 8 (how an agent resolves backlog conflicts by hand today),
 `tools/taskrail/DESIGN.md` §3 (file format), §6.3 (IDs are never reused, so an ID is a stable row
@@ -345,6 +345,68 @@ Also: `test_line_endings_and_a_missing_final_newline_are_kept` (CRLF and no fina
   (`CONFLICT (content): Merge conflict in TODO.md`); the 21 left are the fallback, install and
   plain-merge equivalence tests, which do not depend on row merging.
 - Full suite after implementing: `687 passed` (641 before, plus 46); `688 passed` with the aliases test.
+
+## Verification
+
+A throwaway repository under `/tmp` (deleted afterwards), git 2.55.0, running this branch's code
+through the committed wrapper: `taskrail init --integration claude --merge-driver`, then the pin set
+to `local:taskrail-src`, a git-ignored symlink to `tools/taskrail`, so git invoked the real
+`.taskrail/bin/taskrail merge-driver` with no `TASKRAIL_BIN`. The behaviour matched the plan; no
+gap was found.
+
+**Install.** `init` reported `created .gitattributes` and `created git config merge.taskrail`:
+
+```
+# >>> taskrail >>>
+/TODO.md merge=taskrail
+/docs/autopilot/decisions/README.md merge=taskrail
+/docs/bugs/README.md merge=taskrail
+/docs/chores/README.md merge=taskrail
+/docs/features/README.md merge=taskrail
+/docs/spikes/README.md merge=taskrail
+# <<< taskrail <<<
+merge.taskrail.name taskrail backlog tables
+merge.taskrail.driver .taskrail/bin/taskrail merge-driver %O %A %B --marker-size %L --path %P --base-label %S --current-label %X --other-label %Y; rc=$?; [ $rc -le 1 ] && exit $rc; git merge-file --marker-size %L -L %X -L %S -L %Y %A %O %B
+```
+
+**1. `git merge`.** Branch `a` ran `taskrail done T003 --force` and `taskrail new` (T004); `main` ran
+`taskrail new` (T005). `git merge --no-edit a` → `Merge made by the 'ort' strategy.`, exit 0:
+
+```
+| ⬜ | T001 | feature | 1   | —          | Price table                    |                                |
+| ⬜ | T002 | feature | 1   | —          | Repricing                      |                                |
+| ✅ | T003 | feature | 1   | —          | Rounding                       |                                |
+| ⬜ | T005 | chore   | 2   | —          | Main task                      |                                |
+| ⬜ | T004 | bug     | 1   | —          | Branch A task                  |                                |
+5 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)
+```
+
+The same merge in a clone with no `merge.taskrail` config: `CONFLICT (content): Merge conflict in
+TODO.md`, with T003/T005 against T003 ✅/T004 inside one marker block.
+
+**2. `git rebase`.** Branch `b` (from `a`) opened T006 and marked T002 done in two commits; `main`
+then committed `taskrail reopen T003` (message ending `Reopens: T003`) and opened T007. On `b`,
+`git rebase main` → `Successfully rebased and updated refs/heads/b.`, exit 0: T002 `✅`, T003 `⬜`
+(the reopen kept), rows T005, T004, T007, T006, and `validate` clean.
+
+**3. A real conflict.** Both sides retitled T001 by hand; `c` also opened T008. `git merge c` exited
+1 with `TODO.md` unmerged and markers around that row only:
+
+```
+<<<<<<< HEAD
+| ⬜ | T001 | feature | 1   | —          | Price table (USD)              |                                |
+=======
+| ⬜ | T001 | feature | 1   | —          | Price table (EUR)              |                                |
+>>>>>>> c
+| ✅ | T002 | feature | 1   | —          | Repricing                      |                                |
+…
+| ⬜ | T008 | bug     | 1   | —          | Branch C task                  |                                |
+```
+
+**4. Keeping the block current.** `epic add --name Auth --own-file` and `epic split E01` added
+`/todo/E02-auth.md` and `/todo/E01-billing.md` to the block; `upgrade` then reported everything up to
+date and kept the driver definition. `upgrade` in the clone without a definition added none
+(`git config --local --get-regexp ^merge` exit 1 before and after).
 
 ## Evidence
 
