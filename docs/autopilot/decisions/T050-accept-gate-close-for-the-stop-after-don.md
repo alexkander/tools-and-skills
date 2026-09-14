@@ -48,3 +48,21 @@ and its digest, one CHANGELOG bullet, and two tests in `test_autopilot_notify.py
 
 Answered by the human (repository owner), in the orchestrator session.
 
+
+## close gate
+
+Reviewed: commits `25c7a53` (DESIGN.md §12.1 `autopilot lane` row and §12.6 *Escalated gates*,
+exactly the approved text), `a935b69` (verify record: `lane --gate close` exit 0, `--gate nope` exit 2
+naming `close`, `status` showing `done-branch`, `gate: close`, `escalation: []` in a scratch
+repository) and `2332637` (`taskrail done T050` on its own, changing only T050's row). No code
+changed after `bd1ae29`, whose checks passed when re-run (831 passed). `taskrail validate`: 0
+errors. No upstream is configured. `review --json`: `rebase.needed` false onto `origin/main`.
+`autopilot status` flags `governing` for `tools/taskrail/DESIGN.md`, covered by the human's
+delegation. `overlaps` match the touch map.
+
+The main checkout's CLI predates this task, so the close stop was recorded as `--state gate`
+without `--gate close`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and hand the branch off | hand off · changes | **hand off, as `feat(taskrail)`** | Every close check holds; first in `handoff.next`. |
