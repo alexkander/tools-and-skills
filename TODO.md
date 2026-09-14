@@ -59,7 +59,7 @@ Done when: live behaviour is verified and no consumer keeps its own copy.
 | ✓  | ID   | Kind    | Pts | Depends On | Title                          | Description                    |
 |----|------|---------|-----|------------|--------------------------------|--------------------------------|
 | ❌ | T008 | spike   | 1   | —          | Verify caveman's live behaviour, including that "be brief" does not activate it | Check lite compression, stop caveman, and no self-activation; review the ASD-STE100 register. |
-| ⬜ | T010 | chore   | 2   | T008, T009 | Replace vendored caveman copies in consumer projects with this one | Point each consumer at the central skill and delete its copy. |
+| ❌ | T010 | chore   | 2   | T008, T009 | Replace vendored caveman copies in consumer projects with this one | Point each consumer at the central skill and delete its copy. |
 
 ## E04 — Distribution
 
