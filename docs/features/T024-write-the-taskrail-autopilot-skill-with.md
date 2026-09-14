@@ -265,3 +265,39 @@ reference tests; giving every skill every notes section failed the three notes t
 `SKILL.md` paths failed three reference tests and `test_install.py::test_claude_and_opencode_share_one_copy`;
 showing `lane --stage` failed the command test; dropping "stop and report" failed the exit-5 test;
 removing every `autopilot notify` command from the skill failed the command test.
+
+## Verification
+
+Run with this branch's CLI (`uv run --project tools/taskrail taskrail --root <scratch>`) in scratch
+repositories under a temporary directory, removed afterwards.
+
+- **`init` per integration.** `--integration claude` created `.claude/skills/` with the five
+  existing skills plus `taskrail-autopilot/SKILL.md` and its three `references/` files;
+  `--integration opencode` created the same under `.opencode/skills/`; both integrations created
+  one copy under `.claude/skills/` and no `.opencode` directory. In each, the core skill carried
+  only its own `## On …` notes (Claude Code, OpenCode, or both in that order), `taskrail-autopilot`
+  carried its own, `taskrail-feature` carried none, and no `taskrail:` marker was left. The core
+  skill installed for Claude Code is byte-identical to this repository's installed copy from
+  before T024.
+- **Exit-5 refusal.** `autopilot start --count 2 --json` in the fresh repository printed
+  ``taskrail: the autopilot is disabled; set [autopilot].enabled = true in .taskrail/config.toml to allow `autopilot start` ``
+  and exited 5, the refusal the skill stops on.
+- **Lane brief from a real dispatch.** With `enabled = true`, `max_lanes = 2`,
+  `governing = ["docs/adr"]`, a `PORT` resource and three tasks (T003 depending on T001),
+  `autopilot start --count 2` created run `20260914-1` and `autopilot next --run 20260914-1 --json`
+  exited 0 dispatching T002 and T001 (`remaining: 0`, `lanes.free: 0`). The brief's fourteen
+  placeholders all had a source: `id`, `title`, `kind`, `skill`, `branch`, `worktree`,
+  `base.onto`/`base.commit`, `environment` (`TASKRAIL_RESOURCE_PORT=5434`) and `decisions` from the
+  task's `dispatch` entry, `run` from the result, `OTHER_LANES` from the other entries, and
+  `TOUCH_MAP`, `SERVICES`, `CONTEXT` from the orchestrator; none was left after filling.
+- **The commands the brief and skill hand out.** In a `--no-track` worktree for T001,
+  `claim T001 --run 20260914-1` claimed with the run and no warning; `autopilot lane --handle
+  --state running`, then `--state gate --gate plan`, exited 0; with `docs/adr/0001.md` created,
+  `autopilot status --run … --json` showed T001 `gate` at `plan` with its handle,
+  `escalation: ["governing"]` and `governing_touched: ["docs/adr/0001.md"]`, and T002 `dispatched`;
+  `lane --state escalated --reason …`, `notify --event escalation` (reported `skipped`: no command
+  configured) and `decision --question … --decision … --reason …` exited 0; `merged T001 --no-fetch`
+  reported `merged: false`.
+
+No gap against the plan. One observation for the trial (T033): `autopilot start --json` nests the
+ID as `run.id`, which the skill's "keep the run ID it prints" covers without naming the field.
