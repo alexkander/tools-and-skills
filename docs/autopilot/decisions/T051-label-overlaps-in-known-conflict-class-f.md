@@ -48,3 +48,16 @@ lane's worktree: 837 passed.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | Every criterion maps to a test seen failing first; `attribute_paths` keeps its result, so the merge driver's `.gitattributes` block is unchanged. |
+
+## close gate
+
+Reviewed: `8ea872b` (verification: this branch's CLI on run `20260914-1` put 7 source, design, skill
+source and test files in `overlaps` and 8 installed, backlog, index and changelog files in
+`known_overlaps`, where the plan-time capture mixed 13) and `8121ef2` (`taskrail done T051` on its own,
+changing only T051's row). No code changed after the checks re-run at the implement gate (837
+passed). `taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed`
+false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification on the live run shows the finding fixed. |
