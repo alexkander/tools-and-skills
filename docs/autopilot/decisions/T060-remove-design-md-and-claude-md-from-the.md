@@ -24,3 +24,17 @@ is edited yet.
 | 1 | Where the "read first" role is kept | `CLAUDE.md` bullet plus config comment · comment only · `CLAUDE.md` only · new taskrail key | **as recommended (`CLAUDE.md` *Backlog* bullet plus the comment on the empty key)** | Every agent reads `CLAUDE.md`; the comment explains the empty key. A new key is a follow-up. |
 | 2 | How the change is checked | `.taskrail/tests/test_config.py` · root `tests/` · test under `tools/taskrail` · extend `[checks].test` · no new test | **no new test: verify with `taskrail validate` and `taskrail autopilot status --json` loading the empty key, and record their output in the artifact; edit T060's description to say so, with `taskrail edit`** | A test that no configured check runs would not be run; a test directory under `.taskrail/` adds a convention nobody else uses; the others were rejected in the scope for good reasons. The change is one configuration value and one paragraph, which the pull request shows. Also drop change 3 (a *Commands* line for that test). |
 | 3 | Open a follow-up separating "read first" documents from escalating paths | open · do not open | **as recommended (open)**, feature in E02, with `taskrail new` in this worktree, committed on this branch | The general fix belongs in taskrail itself and is verifiable by pytest; the other lanes are editing that code now. |
+
+## implement gate
+
+Reviewed: commits `32f7789` (T060's description now names `validate` and `autopilot status`),
+`a270814` (follow-up T061 in E02) and `5da09de` (`governing = []` with its comment, the `CLAUDE.md`
+*Backlog* bullet, the artifact). The lane's `autopilot status --json` before and after shows the
+`governing` escalations of T049 and T053 gone while `touched` still lists `DESIGN.md`; `validate`
+0 errors; `test` 828 passed. The diff touches nothing under `tools/taskrail/` or `.claude/skills/`, so
+the checks were not re-run by the orchestrator beyond confirming the diff.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implement stage | approve · wording changes | **approve** | Matches the approved scope; the wording states both roles of the key accurately. |
+| 2 | T061 has no points | leave unestimated · set points now | **as recommended (leave)** | Estimating belongs to whoever plans it; an unestimated task sorts last in `next`, which suits a follow-up. |
