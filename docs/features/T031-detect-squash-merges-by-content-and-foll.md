@@ -1,11 +1,13 @@
 # T031 — Detect squash merges by content and follow through with autopilot merged
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12.1 (the `autopilot merged`
 row), §12.4 (`done-merged`), §12.8 (*Merge follow-through*) and §6.1 (the fork point of a finished
 dependent), with the evidence in `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md`
-(E4). Builds on T029 (`taskrail/autopilot/`: run files, `status.done_on_mainline`,
+(E4). The plan-gate decisions are in
+`docs/autopilot/decisions/T031-detect-squash-merges-by-content-and-foll.md` (Q1–Q10 as recommended,
+no `--force` for cleanup). Builds on T029 (`taskrail/autopilot/`: run files, `status.done_on_mainline`,
 `commands.register`), T019 (`branches.task_branch` and branch records) and T017 (`done-branch`,
 stacked bases, `base` in the claim).
 
@@ -167,6 +169,87 @@ worktrees, and merges made by a second clone that pushes to `origin`.
     §12.8 marks detection and cleanup implemented with the finished-branch guard and the bounded
     patch-id range, §7's autopilot row names `merged`; `README.md` shows the command; `CHANGELOG.md`
     has one bullet under *Unreleased*.
+
+## Test coverage
+
+In `tools/taskrail/tests/test_autopilot_merged.py`: 29 tests in throwaway repositories with a local
+bare `origin`, lanes in their own worktrees, and a second clone of `origin` (the `Host` helper)
+that merges, squashes, commits and deletes branches the way a hosting service would; no network.
+
+The tests were committed first (`22104ab`), before any implementation. Against that commit every
+test fails because the command does not exist yet (27 through the parser, one importing the
+module, one while setting up — see *Implementation evidence*). One test was then corrected, not
+weakened: in criterion 10, a second `merged` can only report `recorded: true` once no copy of the
+branch is left, so the test deletes the remote branch after `--cleanup`, as the plan's behaviour
+step 7 states.
+
+| Criterion | Tests |
+|---|---|
+| 1. Ancestor | `test_ancestor_with_a_merge_commit_names_the_merge`, `test_ancestor_after_a_fast_forward_names_the_head` |
+| 2. Tree | `test_tree_match_after_a_squash_on_an_unchanged_mainline` |
+| 3. Patch-id | `test_patch_id_after_an_unrelated_commit_landed_first` |
+| 4. Merge-tree | `test_merge_tree_when_the_changes_arrived_in_separate_commits` |
+| 5. Negatives and the finished-branch guard | `test_an_unmerged_finished_branch_is_not_merged`, `test_a_local_commit_after_the_squash_is_not_merged`, `test_an_unstarted_branch_is_not_merged_although_it_is_an_ancestor`, `test_a_merged_branch_whose_row_is_not_done_at_its_head_is_not_merged` |
+| 6. Confirmations | `test_confirmations_are_reported_and_never_prove` |
+| 7. Fetch | `test_fetch_prunes_and_no_fetch_leaves_refs_alone`, `test_a_repository_without_the_remote_skips_the_fetch`, `test_an_unreachable_remote_exits_2` |
+| 8. Heads, unknown task, renamed branch | `test_the_remote_copy_is_checked_when_the_local_branch_is_gone`, `test_the_local_branch_is_checked_when_the_remote_was_pruned`, `test_a_local_commit_after_the_squash_is_not_merged`, `test_no_branch_no_record_and_unknown_task_exit_3`, `test_a_renamed_branch_is_found_after_done` |
+| 9. Runs | `test_the_merge_is_recorded_in_the_run`, `test_run_selection_and_standalone_use`, `test_standalone_use_writes_no_run_file` |
+| 10. Status and recorded merges | `test_status_counts_a_recorded_merge_after_the_row_was_edited_by_hand` |
+| 11. Cleanup | `test_cleanup_removes_the_worktree_and_local_branch_only` |
+| 12. Cleanup refusals and the lease | `test_cleanup_refusals_change_nothing`, `test_cleanup_refuses_the_main_worktree`, `test_cleanup_keeps_a_branch_that_moved_after_the_check` |
+| 13. Dependents | `test_a_claimed_stacked_dependent_gets_its_rebase_command`, `test_a_finished_dependent_forks_from_the_dependency_head_even_after_cleanup`, `test_a_dependent_branched_from_the_mainline_is_not_stacked` |
+| 14. Text and JSON | `test_text_and_json_forms` |
+| 15. Existing behaviour and documentation | the whole suite (469 before, 498 after, no existing test changed); documentation reviewed at the implement gate: `DESIGN.md` §7, §12 status, §12.1, §12.4, §12.8, §12.10; `README.md`; `CHANGELOG.md` |
+
+Deviations from the plan's wording:
+
+- `checks` is an object keyed by check name (`{"ancestor": false, "tree": true, "patch-id": null,
+  "merge-tree": null}`, `null` for a check not reached or skipped) rather than a list.
+- `--owner` was added, as on `done` and `release`, so `--cleanup` can tell the caller's leftover
+  claim (released) from another owner's (exit 4).
+- `runs` lists the runs written by this call; a merge reported from a run's record writes nothing,
+  so it is `[]` there. The text form marks such a line `(recorded in a run)`.
+- `head.commit` is the recorded `head` when the merge comes from a run's record.
+- Check 1 uses the classic `git rev-list --first-parent --ancestry-path <head>..<mainline>`, which
+  works before git 2.38 and names the merge commit (criterion 1 covers it).
+
+## Implementation evidence
+
+Tests first, against commit `22104ab` (the tests alone; `--tb=line`, summarised with
+`grep -E "^E |passed|failed" | sort | uniq -c`):
+
+```
+$ uv run pytest -q -p no:cacheprovider --color=no --tb=line tests/test_autopilot_merged.py
+     28 E   argparse.ArgumentError: argument autopilot_command: invalid choice: 'merged' (choose from start, lane, decision, status)
+      1 E   ImportError: cannot import name 'merged' from 'taskrail.autopilot' (…/src/taskrail/autopilot/__init__.py)
+     28 E   SystemExit: 2
+      1 29 failed in 6.91s
+```
+
+After the implementation (from `tools/taskrail`):
+
+```
+$ uv run pytest -q tests/test_autopilot_merged.py
+29 passed in 11.61s
+$ uv run --directory tools/taskrail pytest -q
+498 passed in 51.56s
+```
+
+Since the first failure only shows that the command was missing, six behaviours were broken one at
+a time in the working tree, the autopilot tests re-run, and the files restored from a copy
+(compared with `cmp` afterwards):
+
+| # | Mutation | Tests that failed |
+|---|---|---|
+| a | the finished-branch guard skipped (`if not done_at_head:` → `if False:`) | `test_an_unstarted_branch_is_not_merged_although_it_is_an_ancestor`, `test_a_merged_branch_whose_row_is_not_done_at_its_head_is_not_merged` (`assert (True, False) == (False, False)`) |
+| b | untracked files ignored by the dirty check (`--untracked-files=no`) | `test_cleanup_refusals_change_nothing` (the cleanup went on to `git worktree remove`, which refused) |
+| c | the claim's recorded fork point never used | `test_a_claimed_stacked_dependent_gets_its_rebase_command` |
+| d | branch deleted without the lease (`update-ref -d` without the checked SHA) | `test_cleanup_keeps_a_branch_that_moved_after_the_check` |
+| e | `done_on_mainline` no longer reads recorded merges | `test_status_counts_a_recorded_merge_after_the_row_was_edited_by_hand` (`assert 'done-branch' == 'done-merged'`) |
+| f | the patch-id check never matches | `test_patch_id_after_an_unrelated_commit_landed_first` (`via` became `merge-tree`) |
+
+Each mutation failed only its own tests (for example `2 failed, 68 passed` for (a) over both
+autopilot test files, `1 failed, 28 passed` for (c)).
 
 ## Affected areas
 

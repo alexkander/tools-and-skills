@@ -459,6 +459,7 @@ def test_status_counts_a_recorded_merge_after_the_row_was_edited_by_hand(pilot, 
 
     first = merged(pilot, "T001", "--cleanup", "--owner", "lane", capsys=capsys)
     assert first["cleanup"]["branch_deleted"] is True
+    pilot.host.delete(BRANCHES["T001"])  # no copy of the branch is left: only the run knows the merge
     again = merged(pilot, "T001", capsys=capsys)
     assert (again["merged"], again["recorded"], again["via"], again["commit"]) == (True, True, first["via"], first["commit"])
 
