@@ -262,7 +262,7 @@ invented source was a bakery backlog: a title and a prose paragraph, `## Orderin
 statuses `[x]`, `in progress`, `[ ]`, `todo`, `wontfix`, a `tech debt` kind, dependencies
 `T001; T002` and `-`, a `slot \| order` cell and a prose line between the sections.
 
-1. `validate` before: `no \`## Epics\` section [epics-missing]`, `0 task(s)`, exit 1.
+1. `validate` before: ``no `## Epics` section [epics-missing]``, `0 task(s)`, exit 1.
 2. `import TODO.md` with only the four `--column` flags: exit 5, `taskrail: nothing was imported`,
    one line per unmapped value with its source line and the flag to pass (`in progress` and
    `wontfix` statuses, `tech debt` kind). The first run also printed validation errors of the
@@ -286,8 +286,8 @@ statuses `[x]`, `in progress`, `[ ]`, `todo`, `wontfix`, a `tech debt` kind, dep
 10. After `new` added a task to `TODO.md`, the import exited 5 with `[target-not-empty]`.
 11. In a third repository whose committed `TODO.md` was still unconverted, `reserve-id` handed out
     `T001` — the source's own ID, since its table is not a taskrail table yet. The import then
-    exited 4 with `task ID \`T001\` is reserved by baker@example; cancel it with \`taskrail
-    unreserve-id T001\`…` and left the file unchanged; after `unreserve-id T001` it exited 0 and
+    exited 4 with ``task ID `T001` is reserved by baker@example; cancel it with `taskrail
+    unreserve-id T001`…`` and left the file unchanged; after `unreserve-id T001` it exited 0 and
     `validate` passed.
 
 No other difference from the plan was found.
