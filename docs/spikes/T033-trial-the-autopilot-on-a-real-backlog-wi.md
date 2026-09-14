@@ -1,7 +1,8 @@
 # T033 — Trial the autopilot on a real backlog with each supported agent
 
-**Status: draft at the frame gate.** The question, the backlog, the environment and the approach
-below are proposals awaiting the human's agreement; the verdict is written at the decide gate.
+**Status: investigate — the trial kit is built and checked; the two agent runs wait for the human.**
+The frame was approved at its gate ([decision record](../autopilot/decisions/T033-trial-the-autopilot-on-a-real-backlog-wi.md));
+the verdict is written at the decide gate.
 
 ## Question
 
@@ -81,115 +82,165 @@ CLI behaviour checked in a throwaway repository under `/tmp` (since removed), wi
   claim has `run: null`: the run that started this lane is orchestrated without the CLI's run
   state, like the runs behind `docs/autopilot/decisions/`. It is not the trial.
 
+### Investigate: the trial kit
+
+Built outside the repository at `/var/tmp/taskrail-t033-trial` (persistent across reboots,
+throwaway) from [`T033-trial-kit/`](T033-trial-kit/RUNBOOK.md), which holds everything the trial
+needs and nothing private:
+
+| File | Role |
+|---|---|
+| [`RUNBOOK.md`](T033-trial-kit/RUNBOOK.md) | the human's steps for each run, including the D1 and D5 probes |
+| [`ANSWERS.md`](T033-trial-kit/ANSWERS.md) | the prompts (P1–P4), planned and unplanned answers (A1–A10), the permission-prompt rule and the stop conditions |
+| `prepare.sh` | exports taskrail at `977064f` with `git archive`, copies the scripts and bundles one seed repository, so both runs start from the same commit |
+| `seed/` | `wordstat`, the synthetic tool: code, tests, changelog, `docs/policy.md` (`prepare.sh` writes `AGENTS.md` and `CLAUDE.md`, the taskrail install, config and backlog) |
+| `new-run.sh` | one run from the bundle: an absolute bare remote, the orchestrator's clone, the allowlists, `evidence/` with the environment and a timeline |
+| `enable-autopilot.sh` | sets `[autopilot].enabled = true` on the trial `main` after the D1 refusal |
+| `squash-merge.sh` | stands in for a host's squash merge, logged to `evidence/merges.log` |
+| `capture.sh`, `snapshot.sh`, `finish.sh` | status every minute; labelled snapshots (status, claims, run files, logs, worktrees); final checks on `main`, decision records and transcript copies |
+| `claude-settings.local.json`, `opencode.json` | one allowlist rendered for each agent; OpenCode's also sets `github-copilot/claude-opus-5` |
+| `check-kit.sh` | the CLI-only dry run below |
+
+Choices made while building it:
+
+- **Pinning.** `.taskrail/config.toml` pins `version = "local:.taskrail/src"`, a committed symlink
+  to the exported source, so every worktree runs the same taskrail with no environment variable to
+  forget.
+- **Seed order.** `taskrail next` orders by points, then position, so points are set to make the
+  first dispatch T001, T003 and T004 (1 point each) and leave T002 (stacked on T001) and T005 for
+  the refill.
+- **No hint of the trial** in anything the agents read: the seed's config, `AGENTS.md` and backlog
+  read as an ordinary small project. The permission files are untracked (`.git/info/exclude`).
+- **Allowlist.** The taskrail wrapper (relative and absolute), `git` (with `git push` always
+  asking), the checks, `python3 -m wordstat`, `cd`, `ls`, `cat`, `head`, `tail`, `wc`, `grep`,
+  `rg`, `diff`, `sort`, `pwd`, `echo`, `date`, and edits inside the clone. Claude Code checks each
+  subcommand of a compound command and evaluates deny, then ask, then allow
+  ([permissions](https://code.claude.com/docs/en/permissions)); OpenCode lets the last matching
+  rule win ([permissions](https://opencode.ai/docs/permissions/)) and does not document whether it
+  splits compound commands — **not verified**, so `cd * && …` may be broader on OpenCode.
+- **Permission prompts are not recorded** in Claude Code transcripts (not documented), so the human
+  logs each one in the timeline.
+
+`check-kit.sh` after a clean `prepare.sh`, no agent involved (colour codes removed):
+
+```text
+PASS  new-run: seeded /var/tmp/taskrail-t033-trial/runs/dryrun
+PASS  validate: 5 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)
+PASS  pinned taskrail runs through .taskrail/src (977064f)
+PASS  start while disabled exits 5: taskrail: the autopilot is disabled; set [autopilot].enabled = true in .taskrail/config.toml to allow `autopilot start`
+PASS  enable-autopilot: committed and pushed
+PASS  start --count 5: run 20260914-1
+PASS  next dispatches T001, T003, T004 with ports; limited_by: max_lanes skipped: []
+PASS  lanes T001 and T004: worktrees created with --no-track and claimed with --run
+PASS  status flags T004's uncommitted docs/policy.md change as a governing escalation
+PASS  notify appends to evidence/notify.log
+PASS  T001 lane: checks OK, done, review, publish pushed=True
+PASS  review --json: no rebase needed
+PASS  squash-merge: squash-merged T001-add-a-lines-flag-that-also-reports-the-l into main as 2ce8419: feat(wordstat): add a --lines flag that also reports the line count (T001)
+PASS  merged --cleanup: merged via tree, worktree removed
+PASS  status: T001 done-merged
+PASS  capture: 3 status file(s) written
+PASS  snapshot: 20260914T082358Z-dry-check
+PASS  finish: checks pass on the remote's main
+PASS  opencode reads the trial config: model and permissions
+PASS  Claude Code settings file is valid JSON
+removed /var/tmp/taskrail-t033-trial/runs/dryrun
+```
+
+Not exercised by the dry run, left to the agent runs: a stacked rebase with `--onto`, the
+`escalate_gate` flag, rebase conflicts, and a merge detected by patch-id or `merge-tree` rather
+than tree (T031's tests cover those). Two things surfaced while building, both kit bugs fixed before
+the run and not taskrail findings: `git clone --bare` of a bundle leaves `HEAD` on `master`, and
+the dry run's first edit broke the seed's own CLI test. OpenCode also lists a user-level skill
+(`customize-opencode`) next to the six taskrail skills; `new-run.sh` records the list per run.
+
 ## Approach
+
+Agreed at the frame gate. The human's decisions are in the
+[decision record](../autopilot/decisions/T033-trial-the-autopilot-on-a-real-backlog-wi.md).
 
 ### Backlog
 
-| Option | For | Against |
-|---|---|---|
-| **(a) Synthetic public backlog** in a throwaway repository: a tiny Python tool with tests and five or six small tasks seeded so that each check is exercised | Identical for both agents, so the comparison is fair; every path can be seeded (stacked dependency, governing touch, escalated gate, known and unknown conflicts); no real merges, no risk to anything; small tasks keep the cost down; fully publishable, so the seed script can go into *How to reproduce*. | Not the "real backlog" the row names; trivial tasks make gate reviews shallow and may hide friction that only real work produces; the seed's author chooses what is tested. |
-| **(b) A copy of this repository's backlog** with a local remote | Real governing documents (DESIGN.md, CLAUDE.md) and real review depth. | Few suitable pending tasks: T004, T012 and T014 already have worktrees and branches in this clone, T003 needs a consumer project, T011 waits on an upstream merge; the remaining tasks are 2–5 points each and each agent would implement them separately, doubling the cost; two copies of real implementations invite confusion with the real branches; the paths in (a) would still have to be seeded by hand. |
-| **(c) A real consumer project chosen by the human** | The most realistic friction, and real work delivered. | Real merges into a real project; its content cannot appear in this public artifact, so every finding must be abstracted; the two agents cannot both do the same tasks, so the comparison is not like for like; it overlaps T003 (install taskrail in a first consumer project). |
+**Decided: a synthetic public backlog** in a throwaway repository with a local bare remote. Rejected:
+a copy of this repository's backlog (few suitable pending tasks, 2–5 points each, implemented twice)
+and a real consumer project (real merges, content that cannot be published, no like-for-like
+comparison). A follow-up task may later run one agent on a consumer project once the findings are
+fixed. The seed, as built:
 
-**Recommendation: (a)**, with tasks that are small but real enough for a review to read code and
-tests, and a follow-up task for one short single-agent run on a consumer project once the findings
-are fixed. Proposed seed (names and content are generic and written for the trial):
+| ID | Kind | Pts | Depends on | Title | Exercises |
+|---|---|---|---|---|---|
+| T001 | feature | 1 | — | Add a --lines flag that also reports the line count | D2, D3, D6, D9; a changelog bullet (conflict class 2) |
+| T002 | feature | 2 | T001 | Add a --json flag that prints the statistics as one JSON object | a stacked base; D10 `rebase --onto` after T001's squash merge; D2 refill |
+| T003 | bug | 1 | — | Stop miscounting words around repeated whitespace and newlines | the function T001 also changes: touch map (D6, D8) and a conflict outside the known classes unless the touch map avoids it (D10) |
+| T004 | chore | 1 | — | Document the exit code for an unreadable file in the output policy | D7 governing escalation (`docs/policy.md`) |
+| T005 | spike | 2 | — | Decide whether word counting should follow Unicode word boundaries | D7 `escalate_gates = ["spike:decide"]`; D2 refill; the D5 new-session probe |
 
-| Seed task | Kind | Depends on | Exercises |
-|---|---|---|---|
-| S1 add a flag to the tool | feature | — | D2, D3, D6, D9; a CHANGELOG bullet (known conflict class 2) |
-| S2 extend S1's flag with a second output format | feature | S1 | a stacked base; D10 `rebase --onto` after S1 is squash-merged |
-| S3 fix an off-by-one in the function S1 also changes | bug | — | a touch-map overlap with S1 (D6, D8), and a conflict outside the known classes unless the touch map prevents it (D10) |
-| S4 update a policy document listed in `governing` | chore | — | D7 governing escalation |
-| S5 choose between two approaches for a later change | spike | — | D7 `escalate_gates = ["spike:decide"]`; dispatched only when a lane frees (D2 refill) |
-
-Trial configuration: `[autopilot] enabled = true`, `max_lanes = 3`, `governing` the policy
-document, `escalate_gates = ["spike:decide"]`, a `notify` command appending to a log file, a small
-`[[autopilot.resource]]` pool read by the tests (so D2 checks the environment reaches the lane),
-`[checks] test` running pytest. Prompt, verbatim on both agents: *"Run the autopilot for 5 tasks."*
-D1 is exercised first in each run: the same prompt without a count, then with `enabled = false`,
-then enabled.
+Configuration: `enabled = false` until the D1 refusal is observed, `max_lanes = 3`,
+`governing = ["AGENTS.md", "CLAUDE.md", "docs/policy.md"]`, `escalate_gates = ["spike:decide"]`,
+`notify` appending to `evidence/notify.log`, a `PORT` pool of three values bound by a test,
+checks `python3 -m unittest discover -s tests -q` and `python3 -m compileall -q wordstat tests`.
 
 ### Environment and roles
 
-- **The human plays the human.** The orchestrator must be a top-level interactive session: §12.3
-  rejects a CLI that launches agents, and a headless run (`claude -p`, `opencode run`) denies or
-  skips permission prompts. This lane has no channel to a session and cannot drive one. The human
-  starts each orchestrator session, answers the planned escalations from a written answer sheet so
-  both runs get the same answers, and merges branches.
-- **Merges** go through a throwaway helper script that squash-merges a task branch into the bare
-  remote's `main` with the pull request title as the commit, then tells the orchestrator "merged".
-  A throwaway private hosted repository with real pull requests is the alternative (more realistic
-  squash, but it needs `gh` or the web UI and adds network variables).
-- **Remote:** a local bare repository at an absolute path.
-- **taskrail** pinned to one commit (`977064f` unless the human says otherwise) for both runs,
-  through a `local:` copy or `TASKRAIL_BIN`, settled when the seed is built. taskrail is not
-  patched between runs, even when a finding is obvious.
-- **Models:** Claude Code on its default model; OpenCode on `github-copilot/claude-opus-5`, so both
-  runs use the same model family and the difference measured is the agent, not the model. A third,
-  optional OpenCode run on a non-Claude model would test the skill text's portability separately.
-- **Permissions:** never a flag that skips prompts (`--dangerously-skip-permissions`, OpenCode's
-  `--auto`). Either default prompts, which measures real friction but makes the human approve every
-  lane command, or the same trial-local allowlist on both agents (`.taskrail/bin/taskrail`, `git`,
-  `uv run`, `pytest` inside the trial repository), with every prompt outside it counted.
-- **OpenCode background subagents** (`OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`) stay off in the
-  main run, since the design does not require them; an optional short second OpenCode run with the
-  flag measures what waves cost.
+- **The human drives both orchestrator sessions** — top-level interactive sessions, since §12.3
+  rejects a CLI that launches agents and headless runs deny or skip permission prompts — answers
+  from the [answer sheet](T033-trial-kit/ANSWERS.md), and says "merged" after `squash-merge.sh`.
+- **Remote:** a local bare repository at an absolute path; hand-offs carry a title and no link.
+- **taskrail** pinned at `977064f` for both runs and not patched between them.
+- **Models:** the same on both agents — Claude Code's default, OpenCode on
+  `github-copilot/claude-opus-5`.
+- **Permissions:** one trial-local allowlist on both agents, every prompt outside it counted, never
+  a prompt-skipping flag.
+- **No extra runs:** OpenCode's experimental background subagents stay off; no non-Claude run.
+- **Order:** Claude Code first, then OpenCode.
 
 ### Recording
 
-Raw evidence is kept outside the repository, since transcripts contain local paths and account
-details; the artifact quotes scrubbed excerpts only.
+Raw evidence stays under `/var/tmp/taskrail-t033-trial/runs/<agent>/evidence/`, since transcripts
+contain local paths and account details; the artifact quotes cleaned excerpts only.
 
-- The seed as a script, the helper merge script, the answer sheet and the trial configuration —
-  committed into *How to reproduce*, since they are synthetic.
-- Both runs start from the same seed commit (a git bundle), each in its own fresh copy.
-- A shell loop outside the agents writes `autopilot status --json` every minute, plus one snapshot
-  at every gate and merge; the run file, the notify log, `git log --all --graph` of the bare remote
-  and every decision record are copied at the end.
-- Transcripts: Claude Code's session and subagent JSONL files; OpenCode's `opencode export` for the
-  orchestrator and each child session, and `opencode stats` for tokens.
-- A timeline kept by the human during the run: each intervention with the time and what prompted it.
+- Both runs start from the same seed commit (`seed.bundle`), each in its own directory.
+- `capture.sh` writes `autopilot status --json` every minute; `snapshot.sh` at escalations,
+  hand-offs, merges, compaction and the new-session probe; `finish.sh` copies the final state,
+  checks on `main`, decision records and transcripts (Claude Code's session and subagent JSONL
+  files, OpenCode's `opencode export` per session).
+- The human's timeline: every prompt, answer, permission prompt, merge and surprise, with the time
+  and the answer-sheet row.
 
 ### Measures
 
-Per run: wall time from the prompt to `complete`; gates reached, answered by the orchestrator and
-escalated, against the planned escalations; human interventions beyond the plan; permission
-prompts; lanes dispatched and refilled; rebases, conflicts by class, and escalated conflicts;
-misreads of CLI output (D11); procedure deviations (a lane rebasing or publishing, a record
-committed after resuming, a run file edited by hand); tokens; and the end state (every task
-`done-merged`, `validate` clean, tests passing on `main`, one decision record per task, no worktree
-left behind).
+Per run: wall time from P2 to `complete`; gates reached, answered by the orchestrator and escalated,
+against the planned escalations; human interventions beyond the plan; permission prompts; lanes
+dispatched and refilled; rebases, conflicts by class, and escalated conflicts; misreads of CLI
+output (D11); procedure deviations (a lane rebasing or publishing, a record committed after
+resuming, a run file edited by hand); tokens; and the end state (every task `done-merged`,
+`validate` clean, checks passing on `main`, one decision record per task, no worktree left behind).
 
 ### Sequence
 
-1. **investigate, preparation** — build the seed, helper scripts, answer sheet and capture loop;
-   dry-run the seed through the CLI alone (`autopilot next` preview, `status` flags, a squash merge
-   detected by `merged`) so that no agent time is spent on a broken seed.
-2. **Stop and hand the runbook over.** Running agent sessions needs the human, so the investigate
-   stage stops here although its gate is `none`.
-3. **The human runs Claude Code, then OpenCode** (or the other order), with this lane's runbook.
+1. **investigate, preparation** — done: the kit above, checked through the CLI alone.
+2. **Stop and hand the runbook over** — here. Running agent sessions needs the human, so the
+   investigate stage stops although its gate is `none` (agreed at the frame gate).
+3. **The human runs Claude Code, then OpenCode**, following the runbook.
 4. **investigate, analysis** — this lane reads the evidence, fills D1–D12 for each run and writes
    the findings.
 5. **decide** — verdict, findings as follow-up tasks, and changes proposed to §12.
 
 ## Limits
 
-- **Time box:** 2 points of analysis for this lane; for the human, one run per agent of at most
-  3 hours wall time each, plus setup.
-- **Tasks per run:** five; one run per agent. Optional runs (OpenCode with background subagents,
-  OpenCode on a non-Claude model) only if the human wants them.
+- **Time box:** 2 points of analysis for this lane; for the human, at most 3 hours per run from P2,
+  plus setup.
+- **Tasks per run:** five; one run per agent; no optional runs.
 - **Out of scope:** lane model pinning and lane agent definitions; `batch` hand-off (only its cost
   case is measured); runs across machines, `claim_remote` and remote run files; host APIs and real
-  pull requests; T004's merge driver; fixing any finding here — findings become follow-up tasks;
-  any consumer project.
-- **Stop a run early when:** anything writes outside the trial copy or pushes anywhere but its bare
-  remote; an agent merges, or publishes other than through `review --publish`; a permission bypass
-  is proposed and would be needed to continue; the run cannot continue without editing a run file
-  by hand or patching taskrail (recorded as a finding, not worked around); or the wall-time limit is
-  reached. If the first run shows a defect so severe the second would only repeat it, ask the human
-  whether to fix first and rerun both, or run the second agent anyway for its agent-specific
-  evidence.
-- **Not verified at the frame:** whether a new Claude Code session can resume a previous session's
-  background subagents (D5), whether OpenCode's compaction keeps task-tool handles usable, and the
-  real cost of either run.
+  pull requests; OpenCode's background subagents; T004's merge driver; fixing any finding here —
+  findings become follow-up tasks; any consumer project.
+- **Stop a run early** at the conditions in the [answer sheet](T033-trial-kit/ANSWERS.md): a write
+  outside the run or a push anywhere but its bare remote; an agent merging or publishing other than
+  through `review --publish`; a needed prompt-skipping flag or denied permission; a run that cannot
+  continue without editing a run file or patching taskrail (recorded as a finding, not worked
+  around); or 3 hours. If the first run shows a defect so severe the second would only repeat it,
+  ask the human whether to fix first and rerun both, or run the second agent anyway.
+- **Not verified yet:** whether a new Claude Code session can resume a previous session's
+  background subagents (D5), whether OpenCode's compaction keeps task-tool handles usable, whether
+  OpenCode splits compound commands for permissions, and the real cost of either run.
