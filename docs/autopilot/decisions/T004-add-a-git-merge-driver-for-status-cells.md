@@ -1,0 +1,26 @@
+# T004 — autopilot decisions
+
+Decisions the orchestrator took on the human's behalf while this task ran in an autopilot lane.
+Each is recorded before it is given to the lane.
+
+## plan gate
+
+Reviewed: the plan in `docs/features/T004-add-a-git-merge-driver-for-status-cells.md` (commit
+`ecf17ee`), its seventeen acceptance criteria, and the lane's git probes: no `MERGE_HEAD`,
+`REBASE_HEAD` or `CHERRY_PICK_HEAD` exists while a driver runs; the `%X`/`%Y` labels resolve to
+commits; `git merge-file` stays clean only when the merged tables are placed into the base too; and
+a `merge=taskrail` attribute without the config falls back to git's text merge.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| Q1 | Driver contract | options for marker size, path and labels, exit 0/1, internal fallback to `git merge-file` · positional `%O %A %B %L %P %S %X %Y` | **as recommended** | Explicit options are readable in the config line; exit codes stay what git expects. |
+| Q2 | Shell fallback when taskrail cannot start | yes · bare command | **yes** | A clone without `uvx` must still get a normal text merge, never a file left conflicted without markers. |
+| Q3 | Files listed in `.gitattributes` | backlog, epic files and artifact indexes · backlog and epic files only | **include the indexes** | Appended index rows are this run's most frequent conflict, and the same row merge covers them. |
+| Q4 | Per-clone install | opt-in `init --merge-driver`; `upgrade` refreshes the block and only updates an existing config · `upgrade` adds the config wherever recorded | **opt-in** | A driver runs repository code during merges; each clone chooses it. |
+| Q5 | Sides for the `Reopens:` check | resolve the labels to commits, symmetric difference, leave the conflict when unresolved · refs or rebase state files | **resolve the labels** | The probes show the refs are absent; an unresolved label is a conflict for a human, not a guess. |
+| Q6 | New epic files | `epic add --own-file` and `epic split` update the block, `upgrade` repairs · `upgrade` only | **as recommended** | The block stays correct at the moment a file appears. |
+| Q7 | CHANGELOG bullets | follow-up feature in E02 · include here | **follow-up** (opened on this branch with `taskrail new`) | A moved bullet needs history, not a table merge; this run hit that case. |
+| Q8 | Validate inside the driver | no · yes | **no** | Other backlog files may still be unmerged when it runs; step 8 validates afterwards. |
+| Q9 | Adopt the driver in this repository now | decide after merge · commit a block here | **after merge** | Adopting it changes every clone's merges here and deserves its own small task once the driver is released. |
+
+Plan approved. The lane never installs the driver into this checkout's git config.
