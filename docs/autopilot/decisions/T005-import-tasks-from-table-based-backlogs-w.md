@@ -43,3 +43,15 @@ test observed failing first. The lane rebased twice at close; only the docs inde
 conflicted, resolved by keeping both with a single T005 bullet last. Checked by the orchestrator
 before publishing: `TODO.md` differs from `main` only in T005 `✅`, `pytest -q` 568 passed,
 `taskrail validate` 0 errors, `upgrade` reports nothing to create or update, no upstream.
+
+## rebase after T032 and T031
+
+T032 (`151e290`) and T031 (`a41ca8a`) were squash-merged into `main`. The orchestrator rebased the
+branch onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/features/README.md`, `docs/autopilot/decisions/README.md`, CHANGELOG | keep both · stop | **keep both** | Rows and bullets added on both sides; one bullet each for T031, T032 and T005. |
+
+No code conflicted. After the rebase: no conflict markers, `pytest -q` passes, `taskrail validate` 0
+errors, `upgrade` reports nothing to create or update.
