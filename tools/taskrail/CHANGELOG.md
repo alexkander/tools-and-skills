@@ -114,6 +114,10 @@ uv tool install taskrail --from "git+https://github.com/alexkander/tools-and-ski
   files, and the agent notes in `integrations/<agent>.md` are split per skill by
   `<!-- taskrail:skill <name> -->`, so the core skill's notes are unchanged and the autopilot skill
   gets its own Claude Code and OpenCode notes (T024).
+- **OpenCode note on escalations during blocking batches.** The `taskrail-autopilot` skill's
+  OpenCode note has the orchestrator end its turn with the question at an escalation instead of
+  starting another blocking batch of task calls, and record handles and check `silent` lanes as
+  soon as a batch returns (T056).
 - **Reopens without a trailer.** `validate` reads the latest 500 commits that change backlog files
   and warns with `reopen-untraced` for a task pending in the working tree whose latest move from
   `✅` or `❌` back to `⬜` no commit since records with a `Reopens: <ID>` trailer, since the rebase

@@ -115,3 +115,20 @@ nothing; none is run.
   the core `taskrail/SKILL.md` OpenCode section is unchanged.
 - The `test` check (`uv run --directory tools/taskrail pytest -q`); `lint` is not configured.
 - `taskrail validate`.
+
+Decisions 1–3 were approved at the scope gate as recommended; see the task's
+[decision record](../autopilot/decisions/T056-add-an-opencode-note-on-escalations-duri.md).
+
+Results:
+
+- New test `test_opencode_note_ends_the_turn_at_an_escalation_and_checks_lanes_between_batches`,
+  on the unchanged note (the note edit stashed): `2 failed, 24 deselected`, both parameters
+  failing on `end your turn with that question`. With the note edit: `tests/test_autopilot_skill.py`
+  `26 passed`.
+- Throwaway `git init` directory under `/tmp`, `taskrail --root <dir> init --integration opencode`
+  from this branch's source: the installed `.opencode/skills/taskrail-autopilot/SKILL.md` has one
+  `## On OpenCode` section carrying the new bullets once each; the installed
+  `.opencode/skills/taskrail/SKILL.md` OpenCode section is the unchanged two bullets. The directory
+  was deleted afterwards.
+- `test`: `830 passed in 86.89s`. `lint`: not configured.
+- `taskrail validate`: `56 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
