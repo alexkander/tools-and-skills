@@ -51,3 +51,16 @@ mainline that added bullets at the top and end — rebased cleanly with the bull
 rebase without the driver conflicted; two different edits of one bullet were marked alone. The
 branch stays stacked on `origin/T004-add-a-git-merge-driver-for-status-cells` (`8a9a37f`) until T004
 merges; then the orchestrator moves it with `git rebase --onto origin/main 8a9a37f`.
+
+## rebase after T004
+
+T004 was squash-merged into `main` as `fff3fe6`. The orchestrator moved the branch off T004's branch
+with `git rebase --onto origin/main 8a9a37f`, replaying only this task's eight commits.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | How to rebase a stacked branch after its dependency's squash merge | `--onto` the recorded fork point · plain rebase | **`--onto 8a9a37f`** | A plain rebase would replay T004's commits against their squashed copy; the fork point is the claim's recorded `base.commit`. |
+
+No conflicts. After the rebase: `TODO.md` differs from `main` only in T040 `✅`, `pytest -q` passes,
+`taskrail validate` 0 errors, `upgrade` reports nothing to create or update, and `show T040` reports
+base `origin/main` with no dependency.
