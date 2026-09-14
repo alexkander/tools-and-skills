@@ -152,7 +152,7 @@ Not exercised by the dry run, left to the agent runs: a stacked rebase with `--o
 than tree (T031's tests cover those). Two things surfaced while building, both kit bugs fixed before
 the run and not taskrail findings: `git clone --bare` of a bundle leaves `HEAD` on `master`, and
 the dry run's first edit broke the seed's own CLI test. OpenCode also lists a user-level skill
-(`customize-opencode`) next to the six taskrail skills; `new-run.sh` records the list per run.
+next to the six taskrail skills; `new-run.sh` records the list per run.
 
 ## Approach
 

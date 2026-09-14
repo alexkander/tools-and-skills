@@ -22,3 +22,15 @@ with a local bare remote, absolute remote paths required).
 | Q8 | Time box and the investigate stop | 2 points of analysis, at most 3 hours per run, investigate stops once seed, scripts, answer sheet and capture are built · other limits | **as proposed** (orchestrator's proposal; the human did not object) | The agent runs need the human, so the lane stops before them. |
 
 Frame approved.
+
+## investigate — stopped before the agent runs, as agreed
+
+Reviewed: commit `4be511f` (the trial kit under `docs/spikes/T033-trial-kit/` and the updated
+spike document) and the lane's dry run through the CLI alone, which passed every check and reset
+the kit. The orchestrator searched the committed files for user names, home paths, hosts, e-mail
+addresses and private project names; the only local detail found was the name of a user-level
+OpenCode skill, which it removed from the document.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Hand the kit to the human now | yes · extend the dry run first | **yes** | What the dry run leaves out (a stacked rebase, the spike's decide flag, content-only merges, real conflicts) needs the agents; the human runs them from `RUNBOOK.md`. |
