@@ -34,3 +34,15 @@ OpenCode skill, which it removed from the document.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Hand the kit to the human now | yes · extend the dry run first | **yes** | What the dry run leaves out (a stacked rebase, the spike's decide flag, content-only merges, real conflicts) needs the agents; the human runs them from `RUNBOOK.md`. |
+
+## decide gate — decided by the human
+
+Reviewed: the completed spike (commits `f4041e8` kit fixes, `42ea93a` decision) evaluating three
+runs — an aborted Claude Code attempt, a complete Claude Code run (5/5 merged) and an OpenCode run
+with a substituted model stopped by a usage limit (0/5 merged) — against checks D1–D12, with
+findings F1–F13 classified. The committed files carry no local user, account or session details.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Verdict | option 2, keep the design with targeted fixes · option 1, skill text only · option 3, lanes always restart from checkpoints | **option 2** — decided by the human | The design delivered 5/5 on Claude Code; F1, F3 and F7 need CLI and integration changes, not a redesign. |
+| 2 | Follow-up tasks | all proposed · design-level only · none | **all proposed** — decided by the human | Features for F1, F7, F9, F10, F12 and F11; bugs for F8 and F13; chores for the skill text (F2, F4, F5, F6, F7) and the OpenCode note (F3); one spike for compaction, OpenCode with a Claude model and messaging an old lane. |
