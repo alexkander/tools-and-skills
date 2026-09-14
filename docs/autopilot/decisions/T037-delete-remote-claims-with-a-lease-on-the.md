@@ -36,3 +36,14 @@ remote ref holding another commit, and records without `remote.commit`.
 | 3 | Guard test that passes before the fix | keep · drop | **keep** | It is the only test pinning that `--force` never deletes another clone's claim, which the new lease must preserve. |
 
 The orchestrator unset the branch's upstream (set to `origin/main` by `git worktree add`).
+
+## rebase after T034
+
+T034 was squash-merged into `main` as `0f01370`. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/bugs/README.md` and `docs/autopilot/decisions/README.md` | keep both rows · stop | **keep both** | Rows added on both sides. |
+
+After the rebase: no conflict markers, `TODO.md` differs from `main` only in the added T037 row,
+`pytest -q` 484 passed, `taskrail validate` 0 errors, `upgrade` reports nothing to create or update.
