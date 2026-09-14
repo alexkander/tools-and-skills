@@ -48,3 +48,16 @@ create or update, the branch has no upstream.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Pull request type | `fix` · `chore` | **`fix`** | It removes a hazard where a plain `git push` could land on the mainline; users should see it in the release notes. |
+
+## rebase after T032, T031 and T005
+
+T032 (`151e290`), T031 (`a41ca8a`) and T005 (`766b5da`) were squash-merged into `main`. The
+orchestrator rebased the branch onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/autopilot/decisions/README.md` and CHANGELOG | keep both · stop | **keep both** | Rows and bullets added on both sides; one T038 bullet, last. |
+
+No code, skill or manifest conflicted. After the rebase: no conflict markers, the skill source and
+its installed copy keep `--no-track` in step 3, `pytest -q` passes, `taskrail validate` 0 errors,
+`upgrade` reports nothing to create or update.
