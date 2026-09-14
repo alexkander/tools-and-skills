@@ -26,3 +26,18 @@ this run's orchestrator hit — while the prototyped ordering rule gives the exp
 | Q8 | README half-sentence | add · DESIGN and CHANGELOG only | **add** | The README is where a consumer reads what `--merge-driver` does. |
 
 Plan approved.
+
+## implement gate
+
+Reviewed: commits `781e951` (tests against a stub) and `fa7ec7f` (`merge_lists`, `_lists`, `_edits`,
+`_moved`, `_merge_bullets` and `changelog_paths` in `mergedriver.py`; DESIGN.md §7.4 and §12.8;
+README; CHANGELOG). Re-ran `tests/test_merge_driver.py` in the lane's worktree: 80 passed; the lane's
+full suite gave 821. Eighteen tests failed against the stub, including every real git merge and
+rebase of bullets; three deliberate breakages (no list stage, ignored moves, no edit pairing) each
+failed the tests that cover them. The regression test replays this run's real case with `git rebase`
+and fails without the driver. This checkout has no `merge.*` config and no `.gitattributes`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve, with an empty base section merged, a fence inside a bullet left to git, and thematic breaks not bullets | approve · strict equal counts | **approve** | The empty `## Unreleased` after a release is the most common case; the other two keep ambiguous input with git. |
+| 2 | `git ls-files` on epic commands; the `X Y P N` ordering asymmetry | keep · change | **keep** | One cheap call per epic command; the order is deterministic and keeps each bullet once. |
