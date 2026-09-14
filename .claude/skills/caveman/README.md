@@ -3,12 +3,12 @@
 Response compression for chat prose: terse fragment style, technical substance kept exact.
 Vendored from [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) (MIT).
 
+This directory is part of this repository's own agent configuration: agents working on this
+repository load it from `.claude/skills/caveman/` — Claude Code directly, OpenCode through its
+`.claude/skills` scan. It is not one of the repository's shareable items and is not meant to be
+installed elsewhere from here. `taskrail upgrade` does not manage or touch it.
+
 Self-contained: `SKILL.md` is the whole skill. No installer, hooks, statusline, CLI or proxy.
-
-## Install
-
-Copy this directory into wherever the agent loads skills from — for Claude Code,
-`.claude/skills/caveman/`.
 
 ## Use
 
@@ -22,8 +22,8 @@ off. The default here is `lite`, not upstream's `full`. It never activates on it
 chat prose only (never anything persisted), off inside a subagent whose output another agent
 relays to a human, artifact language untouched, and nothing but this file vendored.
 
-The rules are project-neutral. A project needing more — its own pipeline names, its own
-governed documents — states that alongside this file rather than editing the vendored text.
+The rules are project-neutral. Anything specific to this repository belongs in its agent
+instructions (`CLAUDE.md`), never in the vendored text.
 
 ## Portability
 
