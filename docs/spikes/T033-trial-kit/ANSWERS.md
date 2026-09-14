@@ -49,4 +49,4 @@ Type P4, then follow the runbook's *Ending a run*, when:
 - an agent merges, or publishes other than through `taskrail review --publish`;
 - continuing would need a prompt-skipping flag or a permission you would deny above;
 - the run cannot continue without editing a run file by hand or changing taskrail;
-- 3 hours have passed since P1.
+- 3 hours have passed since P2.
