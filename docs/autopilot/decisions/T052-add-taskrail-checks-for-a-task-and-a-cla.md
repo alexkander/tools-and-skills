@@ -36,3 +36,23 @@ changed, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T052 owns the new `checks.py`, `EXIT_CHECK_FAILED` and `cmd_checks` with its parser registration in `cli.py`, `integrations/claude.md`, step 5 and the exit-code table of the core `taskrail` skill, `tests/test_checks.py`, `CORE_CLAUDE_NOTES` and one new test in `tests/test_autopilot_skill.py`, DESIGN §7's new row, §7.5 and the §8 `claude` row, and one README line. T047 adds one line in `cmd_claim`; T048 changed its `--run` check; T055 owns the lane brief and the autopilot skill's re-run steps; T056 the OpenCode note and §8 `opencode` row.** | Built from the gates reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs, adjacent new tests | resolve at hand-off · serialize | **resolve at hand-off, keeping every entry** | Known conflict classes 1–3; adjacent new test functions kept side by side. |
+
+## implement gate
+
+Reviewed: commits `ebbaf2e` (follow-up T063, chore, E02, depending on T052 and T055) and `c1ee3cd`
+(range `92465cf..c1ee3cd`): the new `checks.py` (worktree from the claim, else the checked-out
+branch; the worktree's own project; the lane's resources read from run files; commands through the
+shell in the worktree), `EXIT_CHECK_FAILED` and `cmd_checks` in `cli.py`, the approved notes in
+`integrations/claude.md`, core skill step 5 and the exit 6 row, DESIGN §7 row, §7.5 and §8 `claude`
+row, installed copies and digests, one README line and one CHANGELOG bullet. Seven `test_checks.py`
+tests and three skill tests were shown failing before the code. Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 841 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Details left open by the plan: `--stage` runs a non-applying stage; an unknown `--check` exits 2; an undefined kind exits 2; text mode streams output | approve · change | **as recommended (approve all four)** | Explicit requests are honoured, typos fail loudly, and long checks stream as a terminal user expects. |
+| 2 | Mention exit 1 in §7.5 | leave · add | **as recommended (leave)** | §7.1's shared exit codes already cover an invalid backlog for every command. |
+
+Resource values after a refill: once `next` releases a finished lane's values, `taskrail checks` for
+that task passes none, so at hand-off the orchestrator still chooses values no lane in use holds, as
+T055's skill text says.
