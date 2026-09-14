@@ -290,8 +290,9 @@ def _dependents(project: Project, task: Task, dependency_head: str | None, recor
             continue
         fork, source, reason = None, None, None
         base = (claim.base if claim else None) or {}
-        if base.get("dependency") == task.id and base.get("commit") and _sha(root, base["commit"]):
-            fork, source = _sha(root, base["commit"]), "claim"
+        recorded_fork = _sha(root, base["commit"]) if base.get("dependency") == task.id and base.get("commit") else None
+        if recorded_fork and _is_ancestor(root, recorded_fork, head):  # a rebased branch no longer contains it
+            fork, source = recorded_fork, "claim"
         else:
             for other, name in ((dependency_head, "merge-base"), (recorded_head, "run")):
                 if other and _sha(root, other):

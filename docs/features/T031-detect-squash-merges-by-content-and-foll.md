@@ -1,6 +1,6 @@
 # T031 — Detect squash merges by content and follow through with autopilot merged
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12.1 (the `autopilot merged`
 row), §12.4 (`done-merged`), §12.8 (*Merge follow-through*) and §6.1 (the fork point of a finished
@@ -210,6 +210,12 @@ Deviations from the plan's wording:
 - `runs` lists the runs written by this call; a merge reported from a run's record writes nothing,
   so it is `[]` there. The text form marks such a line `(recorded in a run)`.
 - `head.commit` is the recorded `head` when the merge comes from a run's record.
+- Found at verify: a dependent already rebased with the reported command was offered the same
+  rebase again, from its claim's `base.commit`, which the rebased branch no longer contains. The
+  claim's fork point is now used only while the dependent's head contains it; otherwise the
+  `merge-base` with the dependency head applies, which after the rebase is on the mainline, so the
+  dependent reads `stacked: false`. Covered by an assertion added to
+  `test_a_claimed_stacked_dependent_gets_its_rebase_command`, shown failing first (below).
 - Check 1 uses the classic `git rev-list --first-parent --ancestry-path <head>..<mainline>`, which
   works before git 2.38 and names the merge commit (criterion 1 covers it).
 
@@ -250,6 +256,183 @@ a time in the working tree, the autopilot tests re-run, and the files restored f
 
 Each mutation failed only its own tests (for example `2 failed, 68 passed` for (a) over both
 autopilot test files, `1 failed, 28 passed` for (c)).
+
+## Verification
+
+### Real CLI
+
+Run through this checkout's wrapper, `.taskrail/bin/taskrail --root <repo>`, in a throwaway
+repository under `/tmp` with a bare `origin` (`main` tracking it), lanes in `.worktrees/`, and a
+second clone of `origin` as the host; removed afterwards. Four tasks: T001, T002 depending on
+T001, T003 and T004. A first attempt was discarded because the host clone had not fetched the task
+branch before squashing, so nothing was merged and every answer was correctly "not merged"; the
+run below fetches on the host first. Paths are shown as `$D`, and git's own merge messages from the
+host are left out.
+
+```
+run: 20260914-1
+claimed T001 on T001-base-task from origin/main
+T001 done and pushed at c46cd45
+claimed T002 on T002-depends-on-base from origin/T001-base-task
+claimed T003 on T003-independent from origin/main
+
+## 1. before any merge
+
+$ taskrail autopilot merged T001
+T001 not merged into origin/main: no check proves that T001-base-task is contained in origin/main
+T002: git rebase --onto origin/T001-base-task c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=0
+
+$ taskrail autopilot merged T003
+T003 not merged into origin/main: T003 is not done at the head of T003-independent; content detection needs a finished branch
+exit=0
+
+## 2. host: an unrelated commit, then the squash of T001, then the branch deleted
+squash 0d5f593, remote T001-base-task deleted
+
+$ taskrail autopilot merged T001 --no-fetch
+T001 not merged into origin/main: no check proves that T001-base-task is contained in origin/main
+T002: git rebase --onto origin/T001-base-task c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=0
+
+$ taskrail autopilot status --run 20260914-1 --json | jq states   # not fetched
+[{"id":"T001","state":"done-branch"},{"id":"T002","state":"running"},{"id":"T003","state":"running"}]
+
+$ taskrail autopilot merged T001 --run 20260914-1 --json | jq
+{"fetched":true,"merged":true,"via":"patch-id","commit":"0d5f593","recorded":false,"head":{"ref":"T001-base-task","local":"c46cd45","remote":null},"mainline":"origin/main","checks":{"ancestor":false,"tree":false,"patch-id":true,"merge-tree":null},"confirmations":{"row":true,"title":"0d5f593"},"runs":["20260914-1"],"dependents":[{"id":"T002","stacked":true,"fork":"c46cd45","fork_source":"claim","onto":"origin/main","command":"git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca","worktree":"$D/repo/.worktrees/T002-depends-on-base"}]}
+remote-tracking branches after the prune:
+  origin/HEAD -> origin/main
+  origin/main
+
+run file, lane T001:
+{"handle":null,"group":null,"state":"running","reason":null,"updated":null,"resources":{},"merged":{"via":"patch-id","commit":"0d5f5936f396edca117e389545a79f7ff046994b","head":"c46cd45726002e299830326eb764c9fbcb7ffbca","mainline":"origin/main","detected":"2026-09-14T06:52:08+00:00"}}
+
+$ taskrail autopilot merged T001
+T001 merged into origin/main via patch-id at 0d5f593
+T002: git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=0
+
+$ taskrail autopilot status --run 20260914-1 --json | jq states
+[{"id":"T001","state":"done-merged"},{"id":"T002","state":"running"},{"id":"T003","state":"running"}]
+
+## 3. cleanup refusals, then cleanup
+
+$ taskrail autopilot merged T001 --cleanup        # an untracked notes.txt in the worktree
+taskrail: cleanup refused: the worktree $D/repo/.worktrees/T001-base-task has uncommitted or untracked changes
+T001 merged into origin/main via patch-id at 0d5f593
+cleanup refused: the worktree $D/repo/.worktrees/T001-base-task has uncommitted or untracked changes
+T002: git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=5
+
+$ (cd .worktrees/T001-base-task && taskrail autopilot merged T001 --cleanup)
+taskrail: cleanup refused: the current directory or --root is inside the worktree $D/repo/.worktrees/T001-base-task; run the cleanup from outside it
+T001 merged into origin/main via patch-id at 0d5f593
+cleanup refused: the current directory or --root is inside the worktree $D/repo/.worktrees/T001-base-task; run the cleanup from outside it
+T002: git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=5
+
+$ taskrail autopilot merged T001 --cleanup        # after git worktree lock
+taskrail: cleanup refused: the worktree $D/repo/.worktrees/T001-base-task is locked; unlock it first
+T001 merged into origin/main via patch-id at 0d5f593
+cleanup refused: the worktree $D/repo/.worktrees/T001-base-task is locked; unlock it first
+T002: git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=5
+
+$ taskrail autopilot merged T001 --cleanup        # unlocked, clean
+T001 merged into origin/main via patch-id at 0d5f593
+removed worktree $D/repo/.worktrees/T001-base-task
+deleted branch T001-base-task
+T002: git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=0
+worktrees:
+$D/repo                                 e592478 [main]
+$D/repo/.worktrees/T002-depends-on-base 52ee920 [T002-depends-on-base]
+$D/repo/.worktrees/T003-independent     e592478 [T003-independent]
+local task branches:
++ T002-depends-on-base
++ T003-independent
+branch record kept: T001.json
+T002.json
+T003.json
+
+## 4. after cleanup: the run's record, and the stacked dependent's command
+
+$ taskrail autopilot merged T001
+T001 merged into origin/main via patch-id at 0d5f593 (recorded in a run)
+T002: git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca (in $D/repo/.worktrees/T002-depends-on-base)
+exit=0
+
+$ (cd .worktrees/T002-depends-on-base && git rebase --onto origin/main c46cd45726002e299830326eb764c9fbcb7ffbca)
+Rebasing (1/1)Successfully rebased and updated refs/heads/T002-depends-on-base.
+exit=0
+$ git log --format=%s origin/main..HEAD
+stacked work
+
+## 5. a merge commit, and a row marked by hand
+claimed T004 on T004-another-one from origin/main
+merge 595950f
+
+$ taskrail autopilot merged T004
+T004 merged into origin/main via ancestor at 595950f
+exit=0
+T003 marked ✅ on main by hand
+
+$ taskrail autopilot merged T003 --json | jq
+{"merged":false,"reason":"no check proves that T003-independent is contained in origin/main","checks":{"ancestor":false,"tree":false,"patch-id":false,"merge-tree":false},"confirmations":{"row":true}}
+
+$ taskrail autopilot merged T999
+taskrail: no task `T999`
+exit=3
+removed /tmp/t031-verify.4h2S
+```
+
+What this shows against the plan:
+
+- an unmerged branch and an unstarted one are not merged, with their reasons; `--no-fetch` sees
+  nothing new; a fetch finds the squash that landed after an unrelated commit by patch-id, prunes
+  `origin/T001-base-task`, reports the `✅` and the `(T001) (#1)` title as confirmations, and
+  records `merged` in the lane without touching its `state`;
+- `status` turns T001 from `done-branch` to `done-merged` once the merge is recorded and fetched;
+- cleanup refuses an untracked file, the current directory inside the worktree and a locked
+  worktree with exit 5, then removes the worktree and the local branch and keeps the branch record;
+- after cleanup a second call reports the recorded merge; the dependent's command, run in its
+  worktree, leaves only `stacked work` on top of `origin/main`;
+- a merge commit is found by ancestry and names the merge; a `✅` marked by hand proves nothing.
+
+Before the merge, `dependents` already lists T002 with a rebase onto its unmerged dependency
+(`origin/T001-base-task`), a no-op there; the plan does not restrict the list to merged
+dependencies, so it is left as is.
+
+### A dependent already rebased
+
+A second throwaway repository (same setup, removed afterwards) repeated `merged` after T002 had
+been rebased with the reported command. Before the fix, the report still offered the same rebase
+from the claim's `base.commit`:
+
+```
+first call: git rebase --onto origin/main 567f103750755957de330ee613592dda8377b579
+after rebase: stacked work
+second call: {"stacked":true,"fork":"567f103","fork_source":"claim","command":"git rebase --onto origin/main 567f103750755957de330ee613592dda8377b579"}
+$ git rebase --onto origin/main 567f103750755957de330ee613592dda8377b579
+dropping 44704ef6828304da653e8a2a7fbec1453a7acd95 squash (T001) -- patch contents already upstream
+Rebasing (3/3)
+Successfully rebased and updated refs/heads/T002-depends-on-base.
+after second rebase: stacked work
+removed /tmp/t031-edge.nXLb
+```
+
+Git dropped the replayed mainline commits here, but on a mainline with conflicting changes the
+second rebase would replay them and conflict. The assertion added to the claimed-dependent test
+failed first:
+
+```
+$ uv run pytest -q --tb=line tests/test_autopilot_merged.py -k claimed_stacked
+E   AssertionError: assert (True, 'claim...2d79bf8048f4') == (False, 'merge-base', None)
+FAILED tests/test_autopilot_merged.py::test_a_claimed_stacked_dependent_gets_its_rebase_command
+1 failed, 28 deselected in 1.10s
+```
+
+After the fix: `29 passed` for the file and `498 passed` for the suite.
 
 ## Affected areas
 

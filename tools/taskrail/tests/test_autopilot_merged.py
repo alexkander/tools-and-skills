@@ -606,6 +606,10 @@ def test_a_claimed_stacked_dependent_gets_its_rebase_command(pilot, capsys):
     git(stacked, *result["dependents"][0]["command"].split()[1:])
     assert git(stacked, "log", "--format=%s", "origin/main..HEAD").splitlines() == ["work on stacked.py"]
 
+    # Once rebased, the claim's fork point is no longer in the branch: no second rebase is offered.
+    dependent = merged(pilot, "T001", "--run", run_id, capsys=capsys)["dependents"][0]
+    assert (dependent["stacked"], dependent["fork_source"], dependent["command"]) == (False, "merge-base", None)
+
 
 def test_a_finished_dependent_forks_from_the_dependency_head_even_after_cleanup(pilot, capsys):
     run_id = start(pilot, capsys)

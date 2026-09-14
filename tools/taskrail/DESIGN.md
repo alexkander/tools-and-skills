@@ -1015,7 +1015,8 @@ reading its worktree, and escalated if it is stuck. An agent that can wait on a 
   title confirm a merge but never prove it, since a row can be edited by hand.
 - **Stacked dependents** are the tasks listing the merged task in `Depends On`, not ✅ on the
   mainline, with a local or remote branch. Their fork point is the live claim's `base.commit` when
-  its `base.dependency` is the merged task; else `git merge-base <dependent> <dependency head>`
+  its `base.dependency` is the merged task and the dependent's head still contains it (a dependent
+  already rebased does not, so no second rebase is offered); else `git merge-base <dependent> <dependency head>`
   with the head this call checked, so deleting the dependency's branch afterwards loses nothing
   (§6.1); else the `head` a run recorded. A fork point already on the mainline means the dependent
   branched from the mainline and needs no `--onto`. When a released dependent's dependency was
