@@ -1,11 +1,14 @@
 # T047 — Keep a stacked task's fork point after done
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: finding F1 of `docs/spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md` (Findings
 table and Recommendation), and `tools/taskrail/DESIGN.md` §12.4 (*Claims*) and §12.8 (*Stacked
 dependents*). Builds on T017 (`base` in the claim) and T031 (`autopilot merged` and its
-`dependents`).
+`dependents`). The plan-gate decisions are in
+`docs/autopilot/decisions/T047-keep-a-stacked-task-s-fork-point-after-d.md` (all as recommended:
+the DESIGN text as proposed, `run-base`, every run newest first, the existing merge-base test
+claims without `--run`, one task).
 
 ## Problem
 
@@ -109,3 +112,30 @@ T001 was rebased onto T003's merge.
 - **Existing test expectations move.** Any test that claims a dependent with `--run`, releases it
   and expects `merge-base` changes to `run-base` with the same `fork`; only the one named above
   exists today.
+
+## Implementation
+
+- `cli.py` `cmd_claim`: in the `if created and args.run is not None:` block, the lane the claim
+  lists now also gets `base = claim.base`.
+- `autopilot/merged.py`: `_kept_bases` collects the lanes' `base` per task from `runs.read_all`
+  (newest run first); `_recorded_fork` accepts a recorded base only when its `dependency` is the
+  merged task, its `commit` resolves to a commit, and the dependent's head contains it. `_dependents`
+  tries the live claim's base (`claim`), then each kept base (`run-base`), then the unchanged
+  `merge-base` and `run` fallbacks. The unknown-fork `reason` now says "no claim or run records it".
+- `runs.py` is unchanged; the key is read defensively, so run files without `base` load as before.
+
+## Acceptance criteria and tests
+
+| # | Tests |
+|---|-------|
+| 1 | `tests/test_autopilot.py::test_claim_run_keeps_the_claim_base_in_the_lane` |
+| 2 | `tests/test_autopilot_merged.py::test_a_released_dependent_keeps_its_fork_point_after_its_dependency_is_rebased` (the F1 scenario scripted with git: rebase, force-push, squash, then the reported command is run) |
+| 3 | the same test's second `autopilot merged` call, after the rebase |
+| 4 | `tests/test_autopilot_merged.py::test_a_kept_base_counts_only_for_the_merged_dependency_and_an_existing_commit` (another dependency, a missing commit, no `base`); `test_the_newest_run_keeping_a_base_wins` (order across runs) |
+| 5 | `tests/test_autopilot_merged.py::test_a_claimed_stacked_dependent_gets_its_rebase_command` (claim and kept base both present: `claim` wins); `test_a_finished_dependent_forks_from_the_dependency_head_even_after_cleanup` (now claims without `--run`: `merge-base`, then `run`) |
+| 6 | `uv run --directory tools/taskrail pytest -q`: 835 passed |
+
+Test first: before the change in `cli.py` and `merged.py`, the four new tests failed — the claim
+test and the newest-run test with `KeyError: 'base'` (no base in the lane), the F1 test with
+`stacked: False`, `fork_source: 'merge-base'`, `onto: None`, `command: None`, reproducing F1, and
+the kept-base test at its positive control (`fork_source: 'merge-base'`, not `run-base`).
