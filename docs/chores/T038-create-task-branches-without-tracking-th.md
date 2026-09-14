@@ -1,6 +1,6 @@
 # T038 — Create task branches without tracking the mainline
 
-Kind: chore · Epic: E02 · Status: scoped
+Kind: chore · Epic: E02 · Status: implemented
 
 ## Goal
 
@@ -67,7 +67,7 @@ All paths under `tools/taskrail/` unless stated.
 |---|---|
 | `src/taskrail/cli.py` | `_open_workspace` only: add `--no-track` to `git worktree add` and to `git switch -c`. |
 | `src/taskrail/skills/taskrail/SKILL.md` | Step 3 only: the two commands become `git worktree add --no-track <worktree> -b <branch> <base.onto>` and `git switch --no-track -c <branch> <base.onto>`, with one sentence saying why — the base never becomes the branch's upstream, so a plain `git push` cannot land on it; `review --publish` sets the upstream to the task's own remote branch. |
-| `tests/test_workspace.py` | One test, parametrized over `worktree = "required"` and `"never"`, on the existing `remote_repo` fixture (base `origin/main`): after `new --workspace` the branch has no `branch.<task>.remote` / `.merge`. The repository sets `branch.autoSetupMerge=always` in the test, so a local start point is covered too. Run once against the unchanged code to see it fail. |
+| `tests/test_workspace.py` | One test, parametrized over `worktree = "required"` and `"never"` and over the start point, on the existing `remote_repo` fixture: `origin/main` with git's defaults, and a local `main` ahead of it with `branch.autoSetupMerge=always`. After `new --workspace` the branch has no `branch.<task>.remote` / `.merge`. Run once against the unchanged code to see it fail. |
 | `CHANGELOG.md` | One bullet at the end of `## Unreleased`. |
 | `DESIGN.md` | One clause in step 3 of the review hand-off (§7.1): the push sets the task's own remote branch as its upstream; and in the `new --workspace` command-table row: the branch is created without an upstream. (See decision 3.) |
 | Repository root | `.claude/skills/taskrail/SKILL.md` refreshed with `.taskrail/bin/taskrail upgrade`; this artifact and its row in `docs/chores/README.md`. |
@@ -91,6 +91,18 @@ All paths under `tools/taskrail/` unless stated.
    mention it in the changelog bullet only if you want it. Alternative: a `doctor`-style check,
    as a follow-up task.
 
+## Decisions at the scope gate
+
+Recorded in `docs/autopilot/decisions/T038-create-task-branches-without-tracking-th.md`.
+
+1. `--no-track` unconditionally, in the CLI and in the skill, stacked bases included.
+2. `review --publish` keeps `--set-upstream`.
+3. The two DESIGN.md clauses are added.
+4. No migration; the CHANGELOG bullet names `git branch --unset-upstream` for existing branches.
+
+The change set is approved as written. The branch was then rebased onto `origin/main` (`591fa5b`,
+T036), so the step 3 edit sits on T036's `show --json --fetch` wording.
+
 ## Out of scope
 
 - Any other command, `review.py`, and the push logic.
@@ -112,3 +124,77 @@ All paths under `tools/taskrail/` unless stated.
 - The skill's step 3 commands, copied literally, create an untracked branch in the same
   throwaway repository.
 - `.taskrail/bin/taskrail validate` passes.
+
+## Verification results
+
+**Failing test first.** `uv run pytest -q tests/test_workspace.py -k no_upstream` on the unchanged
+`_open_workspace`:
+
+```text
+E         + branch.T004-negative-totals.remote origin
+E         + branch.T004-negative-totals.merge refs/heads/main
+E         + branch.T004-negative-totals.remote origin
+E         + branch.T004-negative-totals.merge refs/heads/main
+E         + branch.T004-negative-totals.remote .
+E         + branch.T004-negative-totals.merge refs/heads/main
+E         + branch.T004-negative-totals.remote .
+E         + branch.T004-negative-totals.merge refs/heads/main
+FAILED tests/test_workspace.py::test_workspace_branch_has_no_upstream[remote-required]
+FAILED tests/test_workspace.py::test_workspace_branch_has_no_upstream[remote-never]
+FAILED tests/test_workspace.py::test_workspace_branch_has_no_upstream[local-required]
+FAILED tests/test_workspace.py::test_workspace_branch_has_no_upstream[local-never]
+4 failed, 13 deselected in 0.87s
+```
+
+After adding `--no-track`: `4 passed, 13 deselected in 0.47s`.
+
+**Checks.** `uv run --directory tools/taskrail pytest -q`: `504 passed in 41.73s`. `lint` is
+listed by the stage but not configured in `.taskrail/config.toml`. `.taskrail/bin/taskrail upgrade`
+updated `.claude/skills/taskrail/SKILL.md`.
+
+**`new --workspace` and publishing, in a throwaway repository with a bare `origin`.**
+
+```text
+=== new --workspace, worktree = required
+  "branch": "T001-probe-tracking", "base": "origin/main"
+$ git config --get-regexp '^branch\.T001-probe-tracking\.'
+exit=1
+$ git -c push.default=upstream push          (from the workspace, after a task commit)
+fatal: The current branch T001-probe-tracking has no upstream branch.
+exit=128
+$ git ls-remote origin
+9c5ce7f67b131e7874fc738eb4964e371a1bbc59	HEAD
+9c5ce7f67b131e7874fc738eb4964e371a1bbc59	refs/heads/main
+$ taskrail review T001 --publish --json      (after done and a rebase onto origin/main)
+exit=0
+push: {"enabled": true, "pushed": true, "command": "git push --set-upstream origin HEAD:refs/heads/T001-probe-tracking", "error": null}
+$ git config --get-regexp '^branch\.T001-probe-tracking\.'
+branch.T001-probe-tracking.remote origin
+branch.T001-probe-tracking.merge refs/heads/T001-probe-tracking
+=== new --workspace, worktree = never
+  "branch": "T002-probe-never", "workspace": "<tmp>/work", "base": "origin/main"
+$ git config --get-regexp '^branch\.T002-probe-never\.'
+exit=1
+```
+
+**The skill's step 3 commands, copied literally, in a second throwaway repository.** T002 depends
+on T001, which was finished and published on its own branch, whose local copy was then deleted.
+
+```text
+$ taskrail show T001 --json --fetch   -> base.onto "origin/main"
+$ git worktree add --no-track .worktrees/T001-base-task -b T001-base-task origin/main
+$ git config --get-regexp '^branch\.T001-base-task\.'
+exit=1
+$ taskrail show T002 --json --fetch   -> base.onto "origin/T001-base-task", dependency "T001"
+$ git worktree add --no-track .worktrees/T002-stacked-task -b T002-stacked-task origin/T001-base-task
+$ git config --get-regexp '^branch\.T002-stacked-task\.'
+exit=1
+--- control: the command before T038, same base
+$ git worktree add <tmp>/ctl -b CTL origin/T001-base-task
+branch.CTL.remote origin
+branch.CTL.merge refs/heads/T001-base-task
+$ git switch --no-track -c SW origin/main                                  -> no branch.SW.* config
+$ git -c branch.autoSetupMerge=always switch --no-track -c SW2 main        -> no branch.SW2.* config
+```
+
+Both throwaway repositories were deleted afterwards.
