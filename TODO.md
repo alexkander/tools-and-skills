@@ -51,6 +51,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ✅ | T038 | chore   | 1   | —          | Create task branches without tracking the mainline | git worktree add -b <branch> origin/<mainline> sets the task branch to track the mainline, so a plain git push can target it; branch with --no-track in the skill and in new --workspace. |
 | ✅ | T039 | chore   | 1   | —          | Fetch full history in the generated GitHub workflow | The workflow init --github-workflow writes checks out one commit, so validate's reopen history check (T012) examines nothing; set fetch-depth: 0. |
 | ✅ | T040 | feature | 3   | T004       | Merge appended changelog bullets without duplicating moved ones | Resolve the rest of conflict class 2 (DESIGN §12.8): bullets both sides append to a changelog, without duplicating a bullet one side moved; follows T004's merge driver. |
+| ⬜ | T047 | feature | 3   | —          | Keep a stacked task's fork point after done | Record base.commit in the run file at claim and use it in autopilot merged before merge-base, so a dependency rebased at hand-off still yields a rebase --onto command (T033 F1). |
 
 ## E03 — caveman skill
 
