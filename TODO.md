@@ -61,6 +61,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T054 | bug     | 1   | —          | Reproduce a task shown pending between done and its commit | status showed a closing lane as pending, so next could offer it again once its dispatch passed the claim grace; reproduce before fixing (T033 F13). |
 | ⬜ | T055 | chore   | 2   | —          | Fix the autopilot skill text found wrong in the T033 trial | Hand-off message with branch, title and body; refill on done-branch; IDs unique across lanes; dispatch expiry; resuming a run from a new session with a restart-from-branch lane brief (T033 F2, F4-F7). |
 | ⬜ | T056 | chore   | 1   | —          | Add an OpenCode note on escalations during blocking lane batches | End the turn with the question instead of starting another blocking batch, record handles when a batch returns, and check silent lanes between batches (T033 F3). |
+| ⬜ | T057 | spike   | 2   | —          | Trial autopilot compaction, OpenCode with a Claude model and messaging an old lane | Cover what T033 could not verify: compaction on both agents, OpenCode on a Claude model, and a new Claude Code session messaging a previous session's lane (T033). |
 
 ## E03 — caveman skill
 
