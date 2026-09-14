@@ -39,3 +39,10 @@ human's agent settings were identical before and after.
 | 1 | Approve `2334de2`, including the punctuation change | approve · changes | **approve** | Matches the approved change set and T041's CLAUDE.md wording. |
 | 2 | "a person can still invoke `/caveman`" under `deny` | keep as is · qualify as read from the source | **qualify it** (for example "per OpenCode 1.15.13's source") | Only the model-side refusal was measured; public install docs should not state an unmeasured behaviour as fact. |
 | 3 | Minimum git version | none · research and state one | **none** | Not established; git 2.55.0 is recorded in the task document. |
+
+## close
+
+The lane qualified the `/caveman`-under-`deny` sentence as read from OpenCode's source in its own
+commit, found no other documentation to change, and closed T042. No rebase was needed
+(`origin/main` is `8eeb8df`). Checked before publishing: the only external URLs are this
+repository's public one and the vendored upstream's, `taskrail validate` 0 errors, no upstream.
