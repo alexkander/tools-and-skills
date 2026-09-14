@@ -57,6 +57,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T050 | feature | 1   | —          | Accept --gate close for the stop after done | autopilot lane --gate close exits 2 because close is not a stage, although the skill reviews the stop after done as a gate (T033 F10). |
 | ⬜ | T051 | feature | 2   | —          | Label overlaps in known conflict-class files | Separate backlog, changelog and index files in autopilot status overlaps, so a real overlap between lanes is not buried (T033 F12). |
 | ⬜ | T052 | feature | 3   | —          | Add taskrail checks for a task and a Claude Code note on command shape | Run a task's configured checks in its worktree with its lane resources as one allowlistable command, and document single commands without cd chains for autopilot sessions (T033 F11). |
+| ⬜ | T053 | bug     | 1   | —          | Order the autopilot hand-off queue by completion, not branch tip time | The orchestrator's own rebases and decision-record commits move a task to the back of handoff.next; order by the done commit instead (T033 F8). |
 
 ## E03 — caveman skill
 
