@@ -68,8 +68,8 @@ one, and any project rule that mentions the skill.
 - **Human invocation.** OpenCode ignores `user-invocable` and `disable-model-invocation`, so
   without configuration only the skill's prose keeps the model from activating it. Enforce it in
   `opencode.json` with `"permission": { "skill": { "caveman": "deny" } }`: the model no longer
-  sees or loads the skill, and a human still invokes it as `/caveman`, because OpenCode offers
-  every discovered skill as a command.
+  sees or loads the skill. Per OpenCode 1.15.13's source, a human still invokes it as
+  `/caveman`, because OpenCode offers every discovered skill as a command.
 
 ## Use
 
