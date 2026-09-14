@@ -20,3 +20,18 @@ Reviewed: the plan in `docs/features/T014-add-an-edit-command-for-existing-task-
 | 8 | Hand edits in the core skill | point to `taskrail edit` only · keep hand edits with `validate` as fallback | **point to `edit`** | The CLI owns the table format; conflict resolution keeps its own rule in step 8. |
 
 Plan approved.
+
+## implement gate
+
+Reviewed: commit `6da8ca2` (`writer.set_cells`, with `set_status` now calling it; `cli._custom_columns`
+shared with `new`; `cmd_edit`; DESIGN.md §3.2 and §7; README; CHANGELOG; a new "Editing tasks"
+section in the core skill and its installed copy; `tests/test_edit.py`). The lane rebased onto
+`977064f` before editing the skill. Re-ran `test_edit.py`, `test_write.py` and `test_cli.py` in the
+lane's worktree: 90 passed; the lane's full suite gave 713 passed. The 48 new tests failed before
+the code.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Follows decisions 1–8; one cell-writing helper now serves `done`, `discard`, `reopen` and `edit`. |
+| 2 | Separate "Editing tasks" section in the core skill | keep · fold into "Creating tasks" | **keep** | It is its own procedure with its own refusals; step 8's conflict rule is untouched. |
+| 3 | `--title ""` | validation error, exit 1 · usage error, exit 2 | **exit 1** | The same `task-title` check `validate` applies to any empty title. |
