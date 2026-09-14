@@ -605,6 +605,11 @@ def test_bullets_appended_on_both_sides_are_all_kept_current_first():
     assert text == changelog([X, Y, bullet("A mine."), bullet("B theirs.")])
 
 
+def test_the_first_bullets_both_sides_add_to_an_empty_section_are_all_kept():
+    text, conflicted = merge(changelog([]), changelog([bullet("A mine.")]), changelog([bullet("B theirs.")]))
+    assert (text, conflicted) == (changelog([bullet("A mine."), bullet("B theirs.")]), False)
+
+
 def test_a_bullet_moved_to_the_end_while_the_other_side_added_one_at_the_top_is_not_duplicated():
     # This run's real case: "keep both" left N twice (git merge-file --union gives M N X Y N).
     m = bullet("M mainline.")
@@ -684,6 +689,11 @@ LISTS_LEFT_TO_GIT = {
     "a merge that would repeat a text": (
         changelog([X, Y]), changelog([X, bullet("Y2.")]), changelog([X, Y, bullet("B theirs."), bullet("Y2.")])
     ),
+    "a fence inside a bullet": (
+        changelog([X, "- Y shows code:\n  ```\n- not a bullet\n  ```\n"]),
+        changelog([X, "- Y shows code:\n  ```\n- not a bullet\n  ```\n", bullet("A mine.")]),
+        changelog([X, "- Y shows code:\n  ```\n- not a bullet\n  ```\n", bullet("B theirs.")]),
+    ),
     "ordered items": (
         "## Steps\n\n1. one\n2. two\n", "## Steps\n\n1. one\n2. two\n3. mine\n", "## Steps\n\n1. one\n2. two\n3. theirs\n"
     ),
@@ -699,6 +709,22 @@ def test_a_list_that_cannot_be_merged_by_bullet_gets_git_merge_file_result(tmp_p
     expected, code = git_merge_file(tmp_path, base, current, other)
     assert code > 0  # each case conflicts as plain text, so a list merge would show
     assert merge(base, current, other) == (expected, True)
+
+
+def test_bullets_lists_and_heading_paths_are_read_as_documented():
+    text = (
+        "Intro\n- a\n  wrapped\n* b\n\n+ c\n* * *\n1. ordered\n# Title #\n## Unreleased\n- d\nlazy\n- e\n"
+        "```\n- fenced\n```\n### Added\n- f\n"
+    )
+    found, unreadable = mergedriver._lists(text.splitlines(keepends=True))
+    texts = {path: [[bullet.text for bullet in found_list.bullets] for found_list in lists] for path, lists in found.items()}
+    assert texts == {
+        (): [["- a\n  wrapped\n", "* b\n"], ["+ c\n"]],
+        ((1, "Title"),): [],
+        ((1, "Title"), (2, "Unreleased")): [["- d\n"], ["- e\n"]],
+        ((1, "Title"), (2, "Unreleased"), (3, "Added")): [["- f\n"]],
+    }
+    assert unreadable == set()
 
 
 def test_lists_are_told_apart_by_their_heading_path():

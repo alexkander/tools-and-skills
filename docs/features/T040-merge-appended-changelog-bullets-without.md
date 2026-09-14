@@ -1,6 +1,6 @@
 # T040 — Merge appended changelog bullets without duplicating moved ones
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: T004's plan-gate decision Q7
 ([decisions](../autopilot/decisions/T004-add-a-git-merge-driver-for-status-cells.md)), which
@@ -235,6 +235,74 @@ Risks:
   drop Q1's automatic changelog lines first (the manual line still works) and keep the merge.
 - **Parallel lanes.** T039 edits `install.py` `workflow()` only; T009 is docs only. This task does
   not touch `install.py`. It stacks on T004, so T004's merge will require rebasing this branch.
+
+## Plan-gate decisions
+
+Approved as recommended (Q1–Q8), recorded in
+`docs/autopilot/decisions/T040-merge-appended-changelog-bullets-without.md`. Q8: the README's
+`--merge-driver` bullet gains the half-sentence on changelog bullets.
+
+## Changes at implementation
+
+- **An empty base section.** The plan merged lists only when every version holding the path had
+  the same number of lists. A `## Unreleased` with no bullets in the base (the usual state right
+  after a release) while both sides add the first bullet would then conflict. The base may now have
+  **no** lists under the path; its list is empty and nothing is placed into the base. Any other
+  count mismatch is still left to git. Test:
+  `test_the_first_bullets_both_sides_add_to_an_empty_section_are_all_kept`.
+- **A fence inside a bullet** (an indented ```` ``` ```` line while a list is open) leaves every list
+  under that heading path to git: the fence's lines are not a plain run of indented lines, so the
+  bullet's extent is unreliable. Test case `a fence inside a bullet`.
+- **Thematic breaks** (`* * *`, `- - -`) are not bullets. Test:
+  `test_bullets_lists_and_heading_paths_are_read_as_documented`.
+- `changelog_paths(root, worktree_dir)` is a separate public helper that `attribute_paths` calls. It
+  runs `git ls-files -z --cached --others --exclude-standard` with `check=False`, so outside a git
+  repository it adds nothing.
+
+## Test coverage
+
+All in `tools/taskrail/tests/test_merge_driver.py`, section *bullet lists* (33 tests, 47 → 80 in the
+file).
+
+| # | Criterion | Tests |
+|---|---|---|
+| 1 | bullets appended on both sides, `merge` and `rebase` | `test_bullets_appended_on_both_sides_are_all_kept_current_first`, `test_git_merge_and_rebase_keep_bullets_appended_on_both_branches[merge/rebase]`, `test_the_first_bullets_both_sides_add_to_an_empty_section_are_all_kept` |
+| 2 | the moved bullet, real rebase and unit | `test_a_rebase_replaying_a_move_of_the_branchs_own_bullet_leaves_it_once` (regression; also shows the same rebase conflicts without the driver), `test_a_bullet_moved_to_the_end_while_the_other_side_added_one_at_the_top_is_not_duplicated` |
+| 3 | a move and an append at its destination, both ways | `test_a_move_and_an_append_at_its_destination_keep_each_bullet_once` (4 cases, including moved on both sides) |
+| 4 | continuation lines as one unit; identical addition once | `test_a_bullet_with_continuation_lines_is_one_unit_and_an_identical_addition_appears_once` |
+| 5 | different edits; edit/delete; edit with an append | `test_the_same_bullet_edited_differently_marks_only_that_bullet`, `test_a_real_bullet_conflict_is_marked_around_that_bullet_only`, `test_a_bullet_edited_on_one_side_and_deleted_on_the_other_is_marked`, `test_a_bullet_edited_on_one_side_merges_with_an_append_on_the_other` |
+| 6 | deleted bullets | `test_a_deleted_bullet_is_removed_when_the_other_side_appends_next_to_it` |
+| 7 | lists left to git equal `git merge-file` | `test_a_list_that_cannot_be_merged_by_bullet_gets_git_merge_file_result` (8 cases), `test_bullets_lists_and_heading_paths_are_read_as_documented` |
+| 8 | heading paths | `test_lists_are_told_apart_by_their_heading_path`, `test_bullets_lists_and_heading_paths_are_read_as_documented` |
+| 9 | prose after a list | `test_prose_right_after_a_merged_list_merges_cleanly_and_conflicting_prose_is_marked` |
+| 10 | rows and bullets in a backlog file | `test_rows_and_bullets_of_a_backlog_file_merge_in_one_pass` |
+| 11 | CRLF and no final newline | `test_bullet_line_endings_and_a_missing_final_newline_are_kept` |
+| 12 | changelogs in the block; `upgrade`; outside git | `test_init_merge_driver_lists_changelogs_and_upgrade_adds_new_ones`, `test_init_merge_driver_outside_git_lists_no_changelog`, and the `/CHANGELOG.md` assertion in `test_git_merge_and_rebase_keep_bullets_appended_on_both_branches` |
+| 13 | a file opted in outside the block | `test_a_file_given_the_attribute_outside_the_block_gets_its_bullets_merged` |
+| 14 | failure in the list stage falls back; T004 tests unchanged | `test_the_driver_falls_back_to_git_merge_file_when_the_list_stage_fails`, and the 47 T004 tests |
+
+## Implementation evidence
+
+- **Tests first.** Commit `781e951` added the tests with a `merge_lists` stub that returned its
+  inputs and was already called by `merge_text`, and no changelog lines in `attribute_paths`:
+  `uv run pytest -q tests/test_merge_driver.py` gave `18 failed, 59 passed`. The new tests that
+  already passed describe what git does anyway, and they must keep passing once lists are merged:
+  the seven lists-left-to-git cases, different edits and edit/delete marked, both sides moving a
+  bullet identically, the fallback when the list stage raises, and `init` outside git.
+  Three tests came after that commit, from the changes at implementation: the empty base section,
+  which fails with `merge_lists` returning its inputs (first mutation below); the `a fence inside a
+  bullet` case, which describes git's own result; and the scanner test, which calls `_lists`
+  directly.
+- **Mutation checks** on the implementation (restored afterwards):
+  - `merge_lists` returning its inputs: 18 failed, including every real `git merge`/`rebase` bullet
+    test (`CONFLICT (content): Merge conflict in CHANGELOG.md`);
+  - moves on the other side ignored (`moved_other = set()`): 5 failed, including the real-rebase
+    regression test;
+  - no edit pairing: 4 failed. Two different edits of one bullet became two bullets, and the
+    edit/delete case and the repeated-text guard stopped holding.
+- **Full suite:** `uv run --directory tools/taskrail pytest -q` gave `821 passed in 96.01s`, which is
+  788 on T004's branch plus the 33 new tests. The `lint` check has no command configured in
+  `.taskrail/config.toml`, so it was not run.
 
 ## Evidence
 
