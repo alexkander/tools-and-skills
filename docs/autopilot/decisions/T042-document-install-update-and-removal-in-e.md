@@ -23,3 +23,19 @@ skill permission that hides a skill from the model while a person can still run 
 
 Change set approved. In verification, isolate agents as in T009 and compare the digests of the real
 agent settings before and after.
+
+## implement gate
+
+Reviewed: commits `2334de2` (caveman README Install/Update/Remove/OpenCode sections and wording
+fixes, the local-rules phrase in `SKILL.md` outside the vendored block, the root README tagline and
+"Using an item") and `b0656c6` (verification). The README's own `sh` blocks ran against the public
+URL: install with the three trailers read back, update over a committed local edit showing the edit
+removed in the staged diff, and removal. OpenCode discovery was measured with and without the two
+variables and `skills.paths`, and a `deny` permission refused loading the skill. The digests of the
+human's agent settings were identical before and after.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve `2334de2`, including the punctuation change | approve · changes | **approve** | Matches the approved change set and T041's CLAUDE.md wording. |
+| 2 | "a person can still invoke `/caveman`" under `deny` | keep as is · qualify as read from the source | **qualify it** (for example "per OpenCode 1.15.13's source") | Only the model-side refusal was measured; public install docs should not state an unmeasured behaviour as fact. |
+| 3 | Minimum git version | none · research and state one | **none** | Not established; git 2.55.0 is recorded in the task document. |
