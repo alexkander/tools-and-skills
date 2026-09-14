@@ -32,3 +32,4 @@
 | T039 | Fetch full history in the generated GitHub workflow | [T039-fetch-full-history-in-the-generated-gith.md](T039-fetch-full-history-in-the-generated-gith.md) |
 | T009 | Decide how consumer projects install this repository's skills | [T009-decide-how-consumer-projects-install-thi.md](T009-decide-how-consumer-projects-install-thi.md) |
 | T041 | Record the skills distribution decision in CLAUDE.md | [T041-record-the-skills-distribution-decision.md](T041-record-the-skills-distribution-decision.md) |
+| T042 | Document install, update and removal in each skill README | [T042-document-install-update-and-removal-in-e.md](T042-document-install-update-and-removal-in-e.md) |
