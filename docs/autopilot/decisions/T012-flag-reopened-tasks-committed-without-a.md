@@ -33,3 +33,18 @@ commits examined and no warning.
 |---|---|---|---|---|
 | 1 | Approve, with epic files read by the working tree's paths and `skipped: "no commits"` | approve · changes | **approve** | Removing an untested rule is better than keeping it; a row moved between files is still no change because every revision is read across all those paths. |
 | 2 | T039 dependency on T012 | none · depends on T012 | **none** | The workflow's `fetch-depth: 0` is correct on its own. |
+
+## verify, close and rebase after T024
+
+The verify stage covered a hand reopen, an empty acknowledgment commit, the CLI reopen with its
+trailer, `epic split` across revisions (no false warning; a reopen before the split still reported
+at the row's new place), merges, a shallow clone and a directory outside git, with no gap against
+the plan. T024 was squash-merged into `main` as `977064f`; the orchestrator rebased the branch.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/features/README.md`, `docs/autopilot/decisions/README.md`, CHANGELOG | keep both · stop | **keep both** | Rows and bullets added on both sides; one bullet each for T024 and T012. |
+
+No code conflicted. After the rebase: `TODO.md` differs from `main` in T012 `✅` and the added T039
+row, `pytest -q` 693 passed, `taskrail validate` 0 errors and 0 warnings (the history check included),
+`upgrade` reports nothing to create or update.
