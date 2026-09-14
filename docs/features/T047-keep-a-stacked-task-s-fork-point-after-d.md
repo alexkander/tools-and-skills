@@ -1,6 +1,6 @@
 # T047 — Keep a stacked task's fork point after done
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: finding F1 of `docs/spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md` (Findings
 table and Recommendation), and `tools/taskrail/DESIGN.md` §12.4 (*Claims*) and §12.8 (*Stacked
@@ -139,3 +139,32 @@ Test first: before the change in `cli.py` and `merged.py`, the four new tests fa
 test and the newest-run test with `KeyError: 'base'` (no base in the lane), the F1 test with
 `stacked: False`, `fork_source: 'merge-base'`, `onto: None`, `command: None`, reproducing F1, and
 the kept-base test at its positive control (`fork_source: 'merge-base'`, not `run-base`).
+
+## Verification
+
+Exercised the real CLI (`uv run --project <checkout>/tools/taskrail taskrail`) in a scratch
+repository under a temporary directory, with a bare `origin`, a second clone acting as the hosting
+service, and one worktree per lane; the scratch directory was removed afterwards. Steps:
+`autopilot start`; T001 claimed with `--run`, worked, `done`, pushed; T002 worktree from
+`T001-base-task` (`show T002` gave `base.onto: origin/T001-base-task`, `dependency: T001`),
+claimed with `--run`, worked, `done`; an unrelated commit pushed to `main`; T001 rebased onto it
+and force-pushed with a lease; T001 squash-merged by the host clone; then
+`autopilot merged T001 --run <run>`.
+
+With this branch's CLI:
+
+- after `done`, `taskrail claims` printed `no claims`, and the run file's `tasks.T002.base` held
+  `{'onto': 'origin/T001-base-task', 'commit': <T001 tip>, 'dependency': 'T001'}`;
+- the rebased T001 no longer contained that tip;
+- `autopilot merged` reported `merged True via tree` and T002 with `stacked: true`,
+  `fork: <T001 tip>`, `fork_source: "run-base"`, `onto: "origin/main"`,
+  `command: "git rebase --onto origin/main <T001 tip>"`; the text form printed
+  `T002: git rebase --onto origin/main <T001 tip> (in <T002 worktree>)`;
+- running that command in T002's worktree left `chore(T002): mark done` and `work on stacked.py`
+  in `origin/main..HEAD`, and a second `autopilot merged T001` printed
+  `T002: not stacked on T001, no rebase --onto needed`.
+
+Control, the same script with the CLI at the base commit `1631ab8`: the run lane had no `base`
+(`None`), and `autopilot merged` reported T002 `stacked: false`, `fork_source: "merge-base"`,
+`onto: null`, `command: null` and `T002: not stacked on T001, no rebase --onto needed` — the F1
+output. The behaviour matches the plan; no gap.
