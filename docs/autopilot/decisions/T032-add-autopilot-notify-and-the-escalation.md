@@ -42,3 +42,12 @@ entry not covering files below it) each failed the tests that cover them. `statu
 | 1 | Approve the implementation | approve · changes | **approve** | Follows D1–D9 with the edits kept away from T030's and T031's lines. |
 | 2 | Deviations: `gate` always in `lane --json`; stderr warning ends with the command's last stderr line; only a timeout kills the process group; a missing command reports the shell's 127; `notify` in the §7 row | accept · reject some | **accept all** | Each is visible and harmless; a notifier that deliberately detaches keeps working. |
 | 3 | Expected rebase conflicts in DESIGN.md §7/§12 and CHANGELOG | keep both · stop | **keep both; stop on any code conflict** | Neighbouring rows and bullets are a known class. |
+
+## verify, close and rebase after T034 and T037
+
+The verify stage ran the real CLI with three lanes, committed and uncommitted governing files and a
+local notify script, and found no gap against the plan. The lane rebased onto `origin/main`
+(`d092c96`) at close: the decisions index and CHANGELOG conflicted and kept both sides; no code
+conflicted. Checked by the orchestrator before publishing: `TODO.md` differs from `main` only in
+T032 `✅`, `pytest -q` 524 passed, `taskrail validate` 0 errors, `upgrade` reports nothing to create
+or update.
