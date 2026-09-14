@@ -1,6 +1,6 @@
 # T043 — Move caveman to .claude/skills for use in this repository only
 
-Kind: chore · Epic: E06 · Status: scoped
+Kind: chore · Epic: E06 · Status: implemented; CLAUDE.md sentence pending
 
 ## Goal
 
@@ -260,3 +260,96 @@ Implement stage:
 - `.taskrail/bin/taskrail validate`.
 
 Docs stage: re-read the root README and caveman's README for any remaining consumer framing.
+
+### Results
+
+Scope approved with decisions 1–4 and 6 as recommended, 5b and 5c unchanged, and 5a — the
+CLAUDE.md *Layout* sentence — added to this task
+([decision record](../autopilot/decisions/T043-move-caveman-to-claude-skills-for-use-in.md)).
+
+Commits: `a42d7da` (move), `6eee43f` (caveman README wording), and the root README commit.
+
+```text
+$ git show --stat -M --format='%h %s' a42d7da
+a42d7da chore(caveman): move caveman to .claude/skills (T043)
+
+ {skills => .claude/skills}/caveman/README.md | 0
+ {skills => .claude/skills}/caveman/SKILL.md  | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+$ diff <(git show origin/main:skills/caveman/SKILL.md) .claude/skills/caveman/SKILL.md
+diff-exit=0
+$ grep -n 'BEGIN vendored\|END vendored\|upstream-pin\|^## Upstream licence\|^## Local rules' .claude/skills/caveman/SKILL.md
+9:  upstream-pin: "0574b85"
+15:## Local rules
+101:<!-- BEGIN vendored upstream text — JuliusBrussee/caveman @ 0574b85, skills/caveman/SKILL.md, body reproduced verbatim. Do not edit: local rules belong in "Local rules" above. -->
+186:<!-- END vendored upstream text -->
+190:## Upstream licence
+$ git grep -n "skills/caveman" -- ':!docs'
+.claude/skills/caveman/README.md:7:repository load it from `.claude/skills/caveman/` — Claude Code directly, OpenCode through its
+.claude/skills/caveman/SKILL.md:8:  source: "https://github.com/JuliusBrussee/caveman/blob/0574b85/skills/caveman/SKILL.md"
+.claude/skills/caveman/SKILL.md:101:<!-- BEGIN vendored upstream text — … skills/caveman/SKILL.md, … -->
+.claude/skills/caveman/SKILL.md:194:`skills/caveman/SKILL.md`. Upstream is split-licensed: the skill is MIT, while the engine,
+TODO.md:97:| ⬜ | T043 | … | … move skills/caveman to .claude/skills/caveman … |
+$ git grep -n "Copy this directory"
+docs/chores/T043-move-caveman-to-claude-skills-for-use-in.md:173:   … (this artifact quoting the removed text)
+docs/chores/T043-move-caveman-to-claude-skills-for-use-in.md:252:   … (this artifact's verification plan)
+$ git ls-files skills | wc -l
+0
+```
+
+The remaining `skills/caveman` mentions are the upstream path inside `SKILL.md` and the task row;
+"Copy this directory" survives only in this artifact's quotations.
+
+Throwaway clone of the branch at `6eee43f`, isolated `HOME` and XDG directories:
+
+```text
+$ claude plugin validate --strict .claude/skills
+Validating components in: /tmp/t043/verify/.claude/skills
+
+✔ Validation passed
+exit=0
+$ opencode debug skill   (names and locations)
+[('customize-opencode', '<built-in>'), ('caveman', '/tmp/t043/verify/.claude/skills/caveman/SKILL.md'),
+ ('taskrail-autopilot', '/tmp/t043/verify/.claude/skills/taskrail-autopilot/SKILL.md'),
+ ('taskrail-bug', '/tmp/t043/verify/.claude/skills/taskrail-bug/SKILL.md'),
+ ('taskrail-spike', '/tmp/t043/verify/.claude/skills/taskrail-spike/SKILL.md'),
+ ('taskrail-chore', '/tmp/t043/verify/.claude/skills/taskrail-chore/SKILL.md'),
+ ('taskrail', '/tmp/t043/verify/.claude/skills/taskrail/SKILL.md'),
+ ('taskrail-feature', '/tmp/t043/verify/.claude/skills/taskrail-feature/SKILL.md')]
+exit=0
+$ sha256sum .claude/skills/caveman/*
+cd93ca097c106fff99cf17e7f7d59322388c48f794781d81fe640e3668737d2c  .claude/skills/caveman/README.md
+dcbcb605d0b6df4726ad6bf210e7ffb176364a56d93dfb24a32bc0750e49f7bf  .claude/skills/caveman/SKILL.md
+$ .taskrail/bin/taskrail upgrade --json
+{"created": [], "updated": [], "unchanged": [".taskrail/config.toml", "TODO.md", ".taskrail/bin/taskrail",
+ ".claude/skills/taskrail/SKILL.md", ".claude/skills/taskrail-autopilot/SKILL.md",
+ ".claude/skills/taskrail-autopilot/references/decision-record.md",
+ ".claude/skills/taskrail-autopilot/references/gate-review.md",
+ ".claude/skills/taskrail-autopilot/references/lane-brief.md", ".claude/skills/taskrail-bug/SKILL.md",
+ ".claude/skills/taskrail-chore/SKILL.md", ".claude/skills/taskrail-feature/SKILL.md",
+ ".claude/skills/taskrail-spike/SKILL.md"], "skipped": [], "removed": [], "notes": []}
+exit=0
+$ sha256sum .claude/skills/caveman/*   → the same two sums
+$ git status --porcelain | wc -l
+0
+```
+
+Checks: `uv run --directory tools/taskrail pytest -q` → `823 passed in 95.60s (0:01:35)`, exit 0.
+`lint` is not configured in `.taskrail/config.toml`.
+
+The CLAUDE.md *Layout* sentence (decision 5a) is not yet applied: the lane that implemented this
+task did not edit CLAUDE.md on a relayed instruction. The sentence goes after the list of item
+directories:
+
+```diff
+@@ -40,6 +40,10 @@ Grouped by artifact kind, one self-contained directory per item, each with its o
+ - `libs/<lib-name>/` — libraries that are *imported*: versioned, with their own package
+   manifest, meant to be depended on rather than copied.
+ 
++`.claude/skills/` is not an item directory: it holds the skills agents use while working on this
++repository — taskrail's installed copies (see *Backlog*) and caveman, vendored under the rules
++below — and nothing there is distributed.
++
+ The tools/libs split is about how a consumer uses the thing, not how big it is: a tool is run,
+ a library is linked against. A library needs a version and a changelog; a tool usually does not.
+```
