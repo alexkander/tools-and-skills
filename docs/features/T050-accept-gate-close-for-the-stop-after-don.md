@@ -1,7 +1,7 @@
 # T050 — Accept --gate close for the stop after done
 
-Kind: feature · Epic: E02 · Status: implemented (plan approved: D2–D5 as recommended; D1, the
-DESIGN.md text, taken to the human and not yet applied). Record:
+Kind: feature · Epic: E02 · Status: verified (plan approved: D2–D5 as recommended; D1, the
+DESIGN.md text, approved as written at the implement gate and applied). Record:
 `docs/autopilot/decisions/T050-accept-gate-close-for-the-stop-after-don.md`.
 
 Source: finding F10 of `docs/spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md`. Builds on
@@ -73,6 +73,36 @@ the skill test with the phrase missing).
 | 4 | same test (`--state running`, `--state failed --reason`, and no `--state` on a running lane: exit 2, run file byte-identical) |
 | 5 | same test (`--gate nope` on the bug task: exit 2, message contains `(diagnose, fix, impact) or `close``, run file unchanged); T032's `test_lane_records_the_gate_a_lane_is_stopped_at` still checks `plan, implement, verify` |
 | 6 | `test_autopilot_skill.py::test_skill_records_the_close_stop_as_a_gate` (shipped source). The installed copy is not a tool test: `taskrail upgrade` updated `.claude/skills/taskrail-autopilot/SKILL.md` and its digest in `.taskrail/installed.json`, and a `diff` of the two *Close and hand off* sections is empty |
+
+## Verify
+
+The real CLI from this branch's source (`uv run --quiet --project <worktree>/tools/taskrail
+taskrail --root <scratch>`), against a throwaway git repository outside this one: a backlog with a
+single bug task T001, `[autopilot] enabled = true` and `escalate_gates = ["bug:close"]`. Steps:
+`autopilot start --count 1` (run `20260914-1` in the scratch repository's own git directory),
+`git switch -c T001-fix-a-thing`, `claim T001 --run 20260914-1`, `done T001`, commit. Then:
+
+```text
+$ taskrail autopilot lane T001 --run 20260914-1 --state gate --gate close
+T001 in run 20260914-1: gate at close
+exit=0
+
+$ taskrail autopilot lane T001 --run 20260914-1 --state gate --gate nope
+taskrail: --gate: `nope` is not a stage of kind bug (diagnose, fix, impact) or `close`
+exit=2
+
+$ taskrail autopilot status --run 20260914-1
+run 20260914-1 · 0/1 done-merged · kinds: every allowed kind · started 2026-09-14T22:16:58+00:00 by abigail@archlinux
+  T001   done-branch  idle 0m
+  hand-off: next T001 · in review — · queue T001
+exit=0
+
+$ taskrail autopilot status --run 20260914-1 --json   # fields of T001's row
+{'id': 'T001', 'state': 'done-branch', 'gate': 'close', 'escalate_gate': None, 'escalation': []}
+```
+
+No gap against the plan: `close` is recorded on a `done-branch` task, an unknown name names
+`close`, and `bug:close` in `escalate_gates` does not flag, as §12.6 now says.
 
 ## Affected areas
 
