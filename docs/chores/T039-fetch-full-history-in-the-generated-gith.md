@@ -1,6 +1,6 @@
 # T039 — Fetch full history in the generated GitHub workflow
 
-Kind: chore · Epic: E02 · Status: implemented
+Kind: chore · Epic: E02 · Status: documented
 
 ## Goal
 
