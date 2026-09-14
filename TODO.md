@@ -55,6 +55,7 @@ Done when: backlog conflicts resolve automatically, existing backlogs import, an
 | ⬜ | T048 | feature | 2   | —          | Add autopilot close to abandon a run | Release a run's dispatches and resources and hide it from next and status, so a rewound or stale orchestrator session leaves nothing holding lanes (T033 F7). |
 | ⬜ | T049 | feature | 1   | —          | Stop flagging governing paths once a task is done on its branch | status keeps escalation governing after the human approved the edit, through done-branch and handed-off; drop it as escalate_gate is dropped (T033 F9). |
 | ⬜ | T050 | feature | 1   | —          | Accept --gate close for the stop after done | autopilot lane --gate close exits 2 because close is not a stage, although the skill reviews the stop after done as a gate (T033 F10). |
+| ⬜ | T051 | feature | 2   | —          | Label overlaps in known conflict-class files | Separate backlog, changelog and index files in autopilot status overlaps, so a real overlap between lanes is not buried (T033 F12). |
 
 ## E03 — caveman skill
 
