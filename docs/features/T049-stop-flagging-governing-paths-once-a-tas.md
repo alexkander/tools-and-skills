@@ -1,6 +1,6 @@
 # T049 — Stop flagging governing paths once a task is done on its branch
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: finding F9 of the autopilot trial
 ([T033](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md), Findings table and
@@ -100,10 +100,47 @@ area T053 changes there is left alone.
   The alternative that keeps a computed flag at `done-branch` is what F9 reports as the problem.
 - **Overlap with T050**, which is likely to touch the skill's close stop: both may edit the *Close*
   section of `references/gate-review.md`. The edit here is one bullet.
-- **Proposed follow-up** (only if approved; verifiable by pytest): *Record the human's approval of
-  a governing edit so `autopilot status` stops flagging it before `done-branch`* — for example
+- **Follow-up** (approved at the plan gate, opened as **T059**, verifiable by pytest): *Record an
+  approved governing edit so autopilot status stops flagging it* — for example
   `autopilot lane <ID> --approve-governing` storing the approved paths with their blob IDs in the
   run file, so a later change to the same path flags again.
+
+## Plan-gate decisions
+
+Recorded in [the decision record](../autopilot/decisions/T049-stop-flagging-governing-paths-once-a-tas.md):
+the `DESIGN.md` text was taken to the human and is not applied on this branch yet; option A (keep
+`governing_touched`, drop the `governing` reason); the skill text change as proposed; the
+follow-up opened (T059).
+
+## Implementation
+
+- `escalation.py`: `MOVED_ON = ("done-branch", "handed-off")`; `flags()` adds `governing` to
+  `escalation` only when the state is not in `MOVED_ON`. `governing_touched` is unchanged.
+- `commands.py`: `_escalation_text()` builds `ESCALATE:` from the reasons in `escalation`.
+- Skill sources: *Escalate* condition 1 in `SKILL.md` and one bullet in the *Close* section of
+  `references/gate-review.md`; the installed copies and `.taskrail/installed.json` refreshed by
+  `.taskrail/bin/taskrail upgrade`.
+- `CHANGELOG.md`: one *Unreleased* bullet, marked as a behaviour change.
+- `DESIGN.md`: not changed, pending the human's answer on the proposed text below.
+
+The new tests were run before the implementation and failed for the reason each criterion
+names: `['governing'] != []` at `done-branch` and `handed-off`, `ESCALATE: governing
+docs/adr/0002.md` on a `done-branch` line, and the skill's condition 1 still naming
+`governing_touched` (5 failed, 35 passed). After it, the full suite passes (837 passed).
+
+## Criteria and tests
+
+All in `tools/taskrail/tests/`.
+
+| # | Tests |
+|---|---|
+| 1 | `test_autopilot_notify.py::test_flags_keep_governing_touched_but_drop_the_reason_after_done_branch` (`running`, `gate`, `escalated`, `failed`), `test_status_drops_the_governing_escalation_at_done_branch_and_handed_off` (the same states through `status`), and the existing `test_status_flags_governing_paths_a_lane_touched` and `test_status_flags_a_gate_listed_in_escalate_gates` |
+| 2 | `test_status_drops_the_governing_escalation_at_done_branch_and_handed_off` (last recorded gate `bug:fix`, listed in `escalate_gates`), `test_flags_keep_governing_touched_but_drop_the_reason_after_done_branch[done-branch-…]` |
+| 3 | the same two tests, at `handed-off` |
+| 4 | `test_status_text_marks_no_governing_escalation_after_done_branch`, and the existing `test_status_text_marks_flagged_lanes` |
+| 5 | the existing `test_no_governing_flag_without_a_match_or_a_branch` |
+| 6 | `test_autopilot_skill.py::test_governing_escalates_by_its_reason_and_the_close_review_checks_the_paths` |
+| 7 | `uv run --directory tools/taskrail pytest -q`: 837 passed |
 
 ## Proposed DESIGN.md text
 
