@@ -1,6 +1,6 @@
 # T053 — Order the autopilot hand-off queue by completion, not branch tip time
 
-Kind: bug · Epic: E02 · Status: diagnosed · Source: T033 finding F8
+Kind: bug · Epic: E02 · Status: fixed · Source: T033 finding F8
 
 ## Symptom
 
@@ -208,8 +208,8 @@ not change after either. A third assertion covers a task `done-branch` only thro
 Known limit, to state in DESIGN.md: a rebase run with `--reset-author-date` (or `--ignore-date`)
 rewrites author times too, and moves the task to the back again.
 
-Proposed DESIGN.md change (governing path, pending approval), in the `autopilot status` row of
-§12.1, replacing "`queue` (dependencies first, then by the branch tip's commit time)" with:
+DESIGN.md change (governing path; approved at the diagnose gate and applied in the fix), in the
+`autopilot status` row of §12.1, replacing "`queue` (dependencies first, then by the branch tip's commit time)" with:
 
 > `queue` (dependencies first, then in completion order: by the author time of the task's done
 > commit — the latest first-parent commit on its branch, local or else remote, that turns its row
@@ -217,3 +217,105 @@ Proposed DESIGN.md change (governing path, pending approval), in the `autopilot 
 > `--reset-author-date` does not; T053)
 
 Plus a `CHANGELOG.md` Unreleased entry.
+
+Diagnose-gate decisions (recorded in `docs/autopilot/decisions/T053-order-the-autopilot-hand-off-queue-by-co.md`):
+the fix approach as proposed, the DESIGN.md phrase as written, and the remote-only ordering in scope.
+
+## Fix
+
+Regression tests first, in `tools/taskrail/tests/test_autopilot.py`. A shared setup,
+`finished_in_order`, finishes T003 at 10:00 and T004 at 11:00 on their branches (pinned author and
+committer dates) and asserts the queue starts as `["T003", "T004"]`. Then:
+
+- `test_handoff_queue_keeps_its_order_when_a_waiting_branch_is_rebased` — `main` gets a commit at
+  12:00 and T003's branch is rebased onto it with `GIT_COMMITTER_DATE` 12:30;
+- `test_handoff_queue_ignores_commits_after_the_done_commit` — a decision-record commit lands on
+  T003's branch at 12:00 (later than T004's done commit, so ordering by the tip's author time would
+  fail it too);
+- `test_handoff_queue_orders_a_branch_left_only_on_the_remote` — T004's branch is pushed, its
+  worktree removed and its local branch deleted; T004 must still be `done-branch`.
+
+Each asserts that `handoff.queue` stays `["T003", "T004"]` and `handoff.next` stays `T003`.
+
+Run against the unfixed code (`uv run --directory tools/taskrail pytest -q --color=no --tb=line
+tests/test_autopilot.py -k handoff_queue`):
+
+```text
+.FFF                                                                     [100%]
+=================================== FAILURES ===================================
+E   AssertionError: assert (['T004', 'T003'], 'T004') == (['T003', 'T004'], 'T003')
+      
+      At index 0 diff: ['T004', 'T003'] != ['T003', 'T004']
+      Use -v to get more diff
+.../tools/taskrail/tests/test_autopilot.py:585: AssertionError: assert (['T004', 'T003'], 'T004') == (['T003', 'T004'], 'T003')
+E   AssertionError: assert (['T004', 'T003'], 'T004') == (['T003', 'T004'], 'T003')
+      
+      At index 0 diff: ['T004', 'T003'] != ['T003', 'T004']
+      Use -v to get more diff
+.../tools/taskrail/tests/test_autopilot.py:593: AssertionError: assert (['T004', 'T003'], 'T004') == (['T003', 'T004'], 'T003')
+E   AssertionError: assert (['T004', 'T003'], 'T004') == (['T003', 'T004'], 'T003')
+      
+      At index 0 diff: ['T004', 'T003'] != ['T003', 'T004']
+      Use -v to get more diff
+.../tools/taskrail/tests/test_autopilot.py:603: AssertionError: assert (['T004', 'T003'], 'T004') == (['T003', 'T004'], 'T003')
+=========================== short test summary info ============================
+FAILED tests/test_autopilot.py::test_handoff_queue_keeps_its_order_when_a_waiting_branch_is_rebased
+FAILED tests/test_autopilot.py::test_handoff_queue_ignores_commits_after_the_done_commit
+FAILED tests/test_autopilot.py::test_handoff_queue_orders_a_branch_left_only_on_the_remote
+3 failed, 1 passed, 40 deselected in 1.74s
+```
+
+All three fail for the root cause: after the rebase, the decision record, and the loss of the local
+branch, T004 moves ahead of T003 although T003 finished first. The one passing test is the existing
+`test_handoff_queue_puts_dependencies_first`.
+
+The fix, in `tools/taskrail/src/taskrail/autopilot/status.py`: `_handoff`'s nested `tip_time`
+(the local tip's `%ct`, or `0` without a local branch) is replaced by a module-level
+`_done_time(project, task_id)`, as proposed. It reads the ref from `stack.done_on_branch` (local
+first, else remote), lists `git log --first-parent --format=%H %at <ref> --not <mainline refs> --`,
+reads the statuses at those commits and at the oldest one's parent with `stack._read_statuses`, and
+returns the author time of the newest commit whose row is ✅ while its parent's is not; without
+one, the ref's tip author time. The sort key stays `(time, id)` and the dependency pass is
+unchanged. The DESIGN.md phrase and the CHANGELOG entry above were applied.
+
+## Verification
+
+The regression tests after the fix
+(`uv run --directory tools/taskrail pytest -q --color=no tests/test_autopilot.py -k handoff_queue`):
+
+```text
+....                                                                     [100%]
+4 passed, 40 deselected in 2.52s
+```
+
+The stage's checks:
+
+- `test` — `uv run --directory tools/taskrail pytest -q --color=no`: `831 passed in 96.66s (0:01:36)`.
+- `lint` — not configured: the repository's `.taskrail/config.toml` sets no `lint` command and
+  `tools/taskrail/pyproject.toml` has no linter.
+
+The reproduction script above, re-run on the fixed code:
+
+```text
+run 20260914-1
+--- 1. T003 finishes at 10:00, T004 at 11:00
+$ taskrail --root repo autopilot status --run 20260914-1 --json  (handoff; tip commit times)
+{"mode": "sequential", "in_review": null, "queue": ["T003", "T004"], "next": "T003"}
+  T003-independent tip: author 2026-01-01T10:00:00Z  committer 2026-01-01T10:00:00Z  chore(T003): mark done
+  T004-another-one tip: author 2026-01-01T11:00:00Z  committer 2026-01-01T11:00:00Z  chore(T004): mark done
+--- 2. main moves at 12:00; the orchestrator rebases T003 (handoff.next) at 12:30
+$ taskrail --root repo autopilot status --run 20260914-1 --json  (handoff; tip commit times)
+{"mode": "sequential", "in_review": null, "queue": ["T003", "T004"], "next": "T003"}
+  T003-independent tip: author 2026-01-01T10:00:00Z  committer 2026-01-01T12:30:00Z  chore(T003): mark done
+  T004-another-one tip: author 2026-01-01T11:00:00Z  committer 2026-01-01T11:00:00Z  chore(T004): mark done
+--- 3. the orchestrator commits a decision record on T004 at 13:00
+$ taskrail --root repo autopilot status --run 20260914-1 --json  (handoff; tip commit times)
+{"mode": "sequential", "in_review": null, "queue": ["T003", "T004"], "next": "T003"}
+  T003-independent tip: author 2026-01-01T10:00:00Z  committer 2026-01-01T12:30:00Z  chore(T003): mark done
+  T004-another-one tip: author 2026-01-01T13:00:00Z  committer 2026-01-01T13:00:00Z  docs(T004): record decision
+--- 4. T004 is pushed, and its worktree and local branch are removed: only origin/T004-another-one is left
+$ taskrail --root repo autopilot status --run 20260914-1 --json  (state of T004; handoff)
+['done-branch'] {"mode": "sequential", "in_review": null, "queue": ["T003", "T004"], "next": "T003"}
+```
+
+The queue is `["T003", "T004"]` at every step.
