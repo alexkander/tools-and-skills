@@ -24,7 +24,9 @@ The reasons, all measured on RTK `v0.49.0`:
     excluded.
   - The option is recorded below, but it is not recommended.
 
-**Decide gate:** pending.
+**Decide gate:** accepted by the human: no adoption of RTK. The follow-ups are T045 (a CLAUDE.md
+note) and T046 (a test that `--json` output stays parseable through `uv run`). The decisions are
+in the [decision record](../autopilot/decisions/T044-evaluate-using-rtk-in-this-repository.md).
 
 **Frame gate:** approved. The decisions are in the
 [decision record](../autopilot/decisions/T044-evaluate-using-rtk-in-this-repository.md):
@@ -477,14 +479,14 @@ hook or plugin is committed.
 Adopting nothing needs no follow-up work. The proposals below only reduce exposure for
 contributors who install RTK globally on their own.
 
-### Proposed follow-ups (proposals only, not created)
+### Follow-ups (created after the decide gate)
 
-- **A note for the human's CLAUDE.md (chore).** The human could add a short note saying RTK's
-  hook is incompatible with this repository's procedures, citing this spike. CLAUDE.md is the
-  human's to edit.
-- **A contract test for `uv run` (feature, taskrail).** A test that the CLI's `--json` output
-  parses, run through the `uv run taskrail` form, would catch any output wrapper that truncates
-  it. It is only worth doing if other wrappers than RTK are a concern.
+- **T045, a note in CLAUDE.md (chore).** A short note saying RTK's hook is incompatible with
+  this repository's procedures, citing this spike. Its wording is shown to the human before
+  publishing.
+- **T046, a contract test for `uv run` (feature, taskrail).** A test that the CLI's `--json`
+  output parses when run through the `uv run taskrail` form, so any output wrapper that truncates
+  it is caught.
 
 ## What would change the decision
 
