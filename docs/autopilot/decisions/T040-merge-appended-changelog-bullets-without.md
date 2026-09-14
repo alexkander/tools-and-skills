@@ -41,3 +41,13 @@ and fails without the driver. This checkout has no `merge.*` config and no `.git
 |---|---|---|---|---|
 | 1 | Approve, with an empty base section merged, a fence inside a bullet left to git, and thematic breaks not bullets | approve · strict equal counts | **approve** | The empty `## Unreleased` after a release is the most common case; the other two keep ambiguous input with git. |
 | 2 | `git ls-files` on epic commands; the `X Y P N` ordering asymmetry | keep · change | **keep** | One cheap call per epic command; the order is deterministic and keeps each bullet once. |
+
+## verify and close
+
+The verify stage ran the driver through the wrapper in a throwaway repository: `upgrade` added a new
+`CHANGELOG.md` to the block; a merge where both sides appended a bullet came out clean; this run's
+real case — a branch that adds its bullet at the top and then moves it to the end, rebased onto a
+mainline that added bullets at the top and end — rebased cleanly with the bullet once, and the same
+rebase without the driver conflicted; two different edits of one bullet were marked alone. The
+branch stays stacked on `origin/T004-add-a-git-merge-driver-for-status-cells` (`8a9a37f`) until T004
+merges; then the orchestrator moves it with `git rebase --onto origin/main 8a9a37f`.
