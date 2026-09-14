@@ -28,3 +28,20 @@ branch, or a no-op `merge-tree`), always on branches whose row is `✅`.
 
 Plan approved. The lane must use throwaway repositories with local bare remotes only, never run
 `--cleanup` against this repository, and remove its scratch directories when done.
+
+## implement gate
+
+Reviewed: commits `22104ab` (tests alone, before any code) and `b116932` (`autopilot/merged.py`,
+the registration in `commands.py`, `recorded_merges` inside `status.done_on_mainline`, DESIGN.md,
+README, CHANGELOG). Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 498
+passed. The lane resumed after an API limit with an unrun test file, committed it, and showed all 29
+tests failing before writing code. Six deliberate breakages — no `✅` guard, untracked files not
+refusing cleanup, the claim's fork point ignored, the branch delete without its checked commit, no
+recorded merges in `status`, and a patch-id check that never matches — each failed the tests that
+cover them.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve, with `checks` as an object, `--owner`, `runs` listing only runs written, and the older-git `--ancestry-path` form | approve · list and no `--owner` | **approve** | `--owner` is what lets cleanup release the caller's own leftover claim and refuse another owner's; the rest is output shape and portability. |
+| 2 | Run a lint check | no, none configured · add ruff in a chore | **no** | The repository configures no lint; adding one is its own decision, outside this task. |
+| 3 | Update a rebased stacked dependent's claim `base` | follow-up only if the trial shows it matters · open now | **not now** | `touched` may over-report for that lane until its claim is released; T033's trial will show whether it misleads the orchestrator. |
