@@ -1,6 +1,6 @@
 # T048 — Add autopilot close to abandon a run
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: finding F7 of the
 [T033 trial](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md) (*Findings* and
@@ -116,3 +116,43 @@ Each is verified by pytest on fixture repositories and run files (`tests/test_au
 - **Merge with sibling lanes.** T049, T050 and T053 edited other functions of `commands.py` and
   `status.py` and other rows of DESIGN §12.1; this plan adds a row and keeps to separate hunks, so
   a rebase should see at most adjacent-line conflicts in the table.
+
+## Plan-gate decisions
+
+Approved as written (record: `docs/autopilot/decisions/T048-add-autopilot-close-to-abandon-a-run.md`):
+the DESIGN §12.1 row, §12.4 (a)–(d) and §12.7 text; the skill paragraph at the end of *Escalate*,
+with `taskrail upgrade`; exit 5 for an already-closed run; claims kept and reported; `status --run R`
+shows a closed run with `closed`. `dispatch.py` keeps to filtering closed runs out of `every_run`
+and the `run_id` re-check, leaving the candidate loop to T054.
+
+## Implementation
+
+- `runs.py`: `closed` defaults to null; `RunClosed`, `is_closed`, `closed_message` and `close`, which
+  records `{at, by, reason}` and clears each lane's `dispatched` and `resources`, returning what it
+  released.
+- `commands.py`: `cmd_close` and its parser; `lane`, `decision` and `next` refuse a closed run with
+  exit 5, both before the lock and again inside it; `status` without `--run` filters closed runs,
+  and the text form adds a `closed <at> by <by> — <reason>` line under the run.
+- `dispatch.py`: `next_lanes` raises `RunClosed` for a closed `run_id` and derives every state from
+  open runs only, so nothing in a closed run is released or written.
+- `status.py`: `run_status` reports `closed`.
+- `cli.py`: `claim --run` refuses a closed run with exit 5 before taking the claim.
+- DESIGN §12.1, §12.4, §12.7, the autopilot skill (source and installed copy,
+  `.taskrail/installed.json`) and the changelog, as approved.
+
+## Acceptance criteria → tests
+
+All in `tools/taskrail/tests/test_autopilot_close.py`.
+
+| # | Tests |
+|---|---|
+| 1 | `test_close_records_who_when_and_why_and_keeps_every_other_key` |
+| 2 | `test_close_releases_every_dispatch_and_resource_of_the_run`, `test_close_text_names_what_it_released_and_the_kept_claims` |
+| 3 | `test_close_keeps_and_reports_the_claims_naming_the_run`, `test_close_text_names_what_it_released_and_the_kept_claims` |
+| 4 | `test_a_closed_run_frees_its_lanes_and_resources_for_other_runs` |
+| 5 | `test_claims_groups_and_gates_of_a_closed_run_hold_no_lane` |
+| 6 | `test_status_lists_a_closed_run_only_when_named`, `test_close_records_who_when_and_why_and_keeps_every_other_key` (text form) |
+| 7 | `test_a_closed_run_refuses_new_work_and_writes_nothing` |
+| 8 | `test_close_exit_codes` |
+| 9 | `test_close_works_while_disabled_and_with_an_invalid_backlog` |
+| 10 | `test_a_merge_recorded_in_a_closed_run_still_counts` |
