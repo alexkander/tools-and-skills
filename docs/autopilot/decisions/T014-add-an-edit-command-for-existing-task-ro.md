@@ -45,3 +45,16 @@ claim held by someone else, branch recording after a title change, repairing a c
 (`origin/main` is `977064f`). Checked before publishing: `TODO.md` differs from `main` only in T014
 `✅`, the full suite passes, `taskrail validate` 0 errors, `upgrade` reports nothing to create or
 update, no upstream.
+
+## rebase after T012
+
+T012 was squash-merged into `main` as `525af38`. The orchestrator rebased the branch onto
+`origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the docs indexes, CHANGELOG and `TODO.md` | keep both · stop | **keep both** | Rows and bullets added on both sides; T012 and T014 each `✅`, no `Reopens:` commit. |
+
+No code conflicted. After the rebase: no conflict markers, one bullet each for T012 and T014,
+`pytest -q` passes, `taskrail validate` 0 errors and 0 warnings (including T012's history check),
+`upgrade` reports nothing to create or update.
