@@ -1,6 +1,6 @@
 # T043 — Move caveman to .claude/skills for use in this repository only
 
-Kind: chore · Epic: E06 · Status: implemented; CLAUDE.md sentence pending
+Kind: chore · Epic: E06 · Status: done
 
 ## Goal
 
@@ -353,3 +353,10 @@ directories:
  The tools/libs split is about how a consumer uses the thing, not how big it is: a tool is run,
  a library is linked against. A library needs a version and a changelog; a tool usually does not.
 ```
+
+## CLAUDE.md sentence
+
+The lane did not edit CLAUDE.md on a relayed instruction and left a checked patch instead. The human
+had decided the sentence directly with the orchestrator (decision 5a), so the orchestrator applied
+that patch unchanged as `docs(repo): note what .claude/skills holds in CLAUDE.md (T043)`: four added
+lines in *Layout*, after the list of item directories, and nothing else in CLAUDE.md.

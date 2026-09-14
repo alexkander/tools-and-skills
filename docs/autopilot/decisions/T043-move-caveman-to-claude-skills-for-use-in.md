@@ -24,3 +24,10 @@ leaves an unmanaged `.claude/skills/caveman/` byte-identical.
 | 6 | Pull request title | `chore(caveman): …` · `chore(skills): …` | **`chore(caveman): …`** (orchestrator) | The change is about caveman's place in this repository. |
 
 Change set approved with the CLAUDE.md Layout sentence added.
+
+## close
+
+The lane moved caveman as a pure rename, rewrote its README and the root README, and verified
+discovery by both agents and that `taskrail upgrade` leaves it alone. It stopped short of editing
+CLAUDE.md because the instruction was relayed; the orchestrator applied the checked patch, which is
+exactly the sentence the human approved, and closed the task.
