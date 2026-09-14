@@ -24,3 +24,21 @@ escalation flags.
 
 Plan approved. Notify commands in tests and verification stay local scripts writing to temporary
 files; the lane removes its scratch repositories when done.
+
+## implement gate
+
+Reviewed: commit `b6de564` (`autopilot/escalation.py`, `autopilot/notify.py`, the `gate` field and
+`_flag_escalations` in `status.py`, `record_lane(gate=)` in `runs.py`, `lane --gate` and
+`cmd_notify` in `commands.py`, DESIGN.md, README, CHANGELOG, `tests/test_autopilot_notify.py`).
+Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 509 passed. The lane
+was interrupted by an API limit mid-stage; on resuming it set the implementation aside, recorded 40
+failing tests, and restored it without a stash. Four deliberate breakages (a failed notify changing
+the exit code, a gate flag ignoring the derived state, a timeout killing only the shell, a governing
+entry not covering files below it) each failed the tests that cover them. `status` never calls
+`notify`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Follows D1–D9 with the edits kept away from T030's and T031's lines. |
+| 2 | Deviations: `gate` always in `lane --json`; stderr warning ends with the command's last stderr line; only a timeout kills the process group; a missing command reports the shell's 127; `notify` in the §7 row | accept · reject some | **accept all** | Each is visible and harmless; a notifier that deliberately detaches keeps working. |
+| 3 | Expected rebase conflicts in DESIGN.md §7/§12 and CHANGELOG | keep both · stop | **keep both; stop on any code conflict** | Neighbouring rows and bullets are a known class. |
