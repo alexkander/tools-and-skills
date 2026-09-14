@@ -31,3 +31,18 @@ skill's "Other lanes keep going meanwhile". Nothing else is edited yet.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T056 owns the `taskrail-autopilot` section of `integrations/opencode.md`, one OpenCode test in `tests/test_autopilot_skill.py`, the DESIGN §8 `opencode` row and one sentence in §12.3. T049, T050 and T053 (closed) changed the DESIGN §12.1 `autopilot status` and `autopilot lane` rows, §12.6, `status.py` `_handoff`, `escalation.py`, `commands.py` and the portable skill's *Escalate* and *Close and hand off* sections. T052 (later) edits the Claude Code note and T055 the portable skill text.** | Built from the gates reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commit `07fd103` (range `5e8e12b..07fd103`): the `taskrail-autopilot` section of
+`integrations/opencode.md` (one new bullet, the escalation sentence replaced), the §8 row and §12.3
+sentence exactly as approved, one CHANGELOG bullet, and a test parametrized over an OpenCode-only and
+a Claude-plus-OpenCode install, shown failing on the old note. Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 830 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve, with the CHANGELOG bullet moved to the end of *Unreleased*** | The *Unreleased* bullets run in delivery order (T024 … T039, then this run's tasks); inserting after T024 breaks that order. |
+
+The lane used `git stash push`/`pop` to check the test against the old note. The stash stack is
+shared by every worktree of this clone; use a temporary commit or a scratch copy instead.
