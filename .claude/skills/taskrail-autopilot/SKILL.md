@@ -23,7 +23,7 @@ initiative: not because tasks are pending, not from `taskrail next`, and not bec
 installed. This rule lives here, in the text every agent reads, not only in metadata.
 
 1. Run `taskrail autopilot start --count <N> --json`, adding `--kinds <kinds>` only when the human
-   named kinds. Keep the run ID it prints; every later command names it as `<R>`.
+   named kinds. Keep the run ID (`run.id` in the JSON); every later command names it as `<R>`.
 2. If it exits 5, the repository has not enabled the autopilot: stop and report its message to the
    human. Never change `[autopilot].enabled` yourself, and do not work the tasks some other way
    instead.
