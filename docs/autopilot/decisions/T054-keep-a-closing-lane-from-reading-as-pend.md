@@ -33,3 +33,16 @@ changed, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T054 owns `task_state` and the new `_closing` in `autopilot/status.py`, the candidate skip in `autopilot/dispatch.py`, its regression test in `tests/test_autopilot_next.py`, §12.4's `running` bullet and its phrases of the §12.1 `autopilot status` and `autopilot next` rows. T053 (closed) owns `_handoff`/`_done_time`; T049 and T050 (closed) the escalation and `--gate` code. T048 (planning) must leave `task_state` and the dispatch skip alone. T056 owns the OpenCode note and T060 the repository config.** | Built from the gates reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## fix gate
+
+Reviewed: commit `3bf98a7` (range `8ed9e1c..3bf98a7`): `_closing` and the `task_state` change in
+`autopilot/status.py`, the lane-occupying skip in `autopilot/dispatch.py`, the three approved
+DESIGN.md phrases, one CHANGELOG bullet, and two tests in `tests/test_autopilot_next.py` shown
+failing on the unfixed code (`('pending', None, [])` and a re-dispatched `gate` lane). Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 830 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · changes | **approve** | Derived from git, clears itself, covers both the F13 window and an unclaimed stopped lane; the diff stays inside the touch map. |
+| 2 | Follow-up for a task discarded on its unmerged branch | open a bug · record only | **as recommended (open)**, kind bug, epic E02, with `taskrail new` in this worktree, committed on this branch | A committed `❌` on a branch reads as `pending` and can be dispatched again; a pytest can script it. |
