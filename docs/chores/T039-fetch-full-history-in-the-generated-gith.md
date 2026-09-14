@@ -1,6 +1,6 @@
 # T039 — Fetch full history in the generated GitHub workflow
 
-Kind: chore · Epic: E02 · Status: scoped
+Kind: chore · Epic: E02 · Status: implemented
 
 ## Goal
 
@@ -93,12 +93,63 @@ history: {'examined': 3, 'limit': 500, 'truncated': False, 'shallow': False, 'sk
 
 ## Verification
 
-- `uv run --directory tools/taskrail pytest -q` — all tests, including the two new ones, pass.
-- In a throwaway repository under a temporary directory: `init --github-workflow` with the
-  current `main` code writes the old template; `upgrade` with this branch's code reports
-  `.github/workflows/taskrail.yml` updated and the file contains `fetch-depth: 0`; a second
-  repository whose workflow was edited locally reports it skipped.
-- Repeat the reproduction above: a `--depth 1` clone reports `shallow: true` and no warning, a
-  full clone (what `fetch-depth: 0` produces) reports the `reopen-untraced` warning. GitHub
-  Actions itself is not run.
-- `.taskrail/bin/taskrail validate` in this worktree.
+Scope approved as proposed (decisions: `fetch-depth: 0`; no flags for `validate`; include the
+upgrade test; the README wording fix is in scope).
+
+**Tests, failing first.** With only the two new tests added and the template unchanged:
+
+```text
+$ uv run --directory tools/taskrail pytest -q tests/test_install.py -k "full_history or earlier_template"
+FAILED tests/test_install.py::test_github_workflow_checks_out_full_history - AssertionError: assert '      - uses: actions/checkout@v7\n        with:\n ...
+FAILED tests/test_install.py::test_upgrade_rewrites_an_unedited_workflow_from_an_earlier_template - AssertionError: assert '.github/workflows/taskrail.yml' in []
+2 failed, 55 deselected in 0.59s
+```
+
+After the template change: `2 passed, 55 deselected in 0.54s`; the whole suite,
+`uv run --directory tools/taskrail pytest -q`: `743 passed in 89.71s`. No `lint` check is
+configured in this repository.
+
+**`upgrade` on real installs.** Two throwaway repositories initialised with
+`init --github-workflow` by the `origin/main` code (exported with `git archive`), so their
+workflow has no `fetch-depth`; one then gets a local edit (`# local tweak` appended). `upgrade`
+run with this branch's code:
+
+```text
+=== unedited: upgrade with this branch's code
+updated   .github/workflows/taskrail.yml
+exit 0
+--- unedited workflow now:
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10
+      - run: .taskrail/bin/taskrail validate
+=== edited: upgrade with this branch's code
+skipped   .github/workflows/taskrail.yml (edited locally; --force replaces it)
+exit 0
+=== edited: upgrade --force
+updated   .github/workflows/taskrail.yml
+15:          fetch-depth: 0
+```
+
+**What each depth gives `validate`.** A repository with a task done, then reopened in a commit
+without a trailer, then three unrelated commits, fetched into two fresh repositories the way
+`actions/checkout` does: `git fetch --depth=1 origin +<sha>:refs/remotes/origin/main` (its
+default) and `git fetch origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'`
+(`fetch-depth: 0`), then `validate` with this branch's CLI:
+
+```text
+--- depth1 (is-shallow: true)
+history: shallow clone; examined 1 commit(s), so older reopens are not checked
+1 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)
+exit 0
+history: {'examined': 1, 'limit': 500, 'truncated': False, 'shallow': True, 'skipped': None}
+--- depth0 (is-shallow: false)
+TODO.md:13: warning: T001 went from ✅ done to ⬜ pending in eb0cf71 ("reopen T001 without trailer") without a `Reopens: T001` trailer; ... [reopen-untraced]
+1 task(s) in 1 backlog(s): 0 error(s), 1 warning(s)
+exit 0
+history: {'examined': 3, 'limit': 500, 'truncated': False, 'shallow': False, 'skipped': None}
+```
+
+GitHub Actions itself was not run. All temporary repositories were deleted.
