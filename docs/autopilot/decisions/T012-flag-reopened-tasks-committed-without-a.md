@@ -19,3 +19,17 @@ takes about 6 s to parse, hence the required text pre-filter.
 | 5 | Follow-up for the generated GitHub workflow's shallow checkout | open a chore now · record only | **open it** (kind `chore`, epic E02, committed on this branch) | The check is inert in that workflow until it fetches full history, and the fix belongs in `install.py`, outside this task. |
 
 Plan approved.
+
+## implement gate
+
+Reviewed: commits `b4d5561` (T039) and `68fdae4` (`history.py`, the `cmd_validate` hook with
+`--no-history` and `--history-limit`, DESIGN.md §7, README, CHANGELOG, `tests/test_history.py`).
+Re-ran the 28 new tests in the lane's worktree: all pass. The tests failed at collection before the
+code, which proves little on its own; six deliberate breakages did, and the one no test caught (an
+epic-file rule) was removed rather than kept untested. This repository validates in 0.16 s with 32
+commits examined and no warning.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve, with epic files read by the working tree's paths and `skipped: "no commits"` | approve · changes | **approve** | Removing an untested rule is better than keeping it; a row moved between files is still no change because every revision is read across all those paths. |
+| 2 | T039 dependency on T012 | none · depends on T012 | **none** | The workflow's `fetch-depth: 0` is correct on its own. |
