@@ -1,12 +1,19 @@
 # T009 — Decide how consumer projects install this repository's skills
 
-**Verdict (proposed, awaiting the human's decision): consumers copy `skills/<name>/` into their
+**Verdict: consumers copy `skills/<name>/` into their
 project's `.claude/skills/<name>/` at a pinned commit of this repository, and record that commit
 when they add or update the copy. It is the only mechanism measured to work for both Claude Code
 and OpenCode from one committed copy. A Claude Code plugin marketplace stays an optional adapter,
 not built now. If it is built later, it goes at the repository root with one `strict: false`
 entry per skill whose source is `./skills/<name>`. Submodules and third-party installers are not
 the documented path.**
+
+**Decide gate:** the human accepted this recommendation. The human's decisions, recorded in the
+[decision record](../autopilot/decisions/T009-decide-how-consumer-projects-install-thi.md):
+- copy at a pinned commit;
+- defer the marketplace;
+- record the repository URL, path and full SHA in the commit that adds or updates the copy;
+- follow-ups T041 and T042 only.
 
 **Frame gate:** approved. The decisions are recorded in the
 [decision record](../autopilot/decisions/T009-decide-how-consumer-projects-install-thi.md):
@@ -456,9 +463,12 @@ difference beats O1 for a single skill directory.
   suffices on its own.
 - **`vercel-labs/skills` records a commit SHA** and preserves or detects local edits on update.
 
-## Follow-up work (proposed; not created until the decision is accepted)
+## Follow-up work
 
-1. **chore — Record the skills distribution decision in CLAUDE.md.** Replace the first paragraph
+Created after the human accepted the decision. The marketplace task was not created, because the
+human deferred the marketplace.
+
+1. **T041, chore — Record the skills distribution decision in CLAUDE.md.** Replace the first paragraph
    of *Distribution* with wording such as:
 
    > Skills are installed by copying: a consumer copies `skills/<name>/` into its project's
@@ -473,13 +483,12 @@ difference beats O1 for a single skill directory.
 
    Keep the sentence about libraries and registries, and record the evidence link to this
    document.
-2. **docs — Give each skill README the install, update and remove steps**, starting with
-   `skills/caveman/README.md` (today it names only Claude Code's path). Include the
-   pin-recording convention and the OpenCode note about
-   `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS`.
+2. **T042, chore (no docs kind is allowed) — Document install, update and removal in each
+   skill README**, starting with `skills/caveman/README.md` (today it names only Claude Code's
+   path). Include:
+   - how to record the commit;
+   - the OpenCode notes on `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` and `permission.skill`.
 3. **T010** (existing) uses the mechanism above. It needs no change.
-4. **Only if the human chooses to build the adapter now:** a feature task to add the root
-   marketplace adapter with `claude plugin validate .` as a check.
 
 ## How to reproduce
 
