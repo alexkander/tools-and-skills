@@ -34,3 +34,17 @@ anyway; the label must say it is by path. No code changed, so no checks were re-
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T051 owns `status()` and a new helper in `autopilot/status.py`, the overlaps lines at the end of `_status_text()` in `commands.py`, the `attribute_paths`/`known_conflict_paths` split in `mergedriver.py`, `tests/test_autopilot_overlaps.py` plus the expected dict of `test_status_without_runs_and_for_an_unknown_run`, the *Supervise* `overlaps` bullet of the skill, and the overlaps phrase of the DESIGN §12.1 `autopilot status` row. T048 owns the run header of `_status_text`, `run_status`'s `closed`, `runs.py` and `dispatch.py`'s closed-run filter; T054 `task_state`/`_closing` and the dispatch skip; T053 `_handoff`/`_done_time`; T049 `_escalation_text` and *Escalate* condition 1; T055 the remaining skill text.** | Built from the gates reached so far; the same §12.1 row now carries phrases from T049, T053, T054 and T051, all kept at hand-off. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commit `99db705` (range `0eebd71..99db705`): `known_conflict_paths` split out of
+`attribute_paths` in `mergedriver.py`, `status()` and `_known_conflicts()` in `autopilot/status.py`,
+the known-overlaps lines of `_status_text`, the approved DESIGN phrase with the orchestrator's clause,
+the *Supervise* bullet with its installed copy and digest, one CHANGELOG bullet naming the behaviour
+change, and `tests/test_autopilot_overlaps.py` plus one expected dict, all shown failing before the
+code. The diff stays inside the touch map. Re-ran `uv run --directory tools/taskrail pytest -q` in the
+lane's worktree: 837 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Every criterion maps to a test seen failing first; `attribute_paths` keeps its result, so the merge driver's `.gitattributes` block is unchanged. |
