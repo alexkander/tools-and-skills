@@ -25,3 +25,26 @@ code changed yet, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T049 owns `autopilot/escalation.py` `flags()`, `_escalation_text()` in `autopilot/commands.py`, its governing tests, condition 1 of the skill's *Escalate* section and the *Close* section of `references/gate-review.md`. T050 owns `_gate_problem` and the `--gate` help in `autopilot/commands.py`, its `--gate` tests and the skill's *Close and hand off* section. T053 owns the hand-off queue in `autopilot/status.py`. Each lane leaves the others' functions and sections alone; edits in different functions of one file are merged at hand-off.** | Built from the plans reached so far; extended as other lanes reach their first gate. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commits `39cf525` (T059 row) and `5aa1d54` (range `1ccd572..5aa1d54`): `MOVED_ON` in
+`escalation.py` `flags()`, `_escalation_text()` built from `escalation`, skill *Escalate* condition 1
+and gate-review *Close* bullet with installed copies and digests, one CHANGELOG bullet, and tests the
+lane showed failing before the code. Re-ran `uv run --directory tools/taskrail pytest -q` in the
+lane's worktree: 837 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | DESIGN.md §12.1 `autopilot status` row and §12.6 *Governing paths* text (plan-gate question 1) | approve as written · other wording · no change | **approve as written, in its own commit, then re-run the checks** | Decided by the orchestrator under the human's delegation below; the text matches the code. T053 edits the `queue` phrase of the same table row and T050 the next §12.6 bullet; the later hand-off keeps every edit. |
+| 2 | Approve the implementation | approve · changes | **approve** | Criteria 1–7 map to tests; the diff stays inside the touch map. |
+| 3 | Conflicts with other lanes at hand-off | mechanical at hand-off · other | **mechanical at hand-off, with one correction** | Task IDs are not per branch: `taskrail new` reserves them under a common-directory lock across worktrees (DESIGN §6.3), so T059 is unique and no renumbering is needed. `installed.json` is class 3 (`upgrade --force`); CHANGELOG and the index README are class 2; TODO.md class 1. |
+
+## escalated to the human
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Who decides changes to the governing documents (`DESIGN.md`, `CLAUDE.md`) proposed by this run's lanes | the human per text · the orchestrator for this run · remove them from `governing` | **the orchestrator decides every `DESIGN.md` and `CLAUDE.md` change in this run; the human reviews them in the pull request. Also open a separate task removing both files from `[autopilot].governing`** | The human delegated the decisions to keep the lanes moving, and chose to make the change permanent. |
+
+Answered by the human (repository owner), in the orchestrator session.
+
