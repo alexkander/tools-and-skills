@@ -78,11 +78,20 @@ Some items are copied from upstream projects rather than written here. For each 
 
 ## Distribution
 
-Not yet decided — for now the repository is just the directory layout above, and consumers copy
-from it. It will likely differ per kind: skills and tools can be installed or copied, while a
-library is published to a package registry and depended on by version. A Claude Code plugin
-marketplace (`.claude-plugin/marketplace.json`) is one option for the skills, but as an adapter
-over the layout above, never as its canonical shape. Record each choice here once made.
+Decided per kind; record each choice here once made.
+
+**Skills** are installed by copying: a consumer copies `skills/<name>/` into its project's
+`.claude/skills/<name>/` — the one project location both Claude Code and OpenCode discover —
+from a specific commit of this repository, and records the repository URL, path and full commit
+SHA in the commit that adds or updates the copy. Updating is re-copying at a newer commit and
+reviewing the diff; removing is deleting the directory. Project-specific rules stay outside the
+copied directory. There is no plugin marketplace yet; if one is added, it is an adapter at the
+repository root (`.claude-plugin/marketplace.json`) with one `strict: false` entry per skill
+whose source is `./skills/<name>`, adding nothing inside the item and never becoming its
+canonical shape. Evidence: [T009](docs/spikes/T009-decide-how-consumer-projects-install-thi.md).
+
+**Tools and libraries** are not decided yet. Tools will likely be installed or copied like
+skills, while a library is published to a package registry and depended on by version.
 
 ## Backlog
 

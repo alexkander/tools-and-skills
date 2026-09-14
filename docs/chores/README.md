@@ -8,3 +8,4 @@
 | T028 | Write the autopilot design into DESIGN.md | [T028-write-the-autopilot-design-into-design-m.md](T028-write-the-autopilot-design-into-design-m.md) |
 | T038 | Create task branches without tracking the mainline | [T038-create-task-branches-without-tracking-th.md](T038-create-task-branches-without-tracking-th.md) |
 | T039 | Fetch full history in the generated GitHub workflow | [T039-fetch-full-history-in-the-generated-gith.md](T039-fetch-full-history-in-the-generated-gith.md) |
+| T041 | Record the skills distribution decision in CLAUDE.md | [T041-record-the-skills-distribution-decision.md](T041-record-the-skills-distribution-decision.md) |
