@@ -30,3 +30,10 @@ untraced reopen that a full fetch reported.
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | Exactly the approved change set. |
 | 2 | Pull request type | `fix` · `chore` | **`fix`** | The generated workflow silently defeated an existing check; users should see it in the release notes. |
+
+## docs and close
+
+The docs stage updated the README bullet (pull requests and pushes to the mainlines, full history),
+DESIGN.md §9 and the CHANGELOG, with no follow-ups. No rebase was needed (`origin/main` is
+`9c87bc2`). Checked before publishing: `TODO.md` differs from `main` only in T039 `✅`, the full
+suite passes, `taskrail validate` 0 errors, `upgrade` reports nothing to create or update.
