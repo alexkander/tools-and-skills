@@ -15,3 +15,10 @@ pin recorded in the commit and the adapter-only rule kept.
 | 2 | Pull request type and scope | `docs(repo)` · `docs(skills)` | **`docs(repo)`** — decided by the human | CLAUDE.md belongs to the whole repository. |
 
 Scope approved.
+
+## close
+
+The lane applied the approved Distribution text byte for byte (one hunk, 14 added and 5 removed
+lines, nothing else in CLAUDE.md), found no other documentation to change, and closed T041. The
+orchestrator checked the diff against the text the human approved before publishing. No rebase was
+needed (`origin/main` is `8eeb8df`); `taskrail validate` 0 errors.
