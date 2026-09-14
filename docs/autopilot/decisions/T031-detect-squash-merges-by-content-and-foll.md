@@ -57,3 +57,18 @@ docs indexes and CHANGELOG, the `commands.py` import line (now `dispatch, runs` 
 imports), and DESIGN.md rows, each keeping both T030's and T031's text. Checked before publishing:
 `TODO.md` differs from `main` only in T031 `✅`, `pytest -q` 565 passed, `taskrail validate` 0
 errors, `upgrade` reports nothing to create or update, no upstream.
+
+## rebase after T032
+
+T032 was squash-merged into `main` as `151e290`. The orchestrator rebased the branch onto
+`origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the docs indexes, CHANGELOG and `TODO.md` | keep both · stop | **keep both** | Rows and bullets added on both sides; T031 and T032 each `✅`, no `Reopens:` commit. |
+| 2 | Conflict in `autopilot/commands.py` imports | keep both · stop | **keep both** | `notify` from T032 and the `merged` imports from this branch; both registrations stay. |
+| 3 | Conflicts in DESIGN.md §7, §12 intro, §12.1, §12.10 and README | merge both texts · stop | **merge both** | `status` keeps T032's escalation text; the `merged` row is this branch's implemented one and the `notify` row T032's; §12.10 marks both implemented; README lists `merged` and `notify`. |
+
+The full suite ran on the conflict-resolved commit before continuing (605 passed). After the rebase:
+no conflict markers, one CHANGELOG bullet each for T031 and T032, `pytest -q` 605 passed, `taskrail
+validate` 0 errors, `upgrade` reports nothing to create or update.
