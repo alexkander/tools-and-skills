@@ -253,7 +253,10 @@ Option 2. The Claude Code run shows the design's core working without a human su
 opt-in, dispatch, the lane contract, gate review with records, escalation, sequential hand-off and
 merge detection. What went wrong is specific and fixable.
 
-Follow-up tasks, opened in epic E02 after the human accepted them at the decide gate:
+Follow-up tasks, opened in epic E02 after the human accepted them at the decide gate. The human
+also decided how they are verified: by short automated tests (pytest with fixture repositories,
+scripted git scenarios, tests that assert the rules in the skill sources and installed copies),
+never by an end-to-end trial like this one, which is long and needs a human at several terminals.
 
 | Task | Proposal | Kind | Fixes |
 |---|---|---|---|
@@ -263,11 +266,11 @@ Follow-up tasks, opened in epic E02 after the human accepted them at the decide 
 | T049 | Stop flagging `governing` once a task is `done-branch`, or after a recorded approval | feature | F9 |
 | T050 | Accept `--gate close` for the stop after `done` | feature | F10 |
 | T051 | Separate known-class files (backlog, changelog, indexes) in `overlaps` | feature | F12 |
-| T054 | Reproduce and fix the `pending` window between `done` and its commit | bug | F13 |
+| T054 | Fix the `pending` window between `done` and its commit, starting from a failing test that scripts it | bug | F13 |
 | T055 | Autopilot skill text: a hand-off message that always carries branch, title and body; refill on `done-branch`; IDs from `taskrail new` are unique across lanes; dispatch expiry; resuming a run from a new session with a restart-from-branch lane brief, and §12.3 reworded to match | chore | F2, F4, F5, F6, F7 |
 | T056 | OpenCode integration note: at an escalation, end the turn with the question instead of starting another blocking batch; record handles when a batch returns; check `silent` between batches | chore | F3 |
 | T052 | Claude Code integration note on command shape (one command per call, absolute wrapper path, no `cd … &&`), plus a `taskrail checks <ID>` that runs a lane's configured checks in its worktree with its resources, so one allowlist entry covers them | feature | F11 |
-| T057 | A second, short trial: compaction on both agents, OpenCode with a Claude model, and a new-session `SendMessage` to an old lane ID | spike | not verified |
+| T057 | A scripted probe instead of a second trial: a small fixture and a bounded, non-interactive script for compaction and messaging an old lane, with no human terminals and no change to agent settings; what cannot be scripted (including OpenCode on a Claude model) is stated as a limit | spike | not verified |
 
 ## What would change the decision
 
