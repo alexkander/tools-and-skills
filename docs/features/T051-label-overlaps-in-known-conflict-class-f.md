@@ -1,6 +1,7 @@
 # T051 — Label overlaps in known conflict-class files
 
-Kind: feature · Epic: E02 · Status: plan (awaiting approval). Record:
+Kind: feature · Epic: E02 · Status: implemented, awaiting code review (plan approved: D1 with an
+added clause, D2 include `installed`, D3 as written, D4 as recommended). Record:
 `docs/autopilot/decisions/T051-label-overlaps-in-known-conflict-class-f.md`.
 
 Source: finding F12 of `docs/spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md`:
@@ -62,6 +63,44 @@ as today.
 
 All verified by pytest with scripted worktrees; no manual trial.
 
+8. (D3) The shipped `taskrail-autopilot` skill's *Supervise* section says `known_overlaps` are
+   expected and resolved at hand-off, and the installed copy matches it after `taskrail upgrade`.
+
+## Implementation
+
+- `mergedriver.known_conflict_paths(project)` returns `{path: class}` for the backlog and epic
+  files (`backlog`), the task-independent artifact and decision-record indexes (`index`) and the
+  tracked changelogs (`changelog`); the first class a path gets wins, in that order.
+  `attribute_paths(config)` is now `sorted(known_conflict_paths(project))`, with the same
+  normalisation as before.
+- `autopilot/status.py`: `status()` splits the files touched by more than one lane into `overlaps`
+  and `known_overlaps`, computing the classes only when there is at least one such file.
+  `_known_conflicts()` adds `installed` for `.taskrail/installed.json` and every path in its
+  `files`, read with `install.read_manifest`; a `ConfigError` (unreadable manifest) adds none. A
+  path whose file name is `CHANGELOG.md` in any letter case is `changelog` even when the main
+  checkout does not track it.
+- `autopilot/commands.py`: `_status_text()` prints `known_overlaps` after `overlaps`, under their
+  own heading, as `  <path> (<class>): <tasks>`.
+- DESIGN §12.1 `autopilot status` row: the D1 text, with the orchestrator's added clause. Skill
+  *Supervise* bullet: the D3 text, ending in `;` as the list's other bullets do. CHANGELOG: one
+  bullet naming the behaviour change.
+
+## Tests
+
+Every new test was run and seen failing before the code or skill change (the skill test with the
+skill edit temporarily reverted); then the whole suite passed: `837 passed`.
+
+| Criterion | Test |
+|---|---|
+| 1 | `tests/test_autopilot_overlaps.py::test_known_class_files_leave_overlaps_for_known_overlaps` |
+| 2 | `tests/test_autopilot_overlaps.py::test_an_epic_file_is_backlog_and_a_branch_only_changelog_is_changelog` |
+| 3 | `tests/test_autopilot_overlaps.py::test_the_manifest_and_the_copies_it_records_are_installed` (also the unreadable manifest) |
+| 4 | `test_known_class_files_leave_overlaps_for_known_overlaps` (`docs/bugs/README.md` touched by one lane), and the unchanged `tests/test_autopilot.py::test_touched_files_and_overlaps_between_lanes` and `test_a_stacked_lane_does_not_list_its_dependency_files` |
+| 5 | `tests/test_autopilot.py::test_status_without_runs_and_for_an_unknown_run` (expected dict gains `known_overlaps`) |
+| 6 | `tests/test_autopilot_overlaps.py::test_text_lists_real_overlaps_before_known_ones` |
+| 7 | `tests/test_autopilot_overlaps.py::test_the_merge_driver_paths_are_the_backlog_index_and_changelog_classes`, and the unchanged `.gitattributes` tests in `tests/test_merge_driver.py` |
+| 8 | `tests/test_autopilot_overlaps.py::test_the_skill_tells_the_orchestrator_known_overlaps_are_expected`; the installed copy refreshed by `taskrail upgrade` |
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/autopilot/status.py` — `status()` only (the overlaps computation),
@@ -90,6 +129,12 @@ All verified by pytest with scripted worktrees; no manual trial.
 - Any change to `touched`, the escalation flags or the hand-off queue.
 
 ## Open questions and risks
+
+Answered at the plan gate (record above): D1 approved with the clause "; the label is by path, so
+a rebase still resolves such a file only when its conflict is one of those classes by content"
+appended after "and `tasks` (T051)"; D2 include `installed`, an unreadable manifest giving no
+`installed` paths; D3 approved as written; D4 as recommended, with the CHANGELOG naming the
+behaviour change.
 
 - **D1 — DESIGN.md text** (governing): in the §12.1 `autopilot status` row, replace
   "`touched`, the files changed since the fork point plus uncommitted ones, with `overlaps` between
