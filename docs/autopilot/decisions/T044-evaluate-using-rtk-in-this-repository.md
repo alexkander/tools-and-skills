@@ -34,3 +34,10 @@ ran with the real home, so that change is attributed to Claude Code, not proven.
 |---|---|---|---|---|
 | 1 | Verdict | no adoption · hook with per-user exclusions | **no adoption** — decided by the human | The rewritten `--json` output breaks under the frame's rule, and exclusions are per user and would leak into other projects. |
 | 2 | Follow-ups | CLAUDE.md note · taskrail `--json` test through `uv run` · none | **both** — decided by the human | The note protects contributors who install RTK globally; the test guards the JSON contract procedures here rely on. The CLAUDE.md wording is shown to the human before publishing. |
+
+## close
+
+The lane marked the decision accepted in the artifact, opened T045 and T046 in E06, and closed
+T044. No rebase was needed (`origin/main` is `d3833e7`). Checked before publishing: the branch
+changes only documentation and `TODO.md`, the artifact names no local user, host or path,
+`taskrail validate` 0 errors, no upstream.
