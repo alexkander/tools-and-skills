@@ -24,8 +24,9 @@ The reasons, all measured on RTK `v0.49.0`:
     excluded.
   - The option is recorded below, but it is not recommended.
 
-**Decide gate:** accepted by the human: no adoption of RTK. The follow-ups are T045 (a CLAUDE.md
-note) and T046 (a test that `--json` output stays parseable through `uv run`). The decisions are
+**Decide gate:** accepted by the human: no adoption of RTK. The two follow-ups, a CLAUDE.md note
+and a test that `--json` output stays parseable through `uv run`, are done in this task. The
+decisions are
 in the [decision record](../autopilot/decisions/T044-evaluate-using-rtk-in-this-repository.md).
 
 **Frame gate:** approved. The decisions are in the
@@ -476,17 +477,29 @@ hook or plugin is committed.
   that parses `--json`. It is what the taskrail skills already use, and RTK never rewrites it.
 - **Keep git output unfiltered.** Keep `git log --format=…` wherever a procedure reads trailers.
 
-Adopting nothing needs no follow-up work. The proposals below only reduce exposure for
+Adopting nothing needs no follow-up work. The two items below only reduce exposure for
 contributors who install RTK globally on their own.
 
-### Follow-ups (created after the decide gate)
+### Follow-ups (done in this task)
 
-- **T045, a note in CLAUDE.md (chore).** A short note saying RTK's hook is incompatible with
-  this repository's procedures, citing this spike. Its wording is shown to the human before
-  publishing.
-- **T046, a contract test for `uv run` (feature, taskrail).** A test that the CLI's `--json`
-  output parses when run through the `uv run taskrail` form, so any output wrapper that truncates
-  it is caught.
+At the decide gate the human chose to do both items in this task rather than open new backlog
+tasks.
+
+- **A note in CLAUDE.md.** A short note saying RTK's hook or plugin must not be used with this
+  repository, citing this spike. Its wording goes to the human for approval before it is
+  applied.
+- **A contract test for `uv run`.** `tools/taskrail/tests/test_json_through_uv_run.py` runs
+  `uv run --directory tools/taskrail taskrail --root <tmp repo> <show|list|next> --json` in a
+  subprocess. It checks that:
+  - stdout is complete JSON, and the exit code is 0;
+  - `show --json` is long enough (more than 60 lines) that a line cap like RTK's 50-line cap
+    would break it;
+  - `show T999 --json` exits 3, with nothing on stdout and the message on stderr.
+
+  It is skipped when `uv` is not on `PATH`.
+  - **Against the real command:** 5 passed in 1.16s. The full suite: 828 passed.
+  - **Against a temporary variant** piping stdout through `head -c 200`, removed afterwards: all 5
+    failed, with `JSONDecodeError`, `assert 12 > 60` and `assert 0 == 3`.
 
 ## What would change the decision
 
