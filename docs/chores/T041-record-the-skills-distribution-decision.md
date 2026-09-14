@@ -1,6 +1,6 @@
 # T041 — Record the skills distribution decision in CLAUDE.md
 
-Kind: chore · Epic: E04 · Status: scoped
+Kind: chore · Epic: E04 · Status: implemented
 
 ## Goal
 
@@ -86,6 +86,14 @@ Also, as the procedure requires:
 3. **Evidence link.** Proposed: keep it. `CLAUDE.md` does not link to any document elsewhere
    today; dropping the link would leave the decision without its evidence in this file.
 
+## Decisions at the scope gate
+
+Recorded in the
+[decision record](../autopilot/decisions/T041-record-the-skills-distribution-decision.md):
+
+- The proposed Distribution text is applied exactly as quoted, including the T009 evidence link.
+- Pull request title: `docs(repo): record the skills distribution decision in CLAUDE.md (T041)`.
+
 ## Out of scope
 
 - The rest of `CLAUDE.md`, including the intro's reminder to update the Distribution section
@@ -108,3 +116,20 @@ Also, as the procedure requires:
 - The stage's `test` check, `uv run --directory tools/taskrail pytest -q`, still passes (nothing
   under `tools/` changes). The `lint` check is not configured in this repository.
 - `taskrail validate` reports 0 errors.
+
+### Results
+
+- The approved text was applied by a script that took the current and proposed blocks from this
+  artifact and required the current block to occur exactly once in `CLAUDE.md`, so the result
+  is the quoted text byte for byte.
+- `git diff origin/main -- CLAUDE.md`: one hunk inside `## Distribution`, 14 lines added and 5
+  removed (`git diff --numstat`); no other line of the file changes.
+- `git diff --stat origin/main`: `CLAUDE.md`, this artifact, `docs/chores/README.md`, and the
+  scope-gate decision record with its index row. `TODO.md` changes at close.
+- `test -f docs/spikes/T009-decide-how-consumer-projects-install-thi.md` → `link-ok`.
+- No new line in `CLAUDE.md` exceeds 96 characters; lines 3 and 47 already did on `origin/main`.
+- Consistency with the T009 decision record: copy at a pinned commit into
+  `.claude/skills/<name>/`; pin recorded in the commit; marketplace deferred, at the root with
+  one `strict: false` entry per skill sourced from `./skills/<name>`. All three match.
+- `uv run --directory tools/taskrail pytest -q` → 823 passed in 91.39s. `lint` is not configured.
+- `.taskrail/bin/taskrail validate` → 42 task(s) in 1 backlog(s): 0 error(s), 0 warning(s).
