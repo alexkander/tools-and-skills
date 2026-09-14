@@ -1,6 +1,6 @@
 # T024 — Write the taskrail-autopilot skill with Claude Code and OpenCode notes
 
-Kind: feature · Epic: E02 · Status: plan (awaiting approval)
+Kind: feature · Epic: E02 · Status: implemented (plan approved with Q7 changed)
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12 — §12.1 (skill and CLI
 split), §12.2 (installed everywhere, exit-5 refusal), §12.3 (orchestrator, lanes, the Claude Code /
@@ -8,8 +8,10 @@ OpenCode table), §12.5 (decision records), §12.6 (escalation, notification, su
 (resources), §12.8 (merge follow-through, known conflict classes) — and the evidence in
 `docs/spikes/T007-design-taskrail-s-autopilot-from-existin.md` (E5–E7, coverage matrix). The
 decision records under `docs/autopilot/decisions/` show what an orchestrator actually does at each
-gate and rebase; the skill generalises them. The questions this plan needs settled are Q1–Q10
-below, each with a recommendation; the plan's wording assumes the recommendations.
+gate and rebase; the skill generalises them. The plan gate approved Q1–Q6 and Q8–Q10 as
+recommended and changed Q7: every section of a decision record, `## rebase after …` included, uses
+the `# | Question | Options | Decision | Reason` table, and DESIGN.md §12.5 says so. The record is
+`docs/autopilot/decisions/T024-write-the-taskrail-autopilot-skill-with.md`.
 
 **Workspace.** T024 depends on T030, T031 and T032, all merged into `main` (`a41ca8a`). The
 branch starts from `origin/main` (`a41ca8a`), the base `show T024 --fetch` reports, and the task
@@ -142,7 +144,8 @@ run `taskrail upgrade --force`. Anything else escalates.
 10. The decision-record template has the §12.5 structure: an introduction saying each decision is
     recorded before it is given; `## <stage> gate` with a `Reviewed:` paragraph and a
     `# | Question | Options | Decision | Reason` table; `## Conflict handling agreed for all lanes`;
-    `## rebase after …`; `## escalated to the human`; and says records are committed on the task
+    `## rebase after …`; `## escalated to the human` — every section with that same table and no
+    `File | Conflict | Resolution` table (Q7) — and says records are committed on the task
     branch only while the lane is stopped, plus an index row at `decisions_index`.
 11. `SKILL.md` lists the seven escalation conditions of §12.6, the three known conflict classes of
     §12.8 with "anything else escalates", sequential hand-off, and follow-through with
@@ -190,7 +193,7 @@ run `taskrail upgrade --force`. Anything else escalates.
 | Q4 | How the lane brief is produced | **a)** a template in the skill, filled from `autopilot next --run R --json` · b) a `brief` rendered by `autopilot next` | **a** | Writing the brief is judgement (touch map, other lanes, answers so far) and prose for an agent; a CLI-rendered brief would move instructions into Python, need per-agent wording and change a finished command. |
 | Q5 | Gate criteria | as in criterion 9, per gate type, taken from the decision records (re-run the suite in the lane's worktree, read the diff by range, deliberate breakage of new tests when in doubt, real-runtime check in a scratch environment, branch without an upstream before publishing) · a blanket "review and approve" | **per gate type** | The reference behaviour demands per-gate criteria, not blanket approval. |
 | Q6 | Who rebases at close | **a)** the lane stops after `review --json` and reports `rebase`; the orchestrator rebases once, at hand-off · b) the lane rebases at close, as the core skill's step 8 says, and again at hand-off if needed | **a** | Under sequential hand-off every earlier merge moves the mainline again, so a close-time rebase is usually repeated; the brief states the override explicitly. |
-| Q7 | The rebase section's table | **a)** `File / Conflict / Resolution` for known-class resolutions, as §12.5 says, plus the checks re-run; a `# | Question | …` row only for anything decided · b) the question table the records here use | **a** | Mechanical resolutions are not decisions; anything that needed judgement still gets a row. |
+| Q7 | The rebase section's table | a) `File / Conflict / Resolution` for known-class resolutions, as §12.5 said · **b)** the question table the records here use | a — **changed at the gate to b**, with §12.5 updated | One table shape for every section; this repository's records are the working evidence. |
 | Q8 | Tests for a skill | install behaviour, per-skill notes, prose invariants by phrase, portability (no agent names in the portable text), command drift against the CLI parser · also snapshot the whole text | **without a snapshot** | Invariants catch the rules that matter; a snapshot fails on every wording edit and tests nothing specific. |
 | Q9 | DESIGN §12 status | **a)** mark the skill parts of §12.2, §12.3, §12.5, §12.6, §12.8 *implemented (T024)* and the section heading *implemented*, leaving T033 as a trial · b) keep "partly implemented" until T033 | **a** | T033 builds nothing; every part of §12 then exists. |
 | Q10 | Starting a task with several unmerged dependencies from an integration base (what this lane first did, before T031 and T032 merged) | **a)** one paragraph: only on the human's explicit instruction; merge the branches into the lane's base, record the merge commit as the fork point for `git rebase --onto`, claim with `--ignore-deps --run R` · b) leave it out until T033 | **a** | It has happened; the fork point is easy to lose, and `next` never offers such a task, so the rule "never on its own" needs saying. |
@@ -207,3 +210,58 @@ run `taskrail upgrade --force`. Anything else escalates.
 - **Size.** Five points: one skill, three references, two note sections, an installer change and
   tests. If the gate checklist grows past a short page, it stays a reference rather than splitting
   the task.
+
+## Implementation
+
+- `skills/taskrail-autopilot/SKILL.md` — when to run (only when asked with a count; stop on exit 5),
+  before the first dispatch, dispatch, supervise, answer a gate with the touch map, escalate (the
+  seven conditions, `failed` lanes), close and hand off one branch at a time, after a merge, the
+  known conflict classes, several unmerged dependencies (Q10), and what the orchestrator never does.
+  It names no agent; the harness marker is last.
+- `references/lane-brief.md` (the §12.3 contract with `<…>` placeholders filled from `next --json`,
+  and the close override of the core skill's step 8), `references/gate-review.md` (every gate, the
+  plan-like gates, `implement`/`fix`, `verify`/`docs`/`impact`, close, rebase) and
+  `references/decision-record.md` (the §12.5 template with one table shape, Q7).
+- `integrations/claude.md`, `opencode.md` — the existing notes now open with
+  `<!-- taskrail:skill taskrail -->`, unchanged; a `taskrail-autopilot` section follows with the
+  §12.3 table's facts for that agent.
+- `install.py` — `harness_sections` splits a notes file per skill; `skill_of` names the skill a path
+  under an integration's skills directory belongs to; `skill_files` renders every file of a skill
+  directory and gives `SKILL.md` only its own sections. The kind filter, removals and the restart note
+  use `skill_of` instead of `SKILL.md` paths. Kind selection itself is unchanged: the new skill
+  installs everywhere because no core kind names it.
+- DESIGN.md §8 (skill list, per-skill notes table), §9 (every file of a skill directory is managed;
+  the autopilot skill always installs), §10, §12 heading and status, §12.1–§12.3, §12.5 (template,
+  one table shape), §12.6, §12.8, §12.10; README (kinds paragraph, an *Autopilot* section);
+  CHANGELOG (one bullet, last in Unreleased).
+- This repository's installed copy: `.taskrail/bin/taskrail upgrade` created
+  `.claude/skills/taskrail-autopilot/` (four files) and updated `.taskrail/installed.json`; the core
+  skill's installed copy did not change.
+
+## Criteria and tests
+
+Tests are in `tools/taskrail/tests/test_autopilot_skill.py` unless named otherwise. Committed first
+(`d0599f9`) and run before any implementation: 36 failed, 43 passed across that file and
+`test_install.py`, each failing because the skill, its references or per-skill notes did not exist.
+
+| # | Tests |
+|---|---|
+| 1 | `test_init_installs_the_autopilot_skill_and_its_references[claude, opencode]`, `test_claude_and_opencode_share_one_copy_references_included`; the `SKILLS` list in `test_install.py` (`test_init_creates_a_valid_project` and the T025 tests) |
+| 2 | `test_allowed_kinds_never_leave_out_the_autopilot_skill`; `test_install.py`: `test_allowed_kinds_limit_the_executor_skills_installed`, `test_core_skill_installs_when_only_a_local_kind_with_its_own_skill_is_allowed` and the other T025 tests |
+| 3 | `test_reference_files_are_recorded_and_reinstalling_changes_nothing`, `test_a_locally_edited_reference_is_kept_unless_forced`, `test_a_changed_reference_is_updated_and_asks_for_a_restart`, `test_a_managed_reference_no_longer_shipped_is_removed`, `test_the_kind_filter_removes_an_executor_skills_references_with_it` |
+| 4 | `test_with_claude_each_skill_gets_only_its_own_notes`, `test_with_opencode_alone_the_autopilot_skill_gets_its_opencode_notes`, `test_with_both_integrations_the_shared_copy_carries_both_agents_notes` (the core skill compared byte for byte with today's notes) |
+| 5 | `test_portable_text_names_no_agent_or_agent_tool[SKILL.md, each reference]` |
+| 6 | `test_description_says_what_and_only_on_an_explicit_request_with_a_count`; `test_install.py::test_skills_have_only_frontmatter_every_agent_accepts` |
+| 7 | `test_skill_runs_only_when_asked_with_a_count_and_stops_on_exit_5` |
+| 8 | `test_lane_brief_carries_the_lane_contract_and_placeholders` |
+| 9 | `test_gate_review_covers_every_gate_type_with_its_criteria` |
+| 10 | `test_decision_record_template_has_the_design_structure` |
+| 11 | `test_skill_lists_escalations_conflict_classes_and_hand_off`, `test_skill_starts_from_several_unmerged_dependencies_only_on_explicit_instruction` |
+| 12 | `test_every_taskrail_command_and_flag_shown_exists` (every `taskrail …` command in a code span or block, its subcommand and flags against `build_parser()`, and every `autopilot` subcommand used) |
+| 13 | the full suite, `taskrail validate`, `taskrail upgrade --json` |
+
+Deliberate breakages, each restored afterwards: installing only `SKILL.md` failed the eight
+reference tests; giving every skill every notes section failed the three notes tests; removing only
+`SKILL.md` paths failed three reference tests and `test_install.py::test_claude_and_opencode_share_one_copy`;
+showing `lane --stage` failed the command test; dropping "stop and report" failed the exit-5 test;
+removing every `autopilot notify` command from the skill failed the command test.

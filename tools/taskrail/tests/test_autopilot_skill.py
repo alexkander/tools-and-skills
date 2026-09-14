@@ -331,7 +331,7 @@ def shown_commands() -> list[tuple[str, str]]:
         spans += re.findall(r"`([^`\n]+)`", text)
         for block in re.findall(r"```[a-z]*\n(.*?)```", text, re.DOTALL):
             spans += block.splitlines()
-    return [(span, match) for span in spans for match in re.findall(r"(?<![\w/-])taskrail ((?:autopilot )?[a-z][a-z-]*.*)", span)]
+    return [(span, match) for span in spans for match in re.findall(r"(?<![\w/-])taskrail ((?:autopilot )?[a-z][a-z-]*[^`]*)", span)]
 
 
 def test_every_taskrail_command_and_flag_shown_exists():
