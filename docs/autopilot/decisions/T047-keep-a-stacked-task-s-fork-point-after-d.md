@@ -34,3 +34,17 @@ code changed, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T047 owns `_dependents` and a helper in `autopilot/merged.py`, one line in the `if created and args.run is not None:` block of `cli.py` `cmd_claim`, its tests in `tests/test_autopilot_merged.py` and one in `tests/test_autopilot.py`, the §12.4 `base.commit` sub-bullet and the §12.8 *Stacked dependents* bullet. T048 (closed) owns the `--run` check earlier in `cmd_claim`, `runs.py` and the other §12.4 lines; T055 the §12.8 *Hand-off is sequential* bullet; T053 `_handoff` in `test_autopilot.py`'s hand-off tests.** | Built from the gates reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commit `49ab56e` (range `19a0829..49ab56e`): one line in `cmd_claim` keeping the claim's
+`base` in the lane, `_kept_bases` and `_recorded_fork` in `autopilot/merged.py` with `_dependents`
+trying the claim, then kept bases newest run first, then `merge-base` and `run`; the two approved
+DESIGN.md edits; one CHANGELOG bullet; and four new tests shown failing before the code, the F1 test
+with exactly the trial's output (`stacked: False`, `fork_source: merge-base`, no command). Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 835 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–6 map to tests; the diff stays inside the touch map. |
+| 2 | "no claim or run records it" in the unknown-fork reason | keep · revert | **as recommended (keep)** | The message must name the new source it also checked. |
