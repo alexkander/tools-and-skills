@@ -198,3 +198,9 @@ $ git -c branch.autoSetupMerge=always switch --no-track -c SW2 main        -> no
 ```
 
 Both throwaway repositories were deleted afterwards.
+
+## Docs
+
+DESIGN.md, the CHANGELOG and the core skill were updated in the implement stage. A search of every
+Markdown file for `worktree add` and `switch -c` finds only past task write-ups under `docs/`,
+which record the commands as they ran then and stay unchanged. No follow-up tasks.
