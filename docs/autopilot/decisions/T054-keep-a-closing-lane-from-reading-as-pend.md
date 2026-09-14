@@ -46,3 +46,15 @@ failing on the unfixed code (`('pending', None, [])` and a re-dispatched `gate` 
 |---|---|---|---|---|
 | 1 | Approve the fix | approve · changes | **approve** | Derived from git, clears itself, covers both the F13 window and an unclaimed stopped lane; the diff stays inside the touch map. |
 | 2 | Follow-up for a task discarded on its unmerged branch | open a bug · record only | **as recommended (open)**, kind bug, epic E02, with `taskrail new` in this worktree, committed on this branch | A committed `❌` on a branch reads as `pending` and can be dispatched again; a pytest can script it. |
+
+## close gate
+
+Reviewed: `74e600d` (follow-up T062, bug, E02, verified by pytest), `98cc417` (artifact *Impact*)
+and `80092ee` (`taskrail done T054` on its own). The backlog differs from its base only in T054's
+row and the T062 row. No code or test changed after the checks re-run at the fix gate (830 passed).
+`taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed` true onto
+`origin/main` (T050 merged).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `fix(taskrail)`** | Every close check holds. At its rebase, the §12.1 `autopilot status` row carries T049's, T053's and T054's phrases: all are kept. |
