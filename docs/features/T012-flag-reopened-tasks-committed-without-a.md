@@ -157,3 +157,38 @@ Differences from the plan, decided while implementing:
   that visible rather than silent.
 - **Squash message settings.** A host configured to squash with only the pull request title drops
   the trailer; the mainline warning is then exactly the signal this task adds.
+
+## Verification
+
+Run through the real CLI (`uv run --project tools/taskrail taskrail --root <repo>`) against
+throwaway git repositories under a temporary directory, each starting from a backlog with T001 and
+T002 done and T003 pending; the repositories were deleted afterwards.
+
+- **Hand reopen.** After `sed` turned T001 to `⬜` and `git commit -m 'Mark T001 pending'`,
+  `validate` printed `TODO.md:15: warning: T001 went from ✅ done to ⬜ pending in f3cc32c ("Mark
+  T001 pending") without a `Reopens: T001` trailer; … [reopen-untraced]` and `0 error(s), 1
+  warning(s)`, exit 0; `--json` gave `valid: true` and `history` `{examined: 2, limit: 500,
+  truncated: false, shallow: false, skipped: null}`. `--no-history` printed no warning; with
+  `--history-limit 1` the warning stayed and the line `history: examined only the latest 1
+  commit(s) changing backlog files (--history-limit 1)` appeared; `--history-limit 0` exited 2.
+- **Empty acknowledgment commit.** `git commit --allow-empty -m 'Record the reopen of T001' -m
+  'Reopens: T001'` cleared the warning.
+- **Reopen with the CLI.** `reopen T002 --reason …` committed with its `commit_message`
+  (`%(trailers:key=Reopens,valueonly)` printed `T002`): no warning. A further uncommitted `reopen
+  T001`: no warning.
+- **Epic files.** `epic split E01` committed, then a title edit in the epic file: `history`
+  examined 3 commits and there were no issues. A hand reopen of T002 inside
+  `todo/E01-billing.md` was reported at `todo/E01-billing.md:8`. A hand reopen committed before
+  the split was still reported after it, at the task's new row (`todo/E01-billing.md:7`); a
+  recorded reopen followed by a split and an edit in the epic file gave no issues.
+- **Merges.** A `--no-ff --no-commit` merge of two branches that both kept T001 `✅`, resolved with
+  T001 `⬜`, was reported at the merge commit (`37ba308 ("Merge side")`). After an acknowledgment
+  commit, a true merge of a branch holding `Reopens: T002` gave no warning.
+- **Shallow clone.** `git clone --depth 1` of that repository: `validate` printed `history: shallow
+  clone; examined 1 commit(s), so older reopens are not checked` and no warning, exit 0; `history`
+  reported `shallow: true`.
+- **Outside git.** A copy of the files without `.git` printed `history: not checked (not a git
+  repository)`, exit 0.
+
+In this repository, `.taskrail/bin/taskrail validate` examined 32 commits in 0.16 s with no issues.
+No difference from the plan was found beyond the two recorded under Test coverage.
