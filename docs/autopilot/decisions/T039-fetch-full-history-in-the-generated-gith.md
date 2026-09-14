@@ -37,3 +37,16 @@ The docs stage updated the README bullet (pull requests and pushes to the mainli
 DESIGN.md §9 and the CHANGELOG, with no follow-ups. No rebase was needed (`origin/main` is
 `9c87bc2`). Checked before publishing: `TODO.md` differs from `main` only in T039 `✅`, the full
 suite passes, `taskrail validate` 0 errors, `upgrade` reports nothing to create or update.
+
+## rebase after T004 and T040
+
+T004 (`fff3fe6`) and T040 (`3f3b8d7`) were squash-merged into `main`. The orchestrator rebased the
+branch onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the decisions index, CHANGELOG and `TODO.md` | keep both · stop | **keep both** | Rows and bullets added on both sides. |
+| 2 | Conflict in DESIGN.md §9 *Extras* | merge both sentences · stop | **merge both** | T004 added `--merge-driver` to the bullet and this branch the full-history clause; the bullet now carries both. |
+
+After the rebase: the README and the workflow template keep this branch's change, `pytest -q` 823
+passed, `taskrail validate` 0 errors, `upgrade` reports nothing to create or update.
