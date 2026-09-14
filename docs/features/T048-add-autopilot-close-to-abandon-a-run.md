@@ -1,6 +1,6 @@
 # T048 — Add autopilot close to abandon a run
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: finding F7 of the
 [T033 trial](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md) (*Findings* and
@@ -156,3 +156,32 @@ All in `tools/taskrail/tests/test_autopilot_close.py`.
 | 8 | `test_close_exit_codes` |
 | 9 | `test_close_works_while_disabled_and_with_an_invalid_backlog` |
 | 10 | `test_a_merge_recorded_in_a_closed_run_still_counts` |
+
+## Verification
+
+Run with this branch's CLI (`.taskrail/bin/taskrail --root <scratch>`) against a scratch git
+repository in a temporary directory: three pending tasks, `worktree = "never"`, `max_lanes = 2` and a
+`PORT` resource with two values. No run file of this repository was touched.
+
+1. `autopilot start --count 3` twice made runs `20260914-1` and `20260914-2`. `next --run 20260914-1`
+   dispatched T001 (`PORT=5433`) and T002 (`PORT=5434`), `limited by max_lanes`; `next --run
+   20260914-2` then printed `nothing to dispatch · 2/2 lanes in use`. `claim T003 --run 20260914-1`
+   gave run 1 a claimed lane.
+2. `autopilot close 20260914-1 --reason "orchestrator session rewound"` printed the close, one
+   `released dispatch of … and PORT=… from T00x` line each for T001 and T002, and
+   `kept claim T003 by lane in <repo>; release it with `taskrail release T003``.
+3. `autopilot status` listed only run 2. `status --run 20260914-1` showed run 1 with
+   `closed <at> by <owner> — orchestrator session rewound`, T001 and T002 `pending`, and T003 still
+   `running` on its kept claim.
+4. `next --run 20260914-2` dispatched T001 and T002 with `PORT=5433` and `PORT=5434`, `2/2 lanes in
+   use`: run 1's claimed T003 no longer held a lane.
+5. On the closed run, `lane T001 --run … --handle h1`, `decision --run …`, `next --run …` and
+   `claim T002 --run …` each exited 5 with ``autopilot run `20260914-1` is closed``; a second
+   `close` exited 5 naming the first close; `close 20000101-1` exited 3; `close … --reason "   "`
+   exited 2.
+6. With `[autopilot].enabled = false`, `close 20260914-2 --json` exited 0 with `run`, `closed`,
+   `released` (T001 and T002 with their dispatch times and ports) and `claims: []`; `status` then
+   printed `no autopilot runs`, and the run file kept every key with `closed` added and each lane's
+   `dispatched` null and `resources` empty.
+
+The behaviour matches the plan; no gap.
