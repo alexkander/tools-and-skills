@@ -48,3 +48,20 @@ lane's worktree: 837 passed.
 
 Answered by the human (repository owner), in the orchestrator session.
 
+
+## close gate
+
+Reviewed: commits `7897864` (DESIGN.md: only the `escalation` phrase and text-form clause of the
+§12.1 `autopilot status` row, and the approved sentences in §12.6 *Governing paths*), `00e3197`
+(verify record: in a scratch repository a lane at `gate` or `running` stays flagged, and at
+`done-branch` and `handed-off` keeps `governing_touched` with an empty `escalation`) and `6a6e6d1`
+(`taskrail done T049` on its own). The backlog differs from `origin/main` only in T049's row and the
+T059 row the task added. No code changed after `5aa1d54`, whose checks passed when re-run (837
+passed). `taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed`
+false onto `origin/main`. The `governing` flag on `tools/taskrail/DESIGN.md` is covered by the
+human's delegation.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch for hand-off | queue · changes | **queue, as `feat(taskrail)`, after T050's pull request is merged** | Every close check holds; hand-off is sequential and T050 is in review. |
+| 2 | "running; handed off" wording of `lane --state handed-off` | follow-up · ignore | **ignore for now** | Pre-existing text, outside T049; the state shown is the recorded lane state, and the hand-off is reported in the same line. |
