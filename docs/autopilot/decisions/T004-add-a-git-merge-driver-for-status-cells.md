@@ -24,3 +24,20 @@ a `merge=taskrail` attribute without the config falls back to git's text merge.
 | Q9 | Adopt the driver in this repository now | decide after merge · commit a block here | **after merge** | Adopting it changes every clone's merges here and deserves its own small task once the driver is released. |
 
 Plan approved. The lane never installs the driver into this checkout's git config.
+
+## implement gate
+
+Reviewed: commits `125002e` (T040), `db27523` (tests against a raising stub) and `ac74245`
+(`mergedriver.py`, `init --merge-driver`, the extras hunk in `install.py`, the `epic add`/`split`
+refreshes in `cli.py`, core skill step 8, DESIGN.md §7.4 and §12.8, README, CHANGELOG). Re-ran
+`tests/test_merge_driver.py` in the lane's worktree: 47 passed; the lane's full suite gave 688. The
+tests failed against the stub, and making `merge_tables` a no-op failed 25 of them, including every
+real `git merge`, `rebase` and `cherry-pick` case. The configured fallback line runs
+`git merge-file` into `%A` when taskrail cannot start. This checkout has no `merge.*` config and no
+`.gitattributes`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve, including the `on_written` refreshes in `cli.py` and the local import in `install()` | approve · changes | **approve** | Both hunks are small and keep clear of T014's and T024's lines. |
+| 2 | A clone with `merge.taskrail.name` but no `driver` | documented only · `upgrade` notes it | **documented only** | taskrail never writes that state; §7.4 gives the one-line fix. |
+| 3 | T040's scope | 3-point feature in E02 depending on T004 · other | **as opened** | Moved changelog bullets need history, as decided at the plan gate. |
