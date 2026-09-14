@@ -45,3 +45,15 @@ and T042 (skill README install steps) in E04 as decided, and closed T009. No reb
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Pull request type and scope | `docs(skills)` · `docs(taskrail)` | **`docs(skills)`** | The decision concerns the `skills/` items, not taskrail. |
+
+## rebase after T004, T040 and T039
+
+T004 (`fff3fe6`), T040 (`3f3b8d7`) and T039 (`b7a11a9`) were squash-merged into `main`. The
+orchestrator rebased the branch onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` | keep both rows · stop | **keep both** | Rows added on both sides. |
+
+After the rebase: `TODO.md` differs from `main` in T009 `✅` and the added T041 and T042 rows, and
+`taskrail validate` reports 0 errors over 42 tasks.
