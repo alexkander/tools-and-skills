@@ -223,6 +223,10 @@ prints the same summary on stderr.
   (`test_configured_aliases_name_the_headers`).
 - **A replaceable target** is one holding nothing but headings and empty tables, rather than "no
   epic and no task row": a target with prose of its own is never overwritten.
+- **A refused conversion is not validated** (found in verification): exit 5 used to print, next
+  to the problems, validation errors of the half-converted text numbered by its own lines. Now it
+  prints only the problems, and `issues` is empty
+  (`test_unmapped_values_are_reported_together_and_nothing_is_written`).
 - **Validation is scoped to the target file.** Errors another backlog already has do not block an
   import; they would block `new` and the other write commands as before.
 
@@ -248,3 +252,42 @@ failed all 32 tests with `invalid choice: 'import'`.
 | 13. Usage errors | `test_usage_errors_exit_2` (7 cases), `test_a_missing_source_exits_2`, `test_several_backlogs_need_backlog` |
 | 14. Column aliases | `test_configured_aliases_name_the_headers` |
 | 15. Existing suite unchanged | full suite: 501 passed (469 existing + 32 new) |
+
+## Verification
+
+Run through this branch's wrapper (`.taskrail/bin/taskrail`, pinned to `local:tools/taskrail`)
+with `--root` on throwaway git repositories under a temporary directory, since removed. The
+invented source was a bakery backlog: a title and a prose paragraph, `## Ordering` and
+`## Payments`, each with a table headed `State | ID | Type | Priority | Blocked by | Task`,
+statuses `[x]`, `in progress`, `[ ]`, `todo`, `wontfix`, a `tech debt` kind, dependencies
+`T001; T002` and `-`, a `slot \| order` cell and a prose line between the sections.
+
+1. `validate` before: `no \`## Epics\` section [epics-missing]`, `0 task(s)`, exit 1.
+2. `import TODO.md` with only the four `--column` flags: exit 5, `taskrail: nothing was imported`,
+   one line per unmapped value with its source line and the flag to pass (`in progress` and
+   `wontfix` statuses, `tech debt` kind). The first run also printed validation errors of the
+   half-converted text; fixed as described above, and the rerun printed only the three problems.
+3. With `--status "in progress=pending" --status wontfix=discarded --kind "tech debt=chore"`
+   added: exit 0, nothing written, the summary on stderr (2 epics, 5 tasks, every mapped value
+   with its count, `Priority` named for `[columns].custom`) and the file on stdout.
+4. `--write`: exit 0, `wrote TODO.md`, byte-identical to the preview. `git diff` changed only the
+   two headings, the inserted `## Epics` section, the two table headers and the task rows; the
+   title, prose, separators, `Priority` and title cells, the escaped pipe and `Notes: slots are 15
+   minutes.` were untouched. `T001; T002` became `T001, T002`, empty and `-` became `—`.
+5. `validate`: `5 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`; `list` showed T003
+   `blocked` on T001, T002 and T005 `discarded`.
+6. The same command again: `already up to date`, `unchanged TODO.md`, exit 0, file unchanged.
+7. `reserve-id` returned `T006`; after `unreserve-id T006`, `new --epic E02 --kind bug` appended
+   T006 to the Payments table.
+8. In a second repository with the file `init` seeds as `TODO.md` and the source as `BACKLOG.md`:
+   `--write --json` reported `source: BACKLOG.md`, `target: TODO.md`, `written: true`, 5 tasks;
+   `BACKLOG.md` stayed as it was and `validate` passed with two `column-undeclared` warnings.
+9. The same import again: `unchanged TODO.md`, exit 0.
+10. After `new` added a task to `TODO.md`, the import exited 5 with `[target-not-empty]`.
+11. In a third repository whose committed `TODO.md` was still unconverted, `reserve-id` handed out
+    `T001` — the source's own ID, since its table is not a taskrail table yet. The import then
+    exited 4 with `task ID \`T001\` is reserved by baker@example; cancel it with \`taskrail
+    unreserve-id T001\`…` and left the file unchanged; after `unreserve-id T001` it exited 0 and
+    `validate` passed.
+
+No other difference from the plan was found.

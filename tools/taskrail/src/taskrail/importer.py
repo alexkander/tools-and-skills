@@ -524,8 +524,10 @@ def cmd_import(args) -> int:
     already = any(s.title and s.title.strip().lower() == EPICS_TITLE for s in parse_sections(text))
     content = text if already else importer.convert()
 
-    _, issues = load_project(config, overlay={backlog.file: content})
-    issues = [issue for issue in issues if issue.file == backlog.file]
+    issues = []
+    if not importer.problems:  # a refused conversion is half-done: validating it only adds noise
+        _, issues = load_project(config, overlay={backlog.file: content})
+        issues = [issue for issue in issues if issue.file == backlog.file]
     errors = [issue for issue in issues if issue.severity == "error"]
     if already and errors:
         importer.problem("epics-invalid", "the source already has an `## Epics` section but does not validate; fix it by hand", [])

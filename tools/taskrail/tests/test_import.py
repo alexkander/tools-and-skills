@@ -451,6 +451,8 @@ def test_unmapped_values_are_reported_together_and_nothing_is_written(repo, caps
     code, out, err = run(repo.root, "import", str(repo.root / "TODO.md"), "--column", "✓=Status", capsys=capsys)
     assert code == 5 and out == ""
     assert "wip" in err and "--status" in err and "--default-kind" in err
+    assert "[task-status]" not in err  # a refused conversion is not validated
+    assert result["issues"] == []
 
 
 # 9. IDs are kept and checked
