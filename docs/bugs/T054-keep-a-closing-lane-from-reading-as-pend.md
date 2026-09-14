@@ -1,6 +1,6 @@
 # T054 — Keep a closing lane from reading as pending between done and its commit
 
-Kind: bug · Epic: E02 · Status: diagnosed
+Kind: bug · Epic: E02 · Status: fixed
 
 Source: finding F13 of [the T033 autopilot trial](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md).
 
@@ -145,3 +145,90 @@ not include `pending`.
    `done-branch`.
 4. **Docs.** `DESIGN.md` §12.4 and the §12.1 `autopilot status` and `autopilot next` rows (exact text
    at the gate), and one bullet under `## Unreleased` in `tools/taskrail/CHANGELOG.md`.
+
+## Gate decisions
+
+Recorded in [the autopilot decisions](../autopilot/decisions/T054-keep-a-closing-lane-from-reading-as-pend.md):
+the diagnosis and fix 1–4 are approved; the `DESIGN.md` §12.4 `running` bullet and the two §12.1
+phrases are approved as proposed; plain `next`, `show` and `claim` stay unchanged; the skip covers
+every lane-occupying state.
+
+## Fix
+
+`tools/taskrail/src/taskrail/autopilot/status.py`:
+
+- `_closing(task, project)` resolves the task's branch with `branches.task_branch`, looks it up in
+  `gitutil.worktree_branches` (read once per project, cached as `autopilot_worktree_branches`), reads
+  that worktree's copy of `task.file`, and returns whether `stack._statuses` finds the row `✅`. A
+  task without a branch, a branch not checked out, or an unreadable file returns false.
+- `task_state` returns `running` when `claim is not None or _closing(task, project)`. `_closing`
+  runs only after the committed `done-merged`, `discarded`, `done-branch` and recorded
+  `failed`/`escalated`/`gate` checks, and only for a task without a claim.
+
+`tools/taskrail/src/taskrail/autopilot/dispatch.py`: the candidate skip `dispatched_in` becomes
+`occupying_in`, any run in which the task is in an `OCCUPYING` state (`running`, `gate`,
+`escalated`, `dispatched`), with reason `<state> in run R`. The `failed in run R` skip still comes
+first, and `dispatched in run R` reads as before.
+
+Also: the three approved phrases in `tools/taskrail/DESIGN.md` (§12.1 `autopilot next` and
+`autopilot status` rows, §12.4 `running`), and one bullet under `## Unreleased` in
+`tools/taskrail/CHANGELOG.md`.
+
+## Verification
+
+Regression tests in `tools/taskrail/tests/test_autopilot_next.py`, with the `pilot` fixture:
+
+- `test_a_lane_between_done_and_its_commit_is_running_and_not_dispatched_again` — `max_lanes = 1`,
+  T001 dispatched, claimed with `--run`, dispatch backdated 16 minutes, `done` in the lane without
+  a commit: `status` reports `running`, `claim` null, `touched == ["TODO.md"]`; with
+  `max_lanes = 2`, `next --run` skips T001 as `running in run R`, dispatches only T002, and lists
+  T001 among the occupied lanes; after the commit T001 is `done-branch`.
+- `test_a_lane_at_a_gate_without_a_claim_is_not_dispatched_again` — T001 claimed with `--run`,
+  recorded `gate`, claim released: `next --run` skips it as `gate in run R` and dispatches T002
+  and T003.
+
+Run against the unfixed code:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no tests/test_autopilot_next.py -k "between_done or without_a_claim"
+FF                                                                       [100%]
+>       assert (lane["state"], lane["claim"], lane["touched"]) == ("running", None, ["TODO.md"])
+E       AssertionError: assert ('pending', None, []) == ('running', None, ['TODO.md'])
+tests/test_autopilot_next.py:579: AssertionError
+>       assert skipped(result)["T001"] == f"gate in run {run_id}"
+E       KeyError: 'T001'
+tests/test_autopilot_next.py:597: KeyError
+FAILED tests/test_autopilot_next.py::test_a_lane_between_done_and_its_commit_is_running_and_not_dispatched_again
+FAILED tests/test_autopilot_next.py::test_a_lane_at_a_gate_without_a_claim_is_not_dispatched_again
+2 failed, 36 deselected in 1.94s
+```
+
+The first fails on the root cause: `pending` with no `touched` between `done` and its commit. The
+second fails because the unclaimed `gate` lane was dispatched again instead of skipped.
+
+After the fix:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no tests/test_autopilot_next.py -k "between_done or without_a_claim"
+2 passed, 36 deselected in 1.01s
+$ uv run --directory tools/taskrail pytest -q
+830 passed in 107.95s (0:01:47)
+```
+
+The `lint` check the `fix` stage names is not configured in this repository's `[checks]`.
+
+The reproduction script from *Reproduction*, re-run with the fixed CLI:
+
+```text
+--- autopilot status between done and its commit
+exit 0: state=running claim=False touched=['TODO.md']
+--- autopilot next --run 20260914-1 between done and its commit (exit 0)
+{"dispatch": [], "skipped": [], "remaining": 0}
+--- taskrail next between done and its commit (exit 0)
+["T001"]
+--- autopilot status after the commit
+exit 0: state=done-branch claim=False touched=['TODO.md']
+```
+
+`remaining: 0` now counts the closing lane toward the run's count of 1, so nothing is dispatched;
+plain `taskrail next` still offers T001, as decided.
