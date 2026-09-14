@@ -47,3 +47,15 @@ bullet. Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's workt
 |---|---|---|---|---|
 | 1 | Approve the fix | approve · make `stack._read_statuses` public | **approve, as recommended** | Covers the three scenarios of the diagnosis; renaming a private helper is a refactor outside the touch map. |
 | 2 | Fallback without its own test | accept · add a test | **as recommended (accept)** | Reached only when history no longer holds the done transition, and it keeps the previous behaviour with author time. |
+
+## close gate
+
+Reviewed: `03cab50` (`taskrail done T053` on its own, changing only T053's row); no change since
+`10dd36a` besides it, and the checks re-run at the fix gate passed (831). Impact stage had nothing to
+open. `taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed`
+false onto `origin/main`. The `governing` flag on `tools/taskrail/DESIGN.md` is covered by the
+human's delegation.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch for hand-off | queue · changes | **queue, as `fix(taskrail)`** | Every close check holds; hand-off is sequential, after T050 and T049. At its rebase, the §12.1 `autopilot status` row also carries T049's escalation phrase: both are kept. |
