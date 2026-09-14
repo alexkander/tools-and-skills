@@ -34,3 +34,14 @@ had the same digests before and after.
 | 2 | Claude Code marketplace | defer · build now | **defer** — decided by the human | It serves Claude Code only and keeps the exact commit outside the consumer; build it when a consumer needs many-project installs, at the root with one `strict: false` entry per skill sourced from `./skills/<name>`. |
 | 3 | Where the pin is recorded | the commit that adds or updates the copy · a lock file | **the commit** — decided by the human | No new file in the consumer's layout. |
 | 4 | Follow-up tasks | CLAUDE.md Distribution chore · skill README docs · marketplace feature | **CLAUDE.md Distribution and skill READMEs** — decided by the human | The marketplace is deferred. |
+
+## close
+
+The lane marked the recommendation accepted in the artifact, opened T041 (CLAUDE.md Distribution)
+and T042 (skill README install steps) in E04 as decided, and closed T009. No rebase was needed
+(`origin/main` is `9c87bc2`). Checked before publishing: the branch changes only documentation and
+`TODO.md` (T009 `✅`, T041 and T042 added), `taskrail validate` 0 errors, no upstream.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Pull request type and scope | `docs(skills)` · `docs(taskrail)` | **`docs(skills)`** | The decision concerns the `skills/` items, not taskrail. |
