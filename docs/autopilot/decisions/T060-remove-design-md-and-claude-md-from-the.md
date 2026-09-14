@@ -38,3 +38,14 @@ the checks were not re-run by the orchestrator beyond confirming the diff.
 |---|---|---|---|---|
 | 1 | Approve the implement stage | approve · wording changes | **approve** | Matches the approved scope; the wording states both roles of the key accurately. |
 | 2 | T061 has no points | leave unestimated · set points now | **as recommended (leave)** | Estimating belongs to whoever plans it; an unestimated task sorts last in `next`, which suits a follow-up. |
+
+## close gate
+
+Reviewed: `39a3f66` (`taskrail done T060` on its own). The backlog differs from its base only in
+T060's row and the T061 row the task added. `taskrail validate`: 0 errors. No upstream is
+configured. The `test` check passed at implement (828) and only backlog and record commits followed.
+`review --json`: `rebase.needed` true onto `origin/main` (T050 merged).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Hand-off order | next after the branch in review · after the run's queue | **next after T049, ahead of T053, as `chore(repo)`** | The human made T060 a priority; hand-off stays one branch at a time. |
