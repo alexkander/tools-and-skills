@@ -17,3 +17,16 @@ so `upgrade` already rewrites an unedited copy.
 | 3 | Test that `upgrade` rewrites an unedited old workflow | include · template test only | **include** | It proves existing installs receive the fix without code changes. |
 
 Change set approved, including the README wording fix for pushes to the mainlines.
+
+## implement gate
+
+Reviewed: commit `badbe16` (`fetch-depth: 0` under `actions/checkout@v7` in `workflow()`, and two
+tests in `tests/test_install.py`). Both tests failed on the old template; the lane's full suite gave
+743 passed. In throwaway installs made with `main`'s code, `upgrade` with this branch updated an
+unedited workflow, skipped an edited one, and replaced it with `--force`; a depth-1 fetch hid an
+untraced reopen that a full fetch reported.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Exactly the approved change set. |
+| 2 | Pull request type | `fix` · `chore` | **`fix`** | The generated workflow silently defeated an existing check; users should see it in the release notes. |
