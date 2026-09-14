@@ -48,3 +48,17 @@ with exactly the trial's output (`stacked: False`, `fork_source: merge-base`, no
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–6 map to tests; the diff stays inside the touch map. |
 | 2 | "no claim or run records it" in the unknown-fork reason | keep · revert | **as recommended (keep)** | The message must name the new source it also checked. |
+
+## close gate
+
+Reviewed: `7659c30` (verification in a scratch repository with a bare origin: after T001 was rebased
+at hand-off and squash-merged, this branch's `autopilot merged` reported T002 `stacked: true`,
+`fork_source: run-base` and a `rebase --onto` command that left only T002's commits; the base
+commit's CLI, as control, reported `stacked: false` with no command) and `aaa13eb` (`taskrail done
+T047` on its own, changing only T047's row). No code changed after the checks re-run at the implement
+gate (835 passed). `taskrail validate`: 0 errors. No upstream is configured. `review --json`:
+`rebase.needed` false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification and its control show F1 fixed. |
