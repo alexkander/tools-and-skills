@@ -46,3 +46,15 @@ The lane qualified the `/caveman`-under-`deny` sentence as read from OpenCode's 
 commit, found no other documentation to change, and closed T042. No rebase was needed
 (`origin/main` is `8eeb8df`). Checked before publishing: the only external URLs are this
 repository's public one and the vendored upstream's, `taskrail validate` 0 errors, no upstream.
+
+## rebase after T041
+
+T041 was squash-merged into `main` as `82f0b64`. The orchestrator rebased the branch onto
+`origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in `docs/chores/README.md`, `docs/autopilot/decisions/README.md` and `TODO.md` | keep both · stop | **keep both** | Rows added on both sides; T041 and T042 each `✅`, no `Reopens:` commit. |
+
+After the rebase: no conflict markers, `TODO.md` differs from `main` only in T042 `✅`, and
+`taskrail validate` reports 0 errors. The READMEs agree with the Distribution text now on `main`.
