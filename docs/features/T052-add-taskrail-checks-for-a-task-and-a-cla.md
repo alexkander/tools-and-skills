@@ -1,6 +1,7 @@
 # T052 — Add taskrail checks for a task and a Claude Code note on command shape
 
-Kind: feature · Epic: E02 · Status: plan (awaiting approval). Record:
+Kind: feature · Epic: E02 · Status: implemented (plan approved: D1–D7 as recommended; D4, D5 and
+D6 applied as written; D7 opened as T063). Record:
 `docs/autopilot/decisions/T052-add-taskrail-checks-for-a-task-and-a-cla.md`.
 
 Source: finding F11 of `docs/spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md`: permission
@@ -81,6 +82,37 @@ After this change:
    into the installed `taskrail` and `taskrail-autopilot` skills (a test runs `init --integration
    claude` on a fixture and asserts the text in the installed copies), and not into an
    `opencode`-only install; every `taskrail` command and flag the notes show exists in the parser.
+
+## Tests per criterion
+
+All in `tools/taskrail/tests/`. Each was observed failing before the implementation: the seven
+`test_checks.py` tests with `argparse.ArgumentError: argument command: invalid choice: 'checks'`
+(exit 2), the note tests with the text missing from the installed copies and from `claude.md`, and
+the core-skill test with the step 5 sentence missing.
+
+| Criterion | Test |
+|-----------|------|
+| 1 | `test_checks.py::test_runs_every_stage_check_in_the_worktree_from_the_main_checkout` (a local `feature` kind with checks in two stages: order `test, lint, smoke, missing`, `pwd` is the worktree, stderr captured, `missing` is `not-configured`, exit 0) |
+| 2 | `test_checks.py::test_a_failing_check_exits_6_and_the_later_checks_still_run` (`exit 3` check: `failed`, exit 6, the checks after it `passed`) |
+| 3 | `test_checks.py::test_stage_and_check_narrow_the_selection` (`--stage implement`, `--check smoke --check test` in stage order, a stage with no checks, unknown stage exit 2 naming the stages, a `--check` outside the stage exit 2) |
+| 4 | `test_checks.py::test_the_lane_resources_reach_the_checks_before_and_after_done` (`autopilot next` gives T004 `PORT=5433`; the check echoes it while claimed and again after `done` and its commit) |
+| 5 | `test_checks.py::test_the_worktree_configuration_decides_the_commands` (an uncommitted config change in the worktree wins when invoked with `--root` at the main checkout) |
+| 6 | `test_checks.py::test_no_worktree_exits_5_and_an_unknown_task_exits_3` (unclaimed T003: exit 5 naming its branch, the check did not run; T999: exit 3) |
+| 7 | `test_checks.py::test_text_mode_streams_each_check_and_summarises` (headers, streamed output, `missing: not configured`, `passed …` lines; a failing check from the worktree's own kind prints `failed broken (exit 3)` and exits 6) |
+| 8 | `test_autopilot_skill.py::test_claude_notes_on_command_shape_and_checks_reach_the_installed_copies` (`init --integration claude`: phrases in the installed `taskrail` and `taskrail-autopilot` skills); `test_with_claude_each_skill_gets_only_its_own_notes` and `test_with_both_integrations_the_shared_copy_carries_both_agents_notes` (the exact installed core skill, `CORE_CLAUDE_NOTES` extended); `test_with_opencode_alone_the_autopilot_skill_gets_its_opencode_notes` (unchanged: an opencode-only copy is exactly the source plus the OpenCode notes, so it carries none of these); `test_every_taskrail_command_and_flag_in_the_claude_notes_exists`; and for D6 `test_core_skill_runs_stage_checks_with_taskrail_checks_and_documents_exit_6` |
+
+This repository's own installed copies (`.claude/skills/taskrail/SKILL.md`,
+`.claude/skills/taskrail-autopilot/SKILL.md`, `.taskrail/installed.json`) were updated with
+`taskrail upgrade`.
+
+Implementation details the plan left open:
+
+- `--stage` runs that stage's checks even when the stage does not apply to the task (an explicit
+  request); the default set skips stages whose `applies` is false.
+- A `--check` name that is not among the selected stages' checks exits 2, listing the ones that are,
+  so a typo is not silently a pass.
+- A task whose kind is not defined in the worktree's configuration exits 2.
+- In text mode each check's output is inherited by the terminal, not captured, so long runs stream.
 
 ## Affected areas
 
