@@ -32,3 +32,4 @@
 | T039 | Fetch full history in the generated GitHub workflow | [T039-fetch-full-history-in-the-generated-gith.md](T039-fetch-full-history-in-the-generated-gith.md) |
 | T009 | Decide how consumer projects install this repository's skills | [T009-decide-how-consumer-projects-install-thi.md](T009-decide-how-consumer-projects-install-thi.md) |
 | T041 | Record the skills distribution decision in CLAUDE.md | [T041-record-the-skills-distribution-decision.md](T041-record-the-skills-distribution-decision.md) |
+| T043 | Move caveman to .claude/skills for use in this repository only | [T043-move-caveman-to-claude-skills-for-use-in.md](T043-move-caveman-to-claude-skills-for-use-in.md) |
