@@ -41,3 +41,19 @@ real `git merge`, `rebase` and `cherry-pick` case. The configured fallback line 
 | 1 | Approve, including the `on_written` refreshes in `cli.py` and the local import in `install()` | approve · changes | **approve** | Both hunks are small and keep clear of T014's and T024's lines. |
 | 2 | A clone with `merge.taskrail.name` but no `driver` | documented only · `upgrade` notes it | **documented only** | taskrail never writes that state; §7.4 gives the one-line fix. |
 | 3 | T040's scope | 3-point feature in E02 depending on T004 · other | **as opened** | Moved changelog bullets need history, as decided at the plan gate. |
+
+## rebase after T024, T012 and T014
+
+T024 (`977064f`), T012 (`525af38`) and T014 (`9c87bc2`) were squash-merged into `main`. The
+orchestrator rebased the branch onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflicts in the docs indexes, CHANGELOG and `TODO.md` | keep both · stop | **keep both** | Rows and bullets added on both sides; T004 `✅`, T040 added, no `Reopens:` commit. |
+| 2 | Conflict in the `cli.py` import line | keep both · stop | **keep both** | `history` from T012 and `mergedriver` from this branch. |
+| 3 | Conflict in `.taskrail/installed.json` (class 3) | valid manifest, merged sources, `upgrade --force` · hand-merge | **class 3** | Took `main`'s manifest, kept the merged core skill source (step 8 from this branch, T014's "Editing tasks" section), ran `upgrade --force`; the manifest digest matches the installed copy. |
+
+The full suite ran on the conflict-resolved commit before continuing (788 passed). After the rebase:
+the only conflict markers are the quoted verification output in this task's artifact, `pytest -q`
+788 passed, `taskrail validate` 0 errors, a second `upgrade` reports nothing to create or update, and
+this checkout still has no `merge.*` config and no `.gitattributes`.
