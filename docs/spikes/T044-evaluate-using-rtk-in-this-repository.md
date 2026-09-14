@@ -486,8 +486,8 @@ At the decide gate the human chose to do both items in this task rather than ope
 tasks.
 
 - **A note in CLAUDE.md.** A short note saying RTK's hook or plugin must not be used with this
-  repository, citing this spike. Its wording goes to the human for approval before it is
-  applied.
+  repository, citing this spike. The human approved the wording, and it was applied at the end
+  of CLAUDE.md's *Commands* section.
 - **A contract test for `uv run`.** `tools/taskrail/tests/test_json_through_uv_run.py` runs
   `uv run --directory tools/taskrail taskrail --root <tmp repo> <show|list|next> --json` in a
   subprocess. It checks that:

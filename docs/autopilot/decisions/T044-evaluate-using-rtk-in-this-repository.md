@@ -41,3 +41,15 @@ The lane marked the decision accepted in the artifact, opened T045 and T046 in E
 T044. No rebase was needed (`origin/main` is `d3833e7`). Checked before publishing: the branch
 changes only documentation and `TODO.md`, the artifact names no local user, host or path,
 `taskrail validate` 0 errors, no upstream.
+
+## follow-ups folded into this task — decided by the human
+
+The human asked that T044 do both follow-ups itself instead of adding them to the backlog. The lane
+reverted the two backlog rows (append-only, the branch was already published), added
+`tools/taskrail/tests/test_json_through_uv_run.py` (5 passed; the same checks against output cut
+with `head -c 200` failed 5 of 5; full suite 828 passed), and drafted the CLAUDE.md note.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | CLAUDE.md note | as drafted, end of *Commands* · in *Backlog* · other wording | **as drafted** — decided by the human | It sits next to the `uv run taskrail` commands RTK breaks. The orchestrator applied it unchanged. |
+| 2 | Pull request title | `docs(repo)` · `test(taskrail)` | **`docs(repo)`** (orchestrator) | The decision and the CLAUDE.md rule are the substance; the test guards them and changes nothing a taskrail user runs. |
