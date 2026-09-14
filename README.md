@@ -1,7 +1,6 @@
 # tools-and-skills
 
-Reusable agent skills, tools and libraries, centralized so they can be shared across projects
-instead of being copied into each one.
+Reusable agent skills, tools and libraries, maintained in one place and shared across projects.
 
 Nothing here is tied to a single agent. Claude Code is the first target, but items are written
 so another agent can load them, and agent-specific packaging is kept out of the items
@@ -18,6 +17,12 @@ libs/     Libraries that are imported: versioned, with their own package manifes
 Every item is one self-contained directory, grouped with everything it needs and depending on
 nothing else in this repository. Taking one directory is enough to use it; siblings never have
 to come along.
+
+## Using an item
+
+Each item's README says how to install, update and remove it. Skills are copied into a
+project's `.claude/skills/<name>/` from a specific commit of this repository, with that commit
+recorded in the consumer's history.
 
 ## Third-party content
 

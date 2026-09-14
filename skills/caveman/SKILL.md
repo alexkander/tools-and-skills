@@ -19,8 +19,8 @@ rule in the vendored upstream text below wherever the two disagree.** Where this
 silent, the upstream text applies as written.
 
 These rules are deliberately free of any one project's specifics. A consuming project that
-needs more — its own pipeline names, its own governed documents — adds them alongside this
-file rather than editing the vendored text.
+needs more — its own pipeline names, its own governed documents — adds them outside this
+skill's directory, such as in its own agent instructions, rather than editing this file.
 
 ### 1. Human invocation only
 
