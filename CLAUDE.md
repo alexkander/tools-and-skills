@@ -40,6 +40,10 @@ Grouped by artifact kind, one self-contained directory per item, each with its o
 - `libs/<lib-name>/` — libraries that are *imported*: versioned, with their own package
   manifest, meant to be depended on rather than copied.
 
+`.claude/skills/` is not an item directory: it holds the skills agents use while working on this
+repository — taskrail's installed copies (see *Backlog*) and caveman, vendored under the rules
+below — and nothing there is distributed.
+
 The tools/libs split is about how a consumer uses the thing, not how big it is: a tool is run,
 a library is linked against. A library needs a version and a changelog; a tool usually does not.
 
