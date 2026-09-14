@@ -51,3 +51,17 @@ Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 839
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | Every criterion maps to a test that fails without the code; the diff stays inside the touch map. |
+
+## close gate
+
+Reviewed: `88e642e` (verification in a scratch repository with two runs and a `PORT` resource:
+closing the run holding both lanes gave the other run both lanes and ports, kept the claim, hid the
+run from `status`, and `lane`, `decision`, `next --run`, `claim --run` and a second `close` exited 5,
+an unknown run 3 and a blank reason 2) and `31631c9` (`taskrail done T048` on its own, changing only
+T048's row). No code or test changed after the checks re-run at the implement gate (839 passed).
+`taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed` true onto
+`origin/main` (T050 merged).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification matches the plan. |
