@@ -1,0 +1,158 @@
+# T014 — Add an edit command for existing task rows
+
+Kind: feature · Epic: E02 · Status: planned
+
+Source: T001 friction F4 ([T001 spike](../spikes/T001-validate-the-taskrail-skills-by-working.md)).
+A task was created without its dependency and fixed by editing `Depends On` with `sed`: no
+command changes an existing row, and the core skill only allows hand edits of titles and
+descriptions.
+
+## Behaviour
+
+```bash
+taskrail edit <ID> [--title T] [--pts N] [--depends-on IDS] [--description D] [--kind K] \
+  [--column NAME=VALUE]... [--owner O] [--force] [--local-only] [--allow-invalid] [--json]
+```
+
+`edit` changes cells of one existing task row, in the current checkout, and nothing else:
+
+- **Editable:** `Title`, `Pts`, `Depends On`, `Description`, `Kind`, and custom columns through
+  `--column`. Aliased core columns (§3.2) are written under their alias through their usual flag,
+  as `new` does.
+- **Not editable:** `ID` (never), and the status (`✓`), which stays with `done`, `discard` and
+  `reopen`. Moving a task to another epic is out of scope (see below).
+- **Values.** Each flag replaces the whole cell. `--depends-on` takes a comma-separated list and
+  writes it as `new` does (`T001, T003`). An empty value clears the cell and writes what `new`
+  writes for an omitted value: `—` for `Pts`, `Depends On` and custom columns, an empty
+  `Description`. An empty `--title` is left to validation (`task-title`). `--pts` accepts a
+  whole number or an empty string; anything else is a usage error.
+- **Minimal diff.** Each changed value rewrites only its own cell with `writer.replace_cell`,
+  keeping the cell's width when the value fits; the table is never re-aligned. A value equal to
+  the current one is not rewritten; when nothing changes, nothing is written and the command
+  still succeeds.
+- **Validate before writing.** The row is edited in memory through `writer.Edits` and the whole
+  project is validated by `writer.apply`; with any error nothing is written (exit 1) and the
+  errors are printed. This covers unknown dependencies, self-dependencies, dependency cycles,
+  forbidden backlog directions, points that are not whole numbers or not on the scale, unknown
+  or disallowed kinds, and an empty title, with the same rules and codes as `validate`.
+- **Refusals, checked before editing:**
+  - no field flag given, `--column` without `=`, a value with a line break, or a column the
+    task's table does not have — exit 2;
+  - `--column` naming a core column, by core name or alias and in any letter case — exit 2,
+    naming the `edit` flag that sets it (`ID` and `✓` are not editable), reusing `new`'s
+    message;
+  - an unknown ID — exit 3;
+  - a task claimed by someone else — exit 4;
+  - a task that is `done`, `discarded` or `done-branch` — exit 5;
+  - an invalid backlog — exit 1, as for every write command.
+  `--force` overrides the claim and status refusals. `--allow-invalid` lets the edit run on an
+  invalid backlog, and it is still written only if the edited project has no errors — so a
+  cycle or unknown dependency left by a hand edit or a merge can be fixed with `edit` itself.
+- **Claims.** No claim is needed — editing a row is backlog planning, like `new` and `discard`.
+  `--owner` (default `$TASKRAIL_OWNER`, then `user@host`) only identifies the caller against an
+  existing claim. The claim itself is never changed.
+- **Branch names (§6.4).** A task with a recorded branch keeps that name: `edit` never renames
+  or records over it, and never touches a git branch. For a task whose branch comes from the
+  template, a new title (or a kind whose template differs) changes the rendered name. When the
+  old name exists as a local branch, `edit` records the old name so the work on it stays the
+  task's branch — what `claim` does for the same reason — and mirrors the record as `claim`
+  does when `[git].branch_record_remote` is set (`--local-only` skips it). When no such branch
+  exists, nothing is recorded and the task simply resolves to the new name.
+- **Output.** The text form prints one line per changed field (`T014 title: old → new`) and a
+  line when the branch name changed or was recorded. `--json` returns:
+
+  ```json
+  {
+    "id": "T014",
+    "changes": {
+      "title": {"from": "Old", "to": "New"},
+      "points": {"from": 3, "to": 5},
+      "depends_on": {"from": ["T001"], "to": ["T001", "T003"]},
+      "columns": {"Owner": {"from": "—", "to": "api"}}
+    },
+    "branch": {"name": "T014-…", "source": "recorded", "previous": null, "recorded": false},
+    "record_remote": null,
+    "files": ["TODO.md"]
+  }
+  ```
+
+  Field names are the JSON names `show` uses (`title`, `points`, `depends_on`, `description`,
+  `kind`, `columns`); only changed fields appear. `branch.previous` is the name the task
+  resolved to before the edit when it differs from `branch.name`, else `null`; `branch.recorded`
+  is true when `edit` wrote a record. `files` is empty when nothing changed.
+
+## Acceptance criteria
+
+1. `edit T002 --title X` rewrites only the `Title` cell of T002's row: the file diff is that one
+   line, every other cell unchanged; `--json` reports `changes.title` with `from` and `to`.
+2. `--pts 5` sets `Pts`; `--pts ""` writes `—`; `--pts abc` exits 2; a value off
+   `[points].scale` exits 1. Neither refusal writes anything.
+3. `--depends-on "T001,T003"` writes `T001, T003`; `--depends-on ""` writes `—`. An unknown ID,
+   the task itself, or a dependency that creates a cycle each exit 1 and write nothing, with the
+   validation error printed.
+4. `--description D` sets the description; `--description ""` empties the cell.
+5. `--kind bug` changes the kind; an undefined kind or one outside `[kinds].allowed` exits 1 and
+   writes nothing.
+6. `--column Owner=api` sets a custom column and `--column Owner=` writes `—`. A core column
+   given to `--column` — core name or alias, any letter case — exits 2 naming the flag; a column
+   the task's table lacks, `--column` without `=`, and a value containing a line break exit 2.
+   Nothing is written.
+7. With `[columns].aliases` mapping `Pts` to `Size`, `--pts 5` writes the `Size` column.
+8. Several flags in one call change all their cells in one write; a task in an epic's own file is
+   edited in that file.
+9. No field flag exits 2. Values equal to the current ones exit 0 with empty `changes` and
+   `files`, and leave the file untouched.
+10. An unknown ID exits 3. A done, discarded or `done-branch` task exits 5; with `--force` the edit
+    is made.
+11. A task claimed by another owner exits 4; with `--force`, or claimed by the caller, or
+    unclaimed, the edit is made and the claim file is unchanged.
+12. An invalid backlog exits 1 and writes nothing. With `--allow-invalid`, an edit that removes the
+    only error (a dependency cycle) is written and exits 0; one that leaves an error exits 1 and
+    writes nothing.
+13. A task with a recorded branch keeps it after a title change: `branch.name` and the record are
+    unchanged and no git branch is renamed.
+14. A template-named task whose old branch exists locally: after a title change, the old name is
+    recorded, `branch.recorded` is true and `show` still reports the old branch. Without that
+    local branch, nothing is recorded, `branch.name` is the new template name and
+    `branch.previous` the old one.
+15. The text output names each changed field with its old and new value.
+
+## Affected areas
+
+- `tools/taskrail/src/taskrail/writer.py` — a `set_cells(edits, task, values)` helper that locates
+  the row as `set_status` does and replaces the named cells, refusing columns the table lacks.
+- `tools/taskrail/src/taskrail/cli.py` — the `edit` subparser and `cmd_edit`; the core-column
+  check shared with `cmd_new` is factored into one helper, and `CORE_COLUMN_FLAGS` serves both
+  commands' messages.
+- `tools/taskrail/tests/test_edit.py` — tests for the criteria above.
+- `tools/taskrail/DESIGN.md` — §7 command table and write rules (§3.2 mentions `edit --column`).
+- `tools/taskrail/README.md` — one line in the Use block.
+- `tools/taskrail/src/taskrail/skills/taskrail/SKILL.md` — replace "Editing a title or
+  description by hand is fine" with `taskrail edit`, and add it to *Creating tasks*; installed
+  copies refreshed with `taskrail upgrade`.
+- `tools/taskrail/CHANGELOG.md` — one bullet at the end of `## Unreleased`.
+
+## Out of scope
+
+- Moving a task to another epic (`--epic`). It deletes a row in one table and appends it in
+  another, possibly another file, which is a larger and more conflict-prone change than a cell
+  edit; a follow-up task if wanted.
+- Editing epics (name, objective, `Done when`).
+- Changing the status or the ID.
+- Renaming git branches when a title changes; `taskrail branch` does that.
+- Adding or removing single dependencies (`--add-depends-on`); `show --json` gives the current
+  list to extend.
+- Resolving conflicts between two branches that edited the same row; that is T004's merge driver.
+
+## Open questions and risks
+
+- **Conflicts.** A row edited on one branch and changed on another — most often its status cell
+  set by `done` on the task's branch — conflicts on rebase, since both touch the same line. The
+  core skill's rebase rule already stops and asks for conflicts other than added rows and status
+  cells. The skill text will say to edit a task you are working on inside its own workspace, so
+  the edit and the status change travel together.
+- **Kind changes mid-work.** Changing the kind of a claimed task changes its executor skill and
+  stages. It is allowed (the caller holds the claim or passes `--force`); the claim's recorded
+  branch is unaffected.
+- **Recording the old branch** reads only local branches, like `claim`; a branch that exists only
+  on a remote is not protected.
