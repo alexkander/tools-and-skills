@@ -66,7 +66,7 @@ Done when: the mechanism is documented in CLAUDE.md and used by one consumer.
 
 | ✓  | ID   | Kind    | Pts | Depends On | Title                          | Description                    |
 |----|------|---------|-----|------------|--------------------------------|--------------------------------|
-| ⬜ | T009 | spike   | 3   | —          | Decide how consumer projects install this repository's skills | Compare a plugin marketplace, installer commands and copying, for skills that are not taskrail. |
+| ✅ | T009 | spike   | 3   | —          | Decide how consumer projects install this repository's skills | Compare a plugin marketplace, installer commands and copying, for skills that are not taskrail. |
 | ⬜ | T011 | spike   | 2   | —          | Re-evaluate RTK once its filter-wide exit-code guard lands | Reopen only when rtk-ai/rtk PR #3577 is merged and issue #3230 is closed. |
 | ⬜ | T041 | chore   | 1   | —          | Record the skills distribution decision in CLAUDE.md | Replace the first paragraph of Distribution with the copy-at-a-pinned-commit wording proposed in [T009](docs/spikes/T009-decide-how-consumer-projects-install-thi.md); tools and libraries stay undecided. |
 | ⬜ | T042 | chore   | 1   | —          | Document install, update and removal in each skill README | Start with caveman: copy into `.claude/skills/<name>/` at a commit, record repository URL, path and full SHA in that commit, and note `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` and `permission.skill` for OpenCode, per [T009](docs/spikes/T009-decide-how-consumer-projects-install-thi.md). |
