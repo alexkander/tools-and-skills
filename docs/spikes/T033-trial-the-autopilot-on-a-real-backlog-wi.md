@@ -15,8 +15,10 @@ and a set of smaller skill-text and CLI defects. The OpenCode run is inconclusiv
 - **OpenCode run:** it used a different model than planned and stopped at its usage limit with
   0 of 5 merged, so it cannot confirm or refute the design on OpenCode.
 
-**Gate outcome:** pending. The human decided before the analysis that T033 closes with this
-evidence as it is.
+**Gate outcome:** the human accepted the verdict and option 2 at the decide gate, and asked for every
+proposed follow-up task to be opened
+([decision record](../autopilot/decisions/T033-trial-the-autopilot-on-a-real-backlog-wi.md)). T033
+closes with this evidence as it is.
 
 ## Question
 
@@ -251,21 +253,21 @@ Option 2. The Claude Code run shows the design's core working without a human su
 opt-in, dispatch, the lane contract, gate review with records, escalation, sequential hand-off and
 merge detection. What went wrong is specific and fixable.
 
-Proposed follow-up tasks — proposals only, not created here:
+Follow-up tasks, opened in epic E02 after the human accepted them at the decide gate:
 
-| Proposal | Kind | Fixes |
-|---|---|---|
-| Keep a stacked dependent's fork point after `done`: record `base.commit` in the run file at claim and use it in `autopilot merged` before `merge-base` | feature | F1 |
-| Add `autopilot close <run> --reason …` to abandon a run, releasing its dispatches and resources and hiding it from `next` | feature | F7 |
-| Order the hand-off queue by the `done` commit, not the branch tip | bug | F8 |
-| Stop flagging `governing` once a task is `done-branch`, or after a recorded approval | feature | F9 |
-| Accept `--gate close` for the stop after `done` | feature | F10 |
-| Separate known-class files (backlog, changelog, indexes) in `overlaps` | feature | F12 |
-| Reproduce and fix the `pending` window between `done` and its commit | bug | F13 |
-| Autopilot skill text: a hand-off message that always carries branch, title and body; refill on `done-branch`; IDs from `taskrail new` are unique across lanes; dispatch expiry; resuming a run from a new session with a restart-from-branch lane brief, and §12.3 reworded to match | chore | F2, F4, F5, F6, F7 |
-| OpenCode integration note: at an escalation, end the turn with the question instead of starting another blocking batch; record handles when a batch returns; check `silent` between batches | chore | F3 |
-| Claude Code integration note on command shape (one command per call, absolute wrapper path, no `cd … &&`), plus a `taskrail checks <ID>` that runs a lane's configured checks in its worktree with its resources, so one allowlist entry covers them | feature | F11 |
-| A second, short trial: compaction on both agents, OpenCode with a Claude model, and a new-session `SendMessage` to an old lane ID | spike | not verified |
+| Task | Proposal | Kind | Fixes |
+|---|---|---|---|
+| T047 | Keep a stacked dependent's fork point after `done`: record `base.commit` in the run file at claim and use it in `autopilot merged` before `merge-base` | feature | F1 |
+| T048 | Add `autopilot close <run> --reason …` to abandon a run, releasing its dispatches and resources and hiding it from `next` | feature | F7 |
+| T053 | Order the hand-off queue by the `done` commit, not the branch tip | bug | F8 |
+| T049 | Stop flagging `governing` once a task is `done-branch`, or after a recorded approval | feature | F9 |
+| T050 | Accept `--gate close` for the stop after `done` | feature | F10 |
+| T051 | Separate known-class files (backlog, changelog, indexes) in `overlaps` | feature | F12 |
+| T054 | Reproduce and fix the `pending` window between `done` and its commit | bug | F13 |
+| T055 | Autopilot skill text: a hand-off message that always carries branch, title and body; refill on `done-branch`; IDs from `taskrail new` are unique across lanes; dispatch expiry; resuming a run from a new session with a restart-from-branch lane brief, and §12.3 reworded to match | chore | F2, F4, F5, F6, F7 |
+| T056 | OpenCode integration note: at an escalation, end the turn with the question instead of starting another blocking batch; record handles when a batch returns; check `silent` between batches | chore | F3 |
+| T052 | Claude Code integration note on command shape (one command per call, absolute wrapper path, no `cd … &&`), plus a `taskrail checks <ID>` that runs a lane's configured checks in its worktree with its resources, so one allowlist entry covers them | feature | F11 |
+| T057 | A second, short trial: compaction on both agents, OpenCode with a Claude model, and a new-session `SendMessage` to an old lane ID | spike | not verified |
 
 ## What would change the decision
 
