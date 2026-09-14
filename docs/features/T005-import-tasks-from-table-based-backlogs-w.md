@@ -1,6 +1,6 @@
 # T005 — Import tasks from table-based backlogs without epics
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 ## Context
 
@@ -33,8 +33,8 @@ taskrail import BACKLOG.md --write [--backlog NAME] [--json]
   the repository has several backlogs). The source may be that same file — an in-place
   conversion, the usual case after `taskrail init` left an existing `TODO.md` alone — or another
   file, which is then left untouched for the user to delete. The target is replaced only when it
-  is the source, does not exist, or holds no epic and no task row (the file `init` seeds). The
-  edit goes through the writer's validate-in-memory, atomic-replace path.
+  is the source, does not exist, or holds nothing but headings and empty tables (the file `init`
+  seeds). The result is validated in memory against the target and replaced atomically.
 - **Mapping flags**, all repeatable and matched case-insensitively after trimming:
   - `--column CORE=HEADER` — the source header of a core column (`✓`, `ID`, `Kind`, `Pts`,
     `Depends On`, `Title`, `Description`), in the same direction as `[columns].aliases`. Without a
@@ -78,8 +78,8 @@ taskrail import BACKLOG.md --write [--backlog NAME] [--json]
   the summary names them for `[columns].custom`. Two source columns mapped to one core column
   refuse the import.
 - **Missing columns.** A table without `Kind` gets one, filled with `--default-kind` (refused
-  without it); a table without `Depends On` gets one filled with `—`. Inserted after the `ID`
-  column, Kind first. `Title` has no default: a table without it, or a row with an empty title,
+  without it), inserted after `ID`; a table without `Depends On` gets one filled with `—`,
+  inserted after `Kind`. `Title` has no default: a table without it, or a row with an empty title,
   refuses the import.
 - **Status** cells become `⬜`, `✅` or `❌`. Built-in markers: pending `⬜`, `[ ]`, `todo`,
   `pending`, `open`; done `✅`, `[x]`, `done`, `closed`; discarded `❌`, `discarded`, `cancelled`.
@@ -214,3 +214,37 @@ prints the same summary on stderr.
 - **Size.** The plan is at the upper end of 5 points; `--epic-level`, `--epic-name` and heading
   IDs could be dropped to shrink it, leaving nearest-heading epics and a fixed fallback name.
 - **Parallel lanes** edit `cli.py`; this task adds only a registration hunk there.
+
+## Changes at implementation
+
+- **Depends On placement.** The plan said inserted columns go "after the `ID` column, Kind
+  first". For a table that already has Kind elsewhere, that put Depends On between ID and Kind;
+  it now goes after Kind, as in taskrail's default column order
+  (`test_configured_aliases_name_the_headers`).
+- **A replaceable target** is one holding nothing but headings and empty tables, rather than "no
+  epic and no task row": a target with prose of its own is never overwritten.
+- **Validation is scoped to the target file.** Errors another backlog already has do not block an
+  import; they would block `new` and the other write commands as before.
+
+## Test coverage
+
+All in `tools/taskrail/tests/test_import.py`, written before `importer.py` existed: the first run
+failed all 32 tests with `invalid choice: 'import'`.
+
+| Criterion | Tests |
+|---|---|
+| 1. Headings become epics; result validates | `test_headings_become_epics_and_the_result_validates` |
+| 2. Only converted lines change | `test_only_converted_lines_change` (prose, list, a non-task table with IDs, fenced table and heading, escaped pipes, spacing, row order), `test_crlf_line_endings_are_kept` |
+| 3. Dry run | `test_dry_run_writes_nothing_and_prints_the_content` |
+| 4. Epic level | `test_default_epic_level_is_the_shallowest_nearest_heading`, `test_epic_level_groups_subsections_under_their_heading` |
+| 5. Fallback epic | `test_tables_without_a_heading_form_a_fallback_epic` (exact output), `test_epic_name_names_the_fallback_epic` |
+| 6. `E07 — Name` keeps its ID | `test_a_heading_shaped_like_an_epic_keeps_its_id` |
+| 7. Status, kind and dependency mapping; inserted columns | `test_statuses_kinds_and_dependencies_are_mapped`, `test_missing_kind_and_depends_on_columns_are_inserted_after_id`, `test_configured_aliases_name_the_headers` |
+| 8. Unmapped values reported together | `test_unmapped_values_are_reported_together_and_nothing_is_written` |
+| 9. IDs kept and checked | `test_ids_must_match_the_prefix_and_be_unique` (3 cases); IDs asserted exactly in criterion 1's test |
+| 10. Invalid result exits 1 | `test_a_result_that_fails_validation_exits_1` |
+| 11. Running twice | `test_an_in_place_import_run_twice_changes_nothing_the_second_time`, `test_importing_into_the_seeded_backlog_twice`, `test_importing_the_output_again_is_a_no_op`, `test_a_source_with_an_invalid_epics_section_is_refused` |
+| 12. `reserve-id` | `test_reserve_id_counts_the_imported_ids`, `test_a_reserved_id_refuses_the_import` |
+| 13. Usage errors | `test_usage_errors_exit_2` (7 cases), `test_a_missing_source_exits_2`, `test_several_backlogs_need_backlog` |
+| 14. Column aliases | `test_configured_aliases_name_the_headers` |
+| 15. Existing suite unchanged | full suite: 501 passed (469 existing + 32 new) |
