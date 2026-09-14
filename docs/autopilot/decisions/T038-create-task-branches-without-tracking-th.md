@@ -36,3 +36,15 @@ the task's own remote branch as upstream, and a stacked base left untracked.
 |---|---|---|---|---|
 | 1 | Start point as a second test parameter | accept · two remote-base cases only | **accept** | Only a local start point exercises `branch.autoSetupMerge=always`. |
 | 2 | Scope commit without attribution trailers | leave · reword | **leave** | The pull request is squash-merged, so branch commits never reach `main`; rewording would rewrite the orchestrator's decision commit too. |
+
+## close and rebase after T030
+
+The docs stage found nothing more to change: older task write-ups record the commands as they were
+run at the time. The lane rebased onto `origin/main` (`53bd1fb`); the decisions index and CHANGELOG
+conflicted and kept both, and the skill source keeps T036's and this task's step 3 text. Checked
+before publishing: `pytest -q` 540 passed, `taskrail validate` 0 errors, `upgrade` reports nothing to
+create or update, the branch has no upstream.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Pull request type | `fix` · `chore` | **`fix`** | It removes a hazard where a plain `git push` could land on the mainline; users should see it in the release notes. |
