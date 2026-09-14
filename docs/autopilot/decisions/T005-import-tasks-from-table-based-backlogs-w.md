@@ -34,3 +34,12 @@ before commit. The importer reuses the existing cell and ID helpers without chan
 |---|---|---|---|---|
 | 1 | Changes from the plan: Depends On after Kind; `--write` replaces only a target with nothing but headings and empty tables; only the target file's errors block; `already_imported` and exit 4 for a busy lock | accept · Depends On after ID, whole-project validation | **accept** | Each is safer or more precise than the plan's wording: a target with its own prose is never overwritten, and a broken unrelated backlog does not block adopting another. |
 | 2 | Approve the implementation | approve · changes | **approve** | Criteria 1–15 map to tests seen failing. |
+
+## verify, close and rebase after T034, T037, T036 and T030
+
+The verify stage found one gap — a refused import also printed validation errors for the
+half-converted text, with its line numbers — and the lane fixed it within scope under a regression
+test observed failing first. The lane rebased twice at close; only the docs indexes and CHANGELOG
+conflicted, resolved by keeping both with a single T005 bullet last. Checked by the orchestrator
+before publishing: `TODO.md` differs from `main` only in T005 `✅`, `pytest -q` 568 passed,
+`taskrail validate` 0 errors, `upgrade` reports nothing to create or update, no upstream.
