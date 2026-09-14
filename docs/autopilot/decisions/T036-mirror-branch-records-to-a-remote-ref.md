@@ -49,3 +49,17 @@ only in T036 `✅` and the added T037 row, the skill source differs only in step
 nothing to create or update, `pytest -q` 485 passed, `taskrail validate` 0 errors. The branch's
 upstream, set to `origin/main` by `git worktree add`, was unset so no plain `git push` can target
 the mainline.
+
+## rebase after T034 and T037
+
+T034 (`0f01370`) and T037 (`d092c96`) were squash-merged into `main`. The branch was rebased onto
+`origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` | keep both rows · stop | **keep both** | Rows added on both sides. |
+| 2 | Conflicts in `TODO.md` | union by ID, `✅` wins · stop | **union by ID** | T037 is `✅` on `main` and `⬜` here; no `Reopens: T037` commit. The commit that opened T037 on this branch became empty and was dropped. |
+
+`claims.py` merged without conflict: T037's lease fix sits beside this branch's `write_file_commit`
+call. After the rebase: no conflict markers, `pytest -q` 500 passed, `taskrail validate` 0 errors,
+`upgrade` reports nothing to create or update.
