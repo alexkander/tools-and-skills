@@ -1,6 +1,6 @@
 # T014 — Add an edit command for existing task rows
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: T001 friction F4 ([T001 spike](../spikes/T001-validate-the-taskrail-skills-by-working.md)).
 A task was created without its dependency and fixed by editing `Depends On` with `sed`: no
@@ -117,10 +117,37 @@ taskrail edit <ID> [--title T] [--pts N] [--depends-on IDS] [--description D] [-
     `branch.previous` the old one.
 15. The text output names each changed field with its old and new value.
 
+## Test coverage
+
+All in `tools/taskrail/tests/test_edit.py`.
+
+| Criterion | Tests |
+|---|---|
+| 1. Title rewrites one cell | `test_title_rewrites_only_its_cell`, `test_a_shorter_value_keeps_the_cell_width`, `test_a_pipe_in_a_value_is_escaped` |
+| 2. Points | `test_points_are_set_and_cleared`, `test_points_that_are_not_a_whole_number_are_a_usage_error`, `test_points_off_the_scale_are_refused_by_validation` |
+| 3. Dependencies | `test_dependencies_are_replaced_and_cleared`, `test_invalid_dependencies_write_nothing` (unknown, self, cycle) |
+| 4. Description | `test_description_is_set_and_emptied` |
+| 5. Kind | `test_kind_is_changed`, `test_an_undefined_kind_is_refused`, `test_a_disallowed_kind_is_refused` |
+| 6. Custom columns and refusals | `test_a_custom_column_is_set_and_cleared`, `test_column_refuses_a_core_column_and_names_the_flag`, `test_a_column_the_table_lacks_is_refused`, `test_an_optional_core_column_the_table_lacks_is_refused`, `test_column_without_an_equals_sign_is_refused`, `test_a_line_break_in_a_value_is_refused` |
+| 7. Aliased columns | `test_pts_writes_an_aliased_column`, `test_column_names_an_alias_to_refuse` |
+| 8. Several flags; epic files | `test_several_flags_change_their_cells_in_one_write`, `test_a_task_in_an_epic_file_is_edited_there` |
+| 9. Nothing to change | `test_no_field_flag_is_a_usage_error`, `test_values_equal_to_the_current_ones_write_nothing`, `test_text_output_when_nothing_changes` |
+| 10. Unknown, closed, `done-branch` | `test_an_unknown_task_is_not_found`, `test_a_closed_task_is_refused_unless_forced` (done, discard), `test_a_task_done_on_its_branch_is_refused_unless_forced` |
+| 11. Claims | `test_someone_elses_claim_is_refused_unless_forced`, `test_the_callers_claim_or_no_claim_is_fine` |
+| 12. Invalid backlogs | `test_an_invalid_backlog_is_refused`, `test_allow_invalid_writes_an_edit_that_fixes_the_backlog` |
+| 13. Recorded branch kept | `test_a_recorded_branch_keeps_its_name` |
+| 14. Template branch recorded or moved | `test_an_existing_template_branch_is_recorded_before_the_title_changes`, `test_without_a_branch_the_task_resolves_to_the_new_name`, `test_an_edit_that_keeps_the_branch_name_reports_no_previous`, `test_a_recorded_branch_is_mirrored_like_claim`, `test_local_only_records_without_mirroring` |
+| 15. Text output | `test_text_output_names_each_change`, `test_text_output_when_nothing_changes` |
+
+The existing `new --column` tests (`tests/test_write.py`, `tests/test_column_aliases.py`) cover
+the core-column check `new` and `edit` now share, and the `set_status` tests cover it now that it
+delegates to `writer.set_cells`.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/writer.py` — a `set_cells(edits, task, values)` helper that locates
-  the row as `set_status` does and replaces the named cells, refusing columns the table lacks.
+  the row and replaces the named cells, refusing columns the table lacks; `set_status` now
+  delegates to it.
 - `tools/taskrail/src/taskrail/cli.py` — the `edit` subparser and `cmd_edit`; the core-column
   check shared with `cmd_new` is factored into one helper, and `CORE_COLUMN_FLAGS` serves both
   commands' messages.
@@ -128,8 +155,9 @@ taskrail edit <ID> [--title T] [--pts N] [--depends-on IDS] [--description D] [-
 - `tools/taskrail/DESIGN.md` — §7 command table and write rules (§3.2 mentions `edit --column`).
 - `tools/taskrail/README.md` — one line in the Use block.
 - `tools/taskrail/src/taskrail/skills/taskrail/SKILL.md` — replace "Editing a title or
-  description by hand is fine" with `taskrail edit`, and add it to *Creating tasks*; installed
-  copies refreshed with `taskrail upgrade`.
+  description by hand is fine" with `taskrail edit`, and add an *Editing tasks* section right
+  after *Creating tasks*; installed copies refreshed with `taskrail upgrade`. Step 8's rebase
+  conflict rule is unchanged.
 - `tools/taskrail/CHANGELOG.md` — one bullet at the end of `## Unreleased`.
 
 ## Out of scope
@@ -156,3 +184,9 @@ taskrail edit <ID> [--title T] [--pts N] [--depends-on IDS] [--description D] [-
   branch is unaffected.
 - **Recording the old branch** reads only local branches, like `claim`; a branch that exists only
   on a remote is not protected.
+
+Decisions at the plan gate (recorded in `docs/autopilot/decisions/T014-add-an-edit-command-for-existing-task-ro.md`):
+no `--epic` and no follow-up; exit 5 for closed and `done-branch` tasks with `--force`; no claim,
+exit 4 on someone else's claim with `--force`; `--kind` editable; `--allow-invalid` writes only an
+error-free result; the old template branch name is recorded when that local branch exists,
+mirrored like `claim`; `--depends-on` replaces the list; the skill points to `taskrail edit` only.
