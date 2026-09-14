@@ -46,3 +46,18 @@ the tests that cover them.
 | 1 | Approve the implementation | approve · changes | **approve** | Follows Q1–Q10 with Q7 changed; criteria map to tests seen failing. |
 | 2 | Deviations: no separate escalations list in `SKILL.md`, `<SERVICES>` and `<CONTEXT>` placeholders, a per-skill column in the §8 notes table | accept · revert some | **accept all** | Small and visible; the record template keeps the escalation section. |
 | 3 | Rebase at close | lane rebases · orchestrator rebases at hand-off | **orchestrator at hand-off** | The skill this task writes says lanes stop after `review --json`; the orchestrator follows it. |
+
+## verify, close and rebase after T005 and T038
+
+The verify stage installed the skill for Claude Code, OpenCode and both, confirmed the exit-5
+refusal, filled every placeholder of the lane brief from a real `autopilot next --json`, and ran the
+commands the brief hands out. It noted that `autopilot start --json` nests the ID as `run.id`, which
+the skill did not name.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Rebase onto `origin/main` (`cfba7e6`, T005 and T038 merged) | plain rebase · `--onto` | **plain rebase** | The fork point `a41ca8a` is on `main`. The docs indexes and CHANGELOG conflicted and kept both, one bullet per task. |
+| 2 | Name `run.id` in the skill | now, before publishing · leave for T033 | **now** | One phrase that prevents a wrong read in every run; the orchestrator committed it separately and regenerated the installed copy with `upgrade`. |
+
+After the rebase: no conflict markers, the skill source still keeps T038's core step 3, `pytest -q`
+665 passed, `taskrail validate` 0 errors, a second `upgrade` reports nothing to create or update.
