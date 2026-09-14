@@ -1,6 +1,6 @@
 # T040 — Merge appended changelog bullets without duplicating moved ones
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: T004's plan-gate decision Q7
 ([decisions](../autopilot/decisions/T004-add-a-git-merge-driver-for-status-cells.md)), which
@@ -303,6 +303,72 @@ file).
 - **Full suite:** `uv run --directory tools/taskrail pytest -q` gave `821 passed in 96.01s`, which is
   788 on T004's branch plus the 33 new tests. The `lint` check has no command configured in
   `.taskrail/config.toml`, so it was not run.
+
+## Verification
+
+A throwaway repository under `/tmp` (deleted afterwards), git 2.55.0, running this branch's code
+through the committed wrapper. `taskrail init --integration claude --merge-driver` ran from this
+branch's source, then the pin was set to `local:taskrail-src`, a git-ignored symlink to
+`tools/taskrail`, so git invoked the real `.taskrail/bin/taskrail merge-driver` with no
+`TASKRAIL_BIN`. The changelog was `tools/app/CHANGELOG.md`. The behaviour matched the plan; no gap
+was found.
+
+**Install.** `init` reported `created .gitattributes` and `created git config merge.taskrail`, and the
+block held `/tools/app/CHANGELOG.md merge=taskrail` after the backlog and index lines. Later,
+`libs/core/CHANGELOG.md` was created and `.taskrail/bin/taskrail upgrade` reported
+`updated .gitattributes`, adding `/libs/core/CHANGELOG.md merge=taskrail` and keeping the driver
+definition.
+
+**1. `git merge`, both sides append one bullet.** `git merge --no-edit a` → `Merge made by the 'ort'
+strategy.`, exit 0:
+
+```
+- X first change.
+- Y second change,
+  wrapped.
+- B from main.
+- A from branch a.
+```
+
+**2. The moved bullet, `git rebase`.** Branch `e` added N2 at the top of `## Unreleased`, then moved it
+to the very end in a second commit; `main` then added M2 at the top and P2 at the end. On `e`,
+`git rebase main` → `Successfully rebased and updated refs/heads/e.`, exit 0, both commits replayed,
+N2 once (`grep -c` gives 1):
+
+```
+- M2 from main at the top.
+- X first change.
+- Y second change,
+  wrapped.
+- A from branch a.
+- P2 from main at the end.
+- N2 the branch's own bullet,
+  on two lines.
+```
+
+For comparison, the same rebase after `git config --local --remove-section merge.taskrail` stopped on
+the first commit with `CONFLICT (content): Merge conflict in tools/app/CHANGELOG.md` and exit 1:
+M2 against N2 at the top. That is the conflict whose "keep both" resolution left the bullet twice
+once the move was replayed. An earlier run of the same shape, with the move landing in the middle of
+the list, also rebased cleanly with N once, placed after the bullet it followed on the branch.
+
+**3. A real conflict.** Both sides reworded bullet X, and branch `c` also appended C. `git merge
+--no-edit c` exited 1 with the changelog unmerged and markers around that bullet only:
+
+```
+- M from main at the top.
+<<<<<<< HEAD
+- X first change, as main says.
+=======
+- X first change, as branch c says.
+>>>>>>> c
+- Y second change,
+  wrapped.
+- B from main.
+- P from main at the end.
+- C from branch c.
+- A from branch a.
+```
 
 ## Evidence
 
