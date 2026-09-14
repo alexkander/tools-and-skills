@@ -232,3 +232,12 @@ exit 0: state=done-branch claim=False touched=['TODO.md']
 
 `remaining: 0` now counts the closing lane toward the run's count of 1, so nothing is dispatched;
 plain `taskrail next` still offers T001, as decided.
+
+## Impact
+
+- **T062** (bug, E02) — *Treat a task discarded on its unmerged branch as closed in status and
+  next*: a `❌` committed on a task branch reads as `pending` to `autopilot status`, `autopilot next`
+  and `next` until merged, because `done-branch` counts only `✅`. To be verified by a pytest that
+  discards on a branch, commits, and asserts the task is neither `pending` nor offered.
+- Plain `next`, `show` and `claim` keep reading the window between `done` and its commit as
+  `pending`, by decision; no task.
