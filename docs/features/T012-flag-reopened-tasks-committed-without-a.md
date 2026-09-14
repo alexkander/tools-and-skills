@@ -1,6 +1,6 @@
 # T012 — Flag reopened tasks committed without a Reopens trailer
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 ## Behaviour
 
@@ -23,8 +23,8 @@ directly on the mainline as well as one on a branch. Running on a mainline in CI
 squash-merged reopens are checked.
 
 **Detecting a transition.** For each examined commit `C`, taskrail reads the backlog files at `C`
-and at each of its parents with one `git cat-file --batch` per pass (main files, then the epic
-files named at each revision — the reader `stack._read_statuses` already implements), and builds
+and at each of its parents with one `git cat-file --batch` (the main file and the epic files the
+working tree names), and builds
 one `ID → status` map per revision across all of a backlog's files, so a row moved between the main
 file and an epic file is not a change. `C` reopens a task when the task is `⬜` at `C` and `✅` or
 `❌` at **every** parent. For a merge, that means only a resolution that flipped the cell counts;
@@ -89,11 +89,37 @@ exists, so a warning there would fire on every correct `taskrail reopen`.
     about 6 ms, so a cheap text pre-filter — skip a revision pair unless a line containing `✅` or
     `❌` and a pending task's ID disappeared — is part of the implementation).
 
+## Test coverage
+
+All in `tools/taskrail/tests/test_history.py`.
+
+| Criterion | Tests |
+|---|---|
+| 1. Hand reopen of a done task warned, exit 0 | `test_a_done_task_reopened_without_a_trailer_is_reported`, `test_the_warning_appears_in_text_output` |
+| 2. Discarded tasks | `test_a_discarded_task_reopened_without_a_trailer_is_reported` |
+| 3. Trailer in the commit, a later commit, a squash body | `test_a_trailer_in_the_reopen_commit_records_it` (three spellings), `test_a_later_commit_with_the_trailer_records_it`, `test_a_squash_commit_carrying_the_trailer_in_its_body_records_it` |
+| 4. Older trailer does not cover | `test_an_older_trailer_does_not_cover_a_later_hand_reopen` |
+| 5. Closed again, gone, uncommitted | `test_a_hand_reopen_closed_again_is_not_reported`, `test_a_hand_reopen_closed_again_in_the_working_tree_is_not_reported`, `test_a_task_that_no_longer_exists_is_not_reported`, `test_an_uncommitted_reopen_is_not_reported` |
+| 6. Epic files | `test_a_row_moved_to_an_epic_file_is_not_a_transition`, `test_a_hand_reopen_in_an_epic_file_is_reported` |
+| 7. Merges | `test_a_merge_resolution_that_reopens_a_task_is_reported`, `test_a_merged_branch_with_a_recorded_reopen_is_not_reported`, `test_a_merged_branch_with_a_hand_reopen_is_reported_at_its_own_commit` |
+| 8. One warning per task | `test_several_hand_reopens_of_one_task_give_one_warning_for_the_latest` |
+| 9. Flags, outside git, shallow | `test_no_history_skips_the_check`, `test_history_limit_bounds_the_commits_examined`, `test_history_limit_must_be_positive`, `test_outside_git_the_check_is_skipped`, `test_a_shallow_clone_reports_it_and_does_not_fail`, `test_repository_without_commits_is_skipped` |
+| 10. `history` always present; only `validate` reads history | `test_the_default_run_reports_its_history` (and every test above reading `history`), `test_other_commands_do_not_read_history` |
+| 11. Long history under two seconds | `test_a_long_history_is_checked_quickly` (1,000 commits built with `git fast-import`, a 50 KB backlog) |
+
+Differences from the plan, decided while implementing:
+
+- Epic files are read at every revision by the paths the working tree names, rather than by the
+  paths each revision's main file names; the path filter of `git log` uses the same list, so both
+  sides agree, and `history.py` reuses only the row parser `stack._statuses`.
+- A repository without commits reports `skipped: "no commits"`, a fourth value beside the three the
+  plan listed.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/history.py` — new module: commit listing, transition detection,
-  coverage, the `history` summary. Reuses `stack._read_statuses`, `review.REOPENS`,
-  `gitutil.read_blobs` and `ids._epic_files`.
+  coverage, the `history` summary. Reuses `stack._statuses`, `review.REOPENS` and
+  `gitutil.read_blobs`.
 - `tools/taskrail/src/taskrail/cli.py` — `cmd_validate` calls the check after `load_project`;
   `validate` gains `--no-history` and `--history-limit`.
 - `tools/taskrail/tests/test_history.py` — new tests for the criteria.
