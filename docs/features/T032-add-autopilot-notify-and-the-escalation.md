@@ -1,6 +1,6 @@
 # T032 — Add autopilot notify and the escalation flags in autopilot status
 
-Kind: feature · Epic: E02 · Status: implemented (plan approved as recommended, D1–D9)
+Kind: feature · Epic: E02 · Status: verified (plan approved as recommended, D1–D9)
 
 Source: the accepted autopilot design, `tools/taskrail/DESIGN.md` §12.1 (the `autopilot notify`
 row) and §12.6 (*Escalation, notification and supervision*), and the evidence behind it in
@@ -213,6 +213,136 @@ Deviations from the plan's wording:
   "cannot be started" `error` remains for a shell that cannot start at all, which is not tested.
 - `runs.py` holds `GATE_STATES` (`gate`, `escalated`), which `escalation.py` imports.
 - DESIGN.md §7 lists `notify` in the autopilot row; the README shows `lane --gate` and `notify`.
+
+## Verification
+
+### Real CLI
+
+Run through this checkout's wrapper, `.taskrail/bin/taskrail`, in a throwaway repository under
+`/tmp` with a bare `origin`, removed afterwards. Three tasks (T001 feature, T002 bug, T003 chore),
+each claimed with `--run` in its own worktree: T001 commits `docs/adr/0007-lanes.md`, T002 leaves
+`src/billing/policy-rounding.py` and `src/billing/round.py` uncommitted, T003 leaves `tooling.txt`.
+`[autopilot]`: `governing = ["docs/adr", "src/**/policy-*.py"]`,
+`escalate_gates = ["feature:plan", "spike:decide"]`, `notify_on = ["escalation", "lane-done"]`,
+and `notify` a local script appending its environment, working directory and stdin to a log file
+in the temporary directory. Output as printed (`/tmp/t032-verify.KGGD` is the temporary directory):
+
+```
+$ taskrail autopilot lane T001 --run 20260914-1 --handle agent-1 --state gate --gate plan --reason plan gate
+T001 in run 20260914-1: gate at plan (plan gate)
+exit=0
+$ taskrail autopilot lane T002 --run 20260914-1 --handle agent-2 --state gate --gate nope
+taskrail: --gate: `nope` is not a stage of kind bug (diagnose, fix, impact)
+exit=2
+$ taskrail autopilot lane T002 --run 20260914-1 --handle agent-2 --state running --gate diagnose
+taskrail: --gate needs --state gate or escalated (the lane is running)
+exit=2
+$ taskrail autopilot lane T002 --run 20260914-1 --handle agent-2 --state gate --gate diagnose --reason root cause found
+T002 in run 20260914-1: gate at diagnose (root cause found)
+exit=0
+$ taskrail autopilot lane T003 --run 20260914-1 --handle agent-3 --state gate --gate scope
+T003 in run 20260914-1: gate at scope
+exit=0
+$ taskrail autopilot status
+run 20260914-1 · 0/3 done-merged · kinds: every allowed kind · started 2026-09-14T06:45:55+00:00 by abigail@archlinux
+  T001   gate         handle agent-1  idle 0m  — plan gate  ESCALATE: governing docs/adr/0007-lanes.md; gate feature:plan
+  T002   gate         handle agent-2  idle 0m  — root cause found  ESCALATE: governing src/billing/policy-rounding.py
+  T003   gate         handle agent-3  idle 0m
+  hand-off: next — · in review — · queue —
+exit=0
+$ taskrail autopilot status --json | (T001..T003: id, state, gate, touched, governing_touched, escalate_gate, escalation)
+{"id": "T001", "state": "gate", "gate": "plan", "touched": ["docs/adr/0007-lanes.md"], "governing_touched": ["docs/adr/0007-lanes.md"], "escalate_gate": "feature:plan", "escalation": ["governing", "escalate-gate"]}
+{"id": "T002", "state": "gate", "gate": "diagnose", "touched": ["src/billing/policy-rounding.py", "src/billing/round.py"], "governing_touched": ["src/billing/policy-rounding.py"], "escalate_gate": null, "escalation": ["governing"]}
+{"id": "T003", "state": "gate", "gate": "scope", "touched": ["tooling.txt"], "governing_touched": [], "escalate_gate": null, "escalation": []}
+notifications.log after status: absent
+$ taskrail autopilot lane T001 --run 20260914-1 --state escalated --reason the plan adds an ADR
+T001 in run 20260914-1: escalated at plan (the plan adds an ADR)
+exit=0
+$ taskrail autopilot notify --event escalation --run R --task T001 --message "T001 adds docs/adr/0007-lanes.md. Approve the ADR?" --json
+{
+  "event": "escalation",
+  "run": "20260914-1",
+  "task": "T001",
+  "command": "/tmp/t032-verify.KGGD/notify.sh",
+  "sent": true,
+  "skipped": null,
+  "exit_code": 0,
+  "timed_out": false,
+  "error": null,
+  "stdout": "",
+  "stderr": "",
+  "message": "taskrail autopilot: escalation in run 20260914-1\nT001 Base task\nlane: escalated at plan — the plan adds an ADR\n\nT001 adds docs/adr/0007-lanes.md. Approve the ADR?\n"
+}
+exit=0
+$ taskrail autopilot notify --event escalation --run 20260914-1
+notified: escalation
+exit=0
+$ taskrail autopilot notify --event lane-failed --run 20260914-1 --task T002
+not sent: lane-failed is not in [autopilot].notify_on (escalation, lane-done)
+exit=0
+$ taskrail autopilot notify --event lane-done --run 20260914-1
+taskrail: --event lane-done needs --task
+exit=2
+$ taskrail autopilot notify --event escalation --run 20260914-1 --task T999
+taskrail: no task `T999`
+exit=3
+$ taskrail autopilot notify --event escalation --run 20000101-1
+taskrail: no autopilot run `20000101-1`
+exit=3
+--- /tmp/t032-verify.KGGD/notifications.log:
+--- event=escalation run=20260914-1 task=T001 cwd=/tmp/t032-verify.KGGD/repo
+taskrail autopilot: escalation in run 20260914-1
+T001 Base task
+lane: escalated at plan — the plan adds an ADR
+
+T001 adds docs/adr/0007-lanes.md. Approve the ADR?
+--- event=escalation run=20260914-1 task= cwd=/tmp/t032-verify.KGGD/repo
+taskrail autopilot: escalation in run 20260914-1
+$ taskrail autopilot notify --event lane-done --run 20260914-1 --task T003     # notify = 'echo notifier down >&2; exit 7'
+taskrail: warning: the notify command exited with status 7: notifier down
+not sent: the notify command exited with status 7
+exit=0
+$ ... --json | jq {sent, exit_code, timed_out, error, stderr}
+{"sent": false, "exit_code": 7, "timed_out": false, "error": "the notify command exited with status 7", "stderr": "notifier down\n"}
+$ time taskrail autopilot notify --event escalation --run R --json   # notify = 'sleep 45 & sleep 45; …'
+{"sent": false, "exit_code": null, "timed_out": true, "error": "the notify command timed out after 30 s and was stopped"}
+exit=0 elapsed=30s
+taskrail: warning: the notify command timed out after 30 s and was stopped
+$ taskrail autopilot notify --event escalation --run 20260914-1 --task T002    # enabled = false again
+notified: escalation
+exit=0
+taskrail autopilot: escalation in run 20260914-1
+T002 Rounding error
+lane: gate at diagnose — root cause found
+```
+
+The run file afterwards held `gate` per lane (`plan` for T001, now `escalated`; `diagnose`;
+`scope`) next to T029's keys. That run also printed `sleep processes left: 2` from
+`pgrep -fc 'sleep 45'`, which counts every process whose command line contains the text,
+including the shell running the verification script itself. A focused re-run in a second
+throwaway repository, removed afterwards, with `notify = 'sleep 47 & sleep 47'`, counted only
+real `sleep` processes:
+
+```
+sleep 47 processes before: 0
+$ taskrail autopilot notify --event escalation --run 20260914-1 --json   # notify = 'sleep 47 & sleep 47'
+taskrail: warning: the notify command timed out after 30 s and was stopped
+{"sent": false, "exit_code": null, "timed_out": true, "error": "the notify command timed out after 30 s and was stopped"}
+elapsed=30s
+sleep 47 processes right after: 0
+```
+
+What this shows against the plan, with no gap found:
+
+- `lane --gate` checks the stage against the kind (`diagnose, fix, impact`) and the state, keeps the
+  gate into `escalated`, and prints it;
+- `status` flags a committed governing file (directory entry), an uncommitted one (`**` glob), and
+  `feature:plan`, while `bug:diagnose` and `chore:scope` are not flagged; `status` wrote nothing to
+  the notification log;
+- `notify` sends the composed message with `--message`, sets `TASKRAIL_TASK` empty without
+  `--task`, runs in the repository root, skips an event outside `notify_on`, exits 2 or 3 for the
+  caller's mistakes, and exits 0 with `sent: false` for a failing command and for one killed at the
+  30-second timeout together with its background child; it works with `enabled = false`.
 
 ## Affected areas
 
