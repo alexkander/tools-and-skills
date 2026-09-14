@@ -135,3 +135,7 @@ uv run pytest                                   # all tests
 uv run pytest tests/test_validate.py -k cycle   # a single test
 uv run taskrail --root <repo> validate          # run the CLI against a repository
 ```
+
+Do not use RTK's command-rewriting hook or plugin on this repository: it truncated
+`uv run … --json` output into invalid JSON and hid `git log` trailers such as `Reopens:`, both of
+which the backlog procedures read. Evidence: [T044](docs/spikes/T044-evaluate-using-rtk-in-this-repository.md).
