@@ -36,3 +36,18 @@ so the premise holds. No code changed, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T048 owns `runs.py` (`closed`, `is_closed`, `close`), `cmd_close` and the closed-run checks in `commands.py`, the closed-run filter in `dispatch.py` `next_lanes`, the `closed` key in `status.py` `run_status`, the `--run` check in `cli.py` `cmd_claim`, `tests/test_autopilot_close.py`, the new DESIGN rows and sentences it named, and one paragraph at the end of the skill's *Escalate*. T054 owns `task_state`/`_closing` in `status.py` and the candidate skip in `dispatch.py`; T053 `_handoff`/`_done_time`; T049 and T050 `_escalation_text`, `_gate_problem` and `--gate` help. T056 owns the OpenCode note; T060 the repository config and CLAUDE.md.** | Built from the gates reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off by the known classes · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commit `01618b3` (range `be1d295..01618b3`): `close`, `is_closed`, `closed_message` and
+`RunClosed` in `runs.py`; `cmd_close` and the closed-run refusals (before and under the lock) in
+`commands.py`; closed runs dropped from `every_run` in `dispatch.py` without touching the candidate
+loop; the `closed` key in `status.py` `run_status`; the `claim --run` refusal in `cli.py`; the approved
+DESIGN.md text; the skill paragraph with its installed copy and digest; one CHANGELOG bullet; and
+`tests/test_autopilot_close.py`. The lane's report showed no run of the new tests before the code, so
+the orchestrator copied the test file into a scratch worktree at `origin/main` (`1631ab8`): 11 failed.
+Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 839 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Every criterion maps to a test that fails without the code; the diff stays inside the touch map. |
