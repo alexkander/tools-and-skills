@@ -61,3 +61,19 @@ false.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification on the live run shows the finding fixed. |
+
+## rebase after the merged tasks
+
+T050, T049, T060, T054, T055, T052, T053, T056 and T048 (`4e75358`) were merged into `main` since the
+branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+| 4 | Conflict in `tools/taskrail/DESIGN.md`, §12.1 `autopilot status` row | stop · keep every task's phrase | **`main`'s row with T051's `overlaps` phrase applied, replaced exactly once** | The row carries T049's, T053's and T054's phrases too; none overlaps. Decided under the human's delegation of DESIGN.md decisions. |
+
+`status.py` and `commands.py` merged without conflicts beside T048's run header and closed-run
+filter. After the rebase: no conflict markers, `taskrail checks T051 --stage implement`: `test` 889
+passed, `lint` not configured; `taskrail validate` 0 errors.
