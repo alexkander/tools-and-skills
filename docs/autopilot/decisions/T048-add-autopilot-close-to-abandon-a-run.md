@@ -65,3 +65,19 @@ T048's row). No code or test changed after the checks re-run at the implement ga
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification matches the plan. |
+
+## rebase after the merged tasks
+
+T050, T049, T060, T054, T055, T052, T053 and T056 (`1941698`) were merged into `main` since the
+branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md` and `docs/autopilot/decisions/README.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+
+`dispatch.py`, `status.py`, `commands.py`, `cli.py` and DESIGN.md merged without conflicts beside
+T054's candidate skip and T049/T050/T053's phrases. After the rebase: no conflict markers,
+`taskrail checks T048 --stage implement`: `test` 883 passed, `lint` not configured; `taskrail
+validate` 0 errors.
