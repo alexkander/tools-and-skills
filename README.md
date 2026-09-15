@@ -20,8 +20,8 @@ nothing else in this repository. Taking one directory is enough to use it; sibli
 to come along.
 
 `.claude/skills/` is not part of that layout. It is this repository's own agent configuration,
-loaded by the agents that work on it — the skills taskrail installs (sources in
-`tools/taskrail`) and a vendored copy of caveman — and nothing in it is distributed.
+loaded by the agents that work on it — a vendored copy of caveman — and nothing in it is
+distributed.
 
 ## Third-party content
 

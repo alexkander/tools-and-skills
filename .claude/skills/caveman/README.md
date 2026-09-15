@@ -6,7 +6,7 @@ Vendored from [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) 
 This directory is part of this repository's own agent configuration: agents working on this
 repository load it from `.claude/skills/caveman/` — Claude Code directly, OpenCode through its
 `.claude/skills` scan. It is not one of the repository's shareable items and is not meant to be
-installed elsewhere from here. `taskrail upgrade` does not manage or touch it.
+installed elsewhere from here.
 
 Self-contained: `SKILL.md` is the whole skill. No installer, hooks, statusline, CLI or proxy.
 

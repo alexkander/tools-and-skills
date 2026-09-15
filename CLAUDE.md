@@ -41,8 +41,7 @@ Grouped by artifact kind, one self-contained directory per item, each with its o
   manifest, meant to be depended on rather than copied.
 
 `.claude/skills/` is not an item directory: it holds the skills agents use while working on this
-repository — taskrail's installed copies (see *Backlog*) and caveman, vendored under the rules
-below — and nothing there is distributed.
+repository — caveman, vendored under the rules below — and nothing there is distributed.
 
 The tools/libs split is about how a consumer uses the thing, not how big it is: a tool is run,
 a library is linked against. A library needs a version and a changelog; a tool usually does not.
@@ -97,49 +96,20 @@ canonical shape. Evidence: [T009](docs/spikes/T009-decide-how-consumer-projects-
 **Tools and libraries** are not decided yet. Tools will likely be installed or copied like
 skills, while a library is published to a package registry and depended on by version.
 
-## Backlog
-
-This repository tracks its own work with taskrail (`tools/taskrail`): `TODO.md` holds the epics
-and tasks, and `.taskrail/bin/taskrail` runs the CLI from this checkout's source (the config
-pins `local:tools/taskrail`), so a task worktree runs its own branch's code. Use the `taskrail`
-skill and its executor skills to work tasks.
-
-- The skills under `.claude/skills/taskrail*` are **installed copies**. Edit the sources in
-  `tools/taskrail/src/taskrail/skills/`, then run `.taskrail/bin/taskrail upgrade`.
-- `TODO.md` and the artifacts under `docs/` are public like everything else here; the
-  publishing constraint above applies to task titles, descriptions and write-ups.
-- Claims stay local (`claim_remote` is off), so no refs are pushed for them.
-- The autopilot is enabled here (`[autopilot]` in `.taskrail/config.toml`). Its orchestrator
-  answers lane gates from this file and `tools/taskrail/DESIGN.md` first, which the config lists
-  in `read_first`. Neither is a `governing` path: a lane may change them when its task needs it,
-  the orchestrator decides that change at the gate, and the human reviews it in the pull request.
-
 ## Merging
 
 Changes reach `main` through pull requests, and every pull request is **squash-merged**: its
 title becomes the only commit on `main`, which is what semantic versioning will read.
 
 - Title in Conventional Commits form, with the affected component as scope and the task ID at
-  the end: `feat(taskrail): add a reopen command for tasks marked done by mistake (T006)`.
-  `taskrail review <ID> --publish --scope <component>` generates it.
+  the end: `docs(skills): decide how consumer projects install this repository's skills (T009)`.
 - The type reflects the most significant change in the pull request, not every commit in it.
-- A reopen's `Reopens: <ID>` trailer must be at the end of the pull request description, which
-  `taskrail review` writes, so it survives the squash.
 
 ## Commands
 
-There is no repository-wide build. Each tool is its own project; run commands from its
-directory.
-
-`tools/taskrail` (Python, managed with uv, no runtime dependencies):
-
-```bash
-cd tools/taskrail
-uv run pytest                                   # all tests
-uv run pytest tests/test_validate.py -k cycle   # a single test
-uv run taskrail --root <repo> validate          # run the CLI against a repository
-```
+None yet — the repository has no build, lint, or test setup. Items are expected to carry their
+own (per-directory) instructions. Record any repository-wide command here once one exists.
 
 Do not use RTK's command-rewriting hook or plugin on this repository: it truncated
-`uv run … --json` output into invalid JSON and hid `git log` trailers such as `Reopens:`, both of
-which the backlog procedures read. Evidence: [T044](docs/spikes/T044-evaluate-using-rtk-in-this-repository.md).
+`uv run … --json` output into invalid JSON and hid `git log` trailers such as `Reopens:`. Evidence:
+[T044](docs/spikes/T044-evaluate-using-rtk-in-this-repository.md).
