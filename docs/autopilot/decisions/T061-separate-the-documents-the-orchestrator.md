@@ -55,3 +55,16 @@ bullet, and one-line updates to two existing tests. Re-ran `uv run --directory t
 | 2 | Tests in their own file | keep · move to planned files | **as recommended (keep)** | Fewer conflicts with four other branches editing those test files. |
 | 3 | One-line edits to two existing tests | accept · rewrite them | **as recommended (accept)** | A conflict on the no-runs expected dict keeps every key at hand-off. |
 | 4 | `Path.glob` for `read_first_missing` | accept · reuse `escalation.matches` | **as recommended (accept)** | Only affects a report, never escalation, and stays out of T059's module. |
+
+## close gate
+
+Reviewed: `1fa92e1` (verification with the real CLI on run `20260914-2`: this repository's config
+lists both documents with none missing; a temporary missing entry and a `./` glob were reported
+correctly; with the key removed the `governing` entries were used; the config was restored) and
+`0480141` (`taskrail done T061` on its own). No code changed after the checks re-run at the implement
+gate (854 passed). `taskrail validate`: 0 errors. No upstream is configured. `review --json`:
+`rebase.needed` true onto `origin/main` (T054 and T055 merged).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification covers the list, the missing report and the fallback. |
