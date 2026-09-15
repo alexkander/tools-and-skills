@@ -58,3 +58,18 @@ is configured. `review --json`: `rebase.needed` true onto `origin/main`.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Queue the branch for hand-off | queue · changes | **queue, as `docs(taskrail)`** | Skill text, lane brief and a test; no CLI behaviour changes, as for T055 and T056. |
+
+## rebase after the merged tasks
+
+T053, T056, T048, T051, T047, T061, T059 and T062 (`33f3531`) were merged into `main` since the branch
+started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/chores/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID, ✅ winning · stop | **unite by ID: T062 ✅, T063 ✅, T064, T065, T066** | Class 1. The first resolution of the `mark T063 done` commit left T062 `⬜`; `taskrail validate` reported it as `reopen-untraced`, and the commit was redone with T062 `✅` before anything was pushed. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+
+The skill source, lane brief, gate review and `test_autopilot_skill.py` merged without conflicts beside
+T059 and T061's sections. After the rebase: no conflict markers, `taskrail checks T063 --stage
+implement`: `test` 937 passed, `lint` not configured; `taskrail validate` 0 errors, 0 warnings.
