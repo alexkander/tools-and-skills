@@ -1,6 +1,6 @@
 # T059 — Record an approved governing edit so autopilot status stops flagging it
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: finding F9 of the autopilot trial
 ([T033](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md), Findings table and
@@ -190,6 +190,45 @@ All in `tools/taskrail/tests/`.
 | 9 | `test_flags_drop_governing_only_when_every_governing_file_is_approved[running/gate/escalated/failed]`; T049's `test_autopilot_notify.py` governing tests still pass unchanged |
 | 10 | `test_autopilot_skill.py::test_an_approved_governing_edit_is_recorded_and_the_close_review_reads_it` |
 | 11 | `uv run --directory tools/taskrail pytest -q`: 860 passed |
+
+## Verification
+
+The real CLI from this branch (`uv run --directory tools/taskrail taskrail --root …`) on a scratch
+repository outside this one, removed afterwards: a backlog with T001 (feature) and T002 (bug),
+`[autopilot]` enabled with `governing = ["docs/adr"]`, run `20260915-1`, one worktree per task,
+each claimed in the run.
+
+1. T002 commits `docs/adr/0001.md` and is recorded at gate `fix` — flagged, as before:
+   ```
+   T002   gate         idle 0m  ESCALATE: governing docs/adr/0001.md
+   ```
+2. `autopilot approve-governing T002 --run 20260915-1 --json` records the worktree file's blob
+   (`git hash-object docs/adr/0001.md` printed the same `ae7f6d18…`); `status` no longer flags it:
+   ```
+   {"run": "20260915-1", "task": "T002", "approved": {"docs/adr/0001.md": "ae7f6d185060b4bffe803c048ee3967fad4457a5"}, "governing_approved": {"docs/adr/0001.md": "ae7f6d185060b4bffe803c048ee3967fad4457a5"}}
+   T002   gate         idle 0m
+   {'id': 'T002', 'state': 'gate', 'gate': 'fix', 'governing_touched': ['docs/adr/0001.md'], 'governing_approved': ['docs/adr/0001.md'], 'escalation': []}
+   ```
+3. An uncommitted change to `0001.md` and a new `0002.md` flag both; approving `--path
+   docs/adr/0002.md` leaves only the changed file named:
+   ```
+   T002   gate         idle 0m  ESCALATE: governing docs/adr/0001.md, docs/adr/0002.md
+   T002 in run 20260915-1: approved docs/adr/0002.md (5449437bcb25)
+   T002   gate         idle 0m  ESCALATE: governing docs/adr/0001.md
+   ```
+4. Refusals:
+   ```
+   approve-governing T002 --path TODO.md → taskrail: --path TODO.md: not in T002's governing_touched (docs/adr/0001.md, docs/adr/0002.md)   exit 2
+   approve-governing T001 (not in the run) → taskrail: T001 is not a task of run 20260915-1   exit 3
+   approve-governing T001 (claimed in the run, no governing edit) → taskrail: T001 touches no governing path in run 20260915-1, so there is nothing to approve   exit 5
+   ```
+5. Re-approving `0001.md` (`approved docs/adr/0001.md (f3b6ec6cef36)`), committing, `done T002`
+   committed, and the T002 worktree removed — the approvals hold from the branch tip:
+   ```
+   {'id': 'T002', 'state': 'done-branch', 'worktree': None, 'governing_touched': ['docs/adr/0001.md', 'docs/adr/0002.md'], 'governing_approved': ['docs/adr/0001.md', 'docs/adr/0002.md'], 'escalation': []}
+   ```
+
+The behaviour matches the plan; no gap.
 
 ## DESIGN.md text (approved at the plan gate, applied as written)
 
