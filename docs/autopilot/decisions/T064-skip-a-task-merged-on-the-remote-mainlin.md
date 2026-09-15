@@ -58,3 +58,16 @@ errors. No upstream is configured. `review --json`: `rebase.needed` false.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Queue the branch for hand-off | queue · changes | **queue, as `fix(taskrail)`, after T063** | Every close check holds; T063 is in review. |
+
+## rebase after T063
+
+T063 (`8555317`) was merged into `main` since the branch started. The branch was rebased onto
+`origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1; the backlog differs from `origin/main` only in T064's row. |
+
+After the rebase: `taskrail checks T064 --stage fix`: `test` 940 passed, `lint` not configured;
+`taskrail validate` 0 errors, 0 warnings.
