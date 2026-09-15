@@ -52,3 +52,16 @@ T066 --stage implement` in the lane's worktree: 942 passed.
 | 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–6 map to tests seen failing first; `dispatch.py` is untouched. |
 | 2 | One-line change to T063's test | accept · revert and drop D5 | **as recommended (accept)** | It asserted the exact sentence the approved D5 text replaces. |
 | 3 | `--resource` validated after worktree and stage selection | accept · validate first | **as recommended (accept)** | No check runs in any refusal, and the worktree's own configuration is loaded before the pool is read. |
+
+## close gate
+
+Reviewed: `ef677da` (verification with this branch's CLI on the main checkout: an unconfigured name and
+a malformed pair exit 2, plain `checks` reports `"chosen": {}`, `--help` shows the flag; the pool and
+holder behaviour is covered by the fixture tests because this repository configures no resources) and
+`d9837bb` (`taskrail done T066` on its own). No code changed after the checks re-run at the implement
+gate (942 passed). `taskrail validate`: 0 errors. `review --json`: `rebase.needed` true onto
+`origin/main` (T064 and T065 merged).
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the close and hand the branch off | hand off · changes | **hand off, as `feat(taskrail)`, after the rebase** | Every close check holds; no other branch is in review. |
