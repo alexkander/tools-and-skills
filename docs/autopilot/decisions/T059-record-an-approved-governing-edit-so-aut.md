@@ -69,3 +69,20 @@ true onto `origin/main`.
 |---|---|---|---|---|
 | 1 | Queue the branch for hand-off | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification covers recording, re-flagging and refusals. |
 | 2 | Expected rebase conflicts | known classes, keeping every phrase in the DESIGN rows · stop | **as recommended** | As at earlier hand-offs in these runs. |
+
+## rebase after the merged tasks
+
+T060, T054, T055, T052, T053, T056, T048, T051, T047 and T061 (`152120a`) were merged into `main`
+since the branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+| 4 | Conflict in `tools/taskrail/tests/test_autopilot_skill.py` | keep both · stop | **keep both** | T055's test section and T059's new test were added at the same place. |
+| 5 | Conflict in `tools/taskrail/DESIGN.md` §12.1: the new `approve-governing` row beside the `autopilot status` row | stop · keep every change | **T059's new row, then `main`'s status row with T059's `governing_approved` and `escalation` phrases applied** | The status row carries T051, T053, T054 and T061's phrases; T059's replacement covers only the escalation fields. Decided under the human's delegation. |
+| 6 | Conflict in DESIGN.md §12.4 key list | stop · keep both | **`main`'s line (T048's `closed`) with `governing_approved` added to the lane keys** | Both tasks added keys to one sentence. |
+
+After the rebase: no conflict markers, `taskrail checks T059 --stage implement`: `test` 927 passed,
+`lint` not configured; `taskrail validate` 0 errors.
