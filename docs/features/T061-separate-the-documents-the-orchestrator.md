@@ -1,6 +1,6 @@
 # T061 — Separate the documents the orchestrator reads first from the paths that escalate
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: question 3 of T060's scope gate
 ([decision record](../autopilot/decisions/T060-remove-design-md-and-claude-md-from-the.md)), which
@@ -62,6 +62,27 @@ gates". T060 emptied `governing` in this repository so that edits to `CLAUDE.md`
 7. All tests pass: `uv run --directory tools/taskrail pytest -q`; `taskrail validate` reports no
    errors.
 
+## Tests per criterion
+
+All new tests are in `tools/taskrail/tests/test_autopilot_read_first.py`, a file of its own so the
+other lanes editing `test_autopilot.py`, `test_autopilot_notify.py` and `test_autopilot_skill.py`
+do not collide with it. They were committed and observed failing (13 failed, 1 passed — the one
+passing is criterion 5's guard, which holds before and after) before the implementation.
+
+| # | Tests |
+|---|---|
+| 1 | `test_read_first_is_read_as_a_tuple`, `test_read_first_must_be_a_list_of_non_empty_strings` (3 cases) |
+| 2 | `test_an_absent_read_first_takes_the_governing_entries` (4 cases); `test_autopilot.py::test_autopilot_configuration_reads_every_single_value_key` now expects the fallback |
+| 3 | `test_status_reports_read_first_and_the_missing_entries`, `test_status_has_empty_read_first_lists_and_no_lines_without_entries`; `test_autopilot.py::test_status_without_runs_and_for_an_unknown_run` now expects the two keys |
+| 4 | `test_status_text_starts_with_read_first_lines`, `test_status_has_empty_read_first_lists_and_no_lines_without_entries` |
+| 5 | `test_a_touched_read_first_document_raises_no_escalation` |
+| 6 | `test_the_skill_source_reads_the_governing_documents_from_read_first`, `test_the_installed_skill_copies_read_the_governing_documents_from_read_first`; this repository's copies refreshed by `taskrail upgrade` |
+| 7 | `uv run --directory tools/taskrail pytest -q`: 854 passed; `taskrail validate`: 0 errors |
+
+Two existing tests in `test_autopilot.py` pinned the old shape and were changed by one line each:
+the every-key configuration test expects `read_first` to take the `governing` entry, and the
+no-runs status test expects `read_first` and `read_first_missing` beside `fetched`.
+
 ## Affected areas
 
 - `tools/taskrail/src/taskrail/config.py`: the `read_first` field of `AutopilotConfig` and its
@@ -79,7 +100,9 @@ gates". T060 emptied `governing` in this repository so that edits to `CLAUDE.md`
   §12.6, and condition 3 there naming them.
 - `.taskrail/config.toml`: the `[autopilot]` block's `read_first` line and comment.
 - `CLAUDE.md`: the autopilot bullet of *Backlog*.
-- Tests: `tests/test_autopilot.py` (configuration and `status`), `tests/test_autopilot_skill.py`.
+- Tests: the new `tests/test_autopilot_read_first.py`, and one line in each of two existing tests
+  in `tests/test_autopilot.py` (planned: new tests in `test_autopilot.py` and
+  `test_autopilot_skill.py`; moved to their own file at implement to keep clear of other lanes).
 - `tools/taskrail/CHANGELOG.md` (one bullet), `docs/features/README.md` (one row).
 
 ## Out of scope
