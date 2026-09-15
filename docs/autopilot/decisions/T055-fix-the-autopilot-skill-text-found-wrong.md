@@ -62,3 +62,19 @@ false.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `docs(taskrail)`** | Skill text, lane brief, design text and tests; no CLI behaviour changes, as for T056. |
+
+## rebase after T049, T060 and T054
+
+T050 (`1631ab8`), T049 (`ff8e4e6`), T060 (`502ea3b`) and T054 (`4420c8d`) were merged into `main`
+since the branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/chores/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2: appended index rows and *Unreleased* bullets. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`** | Class 3; the rewritten digests match the merged skill sources. |
+| 4 | Conflict in `tools/taskrail/tests/test_autopilot_skill.py` | keep both · stop | **keep both** | T049's test and T055's new section of tests were added at the same place; no existing line changed. |
+
+After the rebase: no conflict markers (`git diff --check` clean), the installed autopilot skill equals
+its source above the harness notes, `uv run --directory tools/taskrail pytest -q` 857 passed,
+`taskrail validate` 0 errors.
