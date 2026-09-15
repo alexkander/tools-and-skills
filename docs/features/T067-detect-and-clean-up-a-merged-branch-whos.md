@@ -1,6 +1,6 @@
 # T067 — Detect and clean up a merged branch whose task was discarded on it
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: [T065's plan](T065-hand-off-a-branch-whose-task-was-discard.md) (*Out of scope*, first
 bullet), opened at T065's plan gate
@@ -143,7 +143,89 @@ helper beside `finish` is added there.
    covers the recorded case with no branch left; or `discarded_at_head` (bool) mirroring
    `done_at_head`, which cannot say which status a branchless recorded merge had.
 
-## DESIGN.md text (proposed)
+## Plan-gate decisions
+
+Recorded in [the decision record](../autopilot/decisions/T067-detect-and-clean-up-a-merged-branch-whos.md):
+all five answers as recommended — the `DESIGN.md` texts a–d approved as written, recorded discard
+merges feed `discarded_on_mainline`, no skill text change, the output key `closed`, and the newest
+record by `detected` decides.
+
+## Implementation
+
+- `autopilot/merged.py`
+  - `_row_done` became `_row_status`, returning the task's status cell at a revision; `CLOSED` maps
+    `✅`/`❌` to `done`/`discarded`.
+  - `record_status(record)`: a record's `status`, `done` unless it is `discarded` (so a record without
+    one, written before T067, is `done`).
+  - `recorded_merges(project)` returns `dict[task ID → status]`, taken from each task's newest valid
+    record across every run through the existing `_latest_record`.
+  - `cmd_merged`: detection runs when the head's cell is `✅` or `❌`; the pending reason reads
+    `<ID> is not done or discarded at the head of <ref>; content detection needs a closed branch`;
+    `closed` comes from the head's cell, or from the record when no branch is left; the written entry
+    carries `status`; `confirmations` gains `row_discarded_on_mainline`.
+  - `_text`: ` (discarded)` after the first line of a discarded merge.
+  - `_cleanup` and `_dependents` are unchanged.
+- `autopilot/status.py`: new `_recorded(project, status)`, caching `recorded_merges` under
+  `RECORDED_KEY`; `done_on_mainline` unions the `done` IDs and `discarded_on_mainline` the
+  `discarded` IDs. `task_state`, `_handoff`, `WITH_BRANCH` and `WAITING` are unchanged.
+- `DESIGN.md` texts a–d applied as approved; one *Unreleased* bullet in `CHANGELOG.md`.
+
+The new and changed tests were run before the implementation and failed for the reasons the criteria
+name:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no --tb=line tests/test_autopilot_merged.py
+.......F.F.....................FFFFFFF                                   [100%]
+tests/test_autopilot_merged.py:276: KeyError: 'closed'
+tests/test_autopilot_merged.py:299: AssertionError: … Right contains 1 more item: {'row_discarded_on_mainline': False}
+tests/test_autopilot_merged.py:747: AssertionError: … Extra items in the right set: 'closed'
+tests/test_autopilot_merged.py:789: AssertionError: assert (False, None, None) == (True, 'tree'...ef2865cc221a')
+tests/test_autopilot_merged.py:802: AssertionError: assert (False, []) == (True, ['20260915-1'])
+tests/test_autopilot_merged.py:53: AssertionError: taskrail: cleanup refused: T003 is not merged, so nothing was removed
+tests/test_autopilot_merged.py:841: KeyError: 'closed'
+tests/test_autopilot_merged.py:859: KeyError: 'merged'
+tests/test_autopilot_merged.py:872: AssertionError: … + T003 not merged into origin/main: T003 is not done at the head of T003-independent; content detection needs a finished branch
+9 failed, 29 passed in 19.58s
+```
+
+Criterion 5's test first failed at the missing record (line 859), before reaching the rule it checks.
+After the implementation, replacing the newest-record rule with "any `done` record wins" made it
+fail on the rule itself, and the change was reverted:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no --tb=line tests/test_autopilot_merged.py -k newest_recorded
+tests/test_autopilot_merged.py:864: AssertionError: 2000-01-01T00:00:00+00:00
+    assert 'done-merged' == 'discarded'
+1 failed, 37 deselected in 1.18s
+```
+
+After it:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no --tb=short tests/test_autopilot_merged.py
+38 passed in 21.38s
+$ taskrail checks T067 --stage implement
+== test: uv run --directory tools/taskrail pytest -q
+959 passed in 132.81s (0:02:12)
+== lint: not configured
+```
+
+## Criteria and tests
+
+All in `tools/taskrail/tests/test_autopilot_merged.py`, section 15 unless named otherwise.
+
+| # | Tests |
+|---|---|
+| 1 | `test_a_merged_discarded_branch_is_detected_and_reported` (`merged`, `tree`, the squash commit, `closed: "discarded"`, `done_at_head: false`, `row_discarded_on_mainline: true`, `row_done_on_mainline: false`) |
+| 2 | `test_a_recorded_discard_merge_reads_discarded_and_never_done_merged` (row edited back to `⬜` on the host: `discarded-branch` before `merged`; record `status: "discarded"`; then `discarded`, `done_merged` 0, `complete` false) |
+| 3 | `test_cleanup_removes_a_merged_discarded_branch` (the full `cleanup` object, worktree and local branch gone, remote branch and no claim; after the remote branch is deleted, `recorded: true`, `closed: "discarded"`, same commit) |
+| 4 | `test_a_done_merge_records_done_and_a_record_without_status_counts_as_done` (`closed: "done"`, record `status: "done"`, `done-merged`, still `done-merged` with `status` removed); the existing done tests in sections 1–14 unchanged |
+| 5 | `test_the_newest_recorded_merge_decides_the_status` (an older `done` record in another run: `discarded`; a newer one: `done-merged`) |
+| 6 | `test_an_unstarted_branch_is_not_merged_although_it_is_an_ancestor` (section 5: `closed: null`, `not done or discarded`, no check run, `--cleanup` exit 5 `not merged`) |
+| 7 | `test_the_text_form_names_a_discarded_merge`; `test_text_and_json_forms` (section 14) with the `closed` key; `test_confirmations_are_reported_and_never_prove` (section 6) with `row_discarded_on_mainline` |
+| 8 | `taskrail checks T067 --stage implement`: 959 passed |
+
+## DESIGN.md text (approved at the plan gate, applied as written)
 
 Each replacement is one phrase; a phrase the file wraps across lines is replaced across them, keeping
 the surrounding lines as they are.
