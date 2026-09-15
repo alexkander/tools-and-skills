@@ -1,6 +1,8 @@
 # T063 — Name taskrail checks in the lane brief and the autopilot skill's re-run steps
 
-Kind: chore · Epic: E02 · Depends on: T052, T055 (both merged) · Status: scope proposed.
+Kind: chore · Epic: E02 · Depends on: T052, T055 (both merged) · Status: implemented (scope
+approved: Decisions 1–4 as recommended). Record:
+`docs/autopilot/decisions/T063-name-taskrail-checks-in-the-lane-brief-a.md`.
 
 ## Goal
 
@@ -211,6 +213,38 @@ And its row in `docs/chores/README.md`.
 - `taskrail --root <worktree> checks T063` (the `test` check: `uv run --directory tools/taskrail
   pytest -q`; `lint` is not configured), exercising the command the new text names on this task.
 - `taskrail validate`.
+
+Results:
+
+- The new test, before any skill edit:
+  `uv run --directory tools/taskrail pytest -q tests/test_autopilot_skill.py -k
+  test_the_brief_and_the_re_run_steps_name_taskrail_checks` → `3 failed, 44 deselected` — the
+  `source`, `claude` and `opencode` copies each failing with `AssertionError: Workspace`: the phrase
+  "run your checks with `taskrail checks <id>`" was not in a *Workspace* section that still read
+  "… every command that runs the checks or the application.". Re-run after each file's edit, so
+  every group of assertions was seen failing: after the lane brief, `3 failed` on "re-run the checks
+  with `taskrail checks <id>`" in *Close and hand off*; after `SKILL.md`, `3 failed` on "yourself
+  with `taskrail checks <id>`" in *Every gate*; after `gate-review.md`,
+  `tests/test_autopilot_skill.py` `47 passed`, including
+  `test_every_taskrail_command_and_flag_shown_exists` over the new `taskrail checks <ID>` and
+  `--stage` spans and the T055 phrase tests.
+- `.taskrail/bin/taskrail upgrade --json` in the worktree: `updated`
+  `.claude/skills/taskrail-autopilot/SKILL.md`, `references/gate-review.md` and
+  `references/lane-brief.md`; `.taskrail/installed.json` digests rewritten. The installed
+  `lane-brief.md` and `gate-review.md` equal the sources (`git diff --no-index`, no output), and
+  the installed `SKILL.md` diff has the same two hunks as the source's.
+- Throwaway `git init /tmp/t063-init-check`, then this branch's
+  `taskrail --root /tmp/t063-init-check init --integration claude --integration opencode --json`:
+  `grep -rn "taskrail checks"` in the installed `.claude/skills/taskrail-autopilot` finds the brief
+  bullets at lines 28/30 and 84/86, `gate-review.md` lines 13 and 72, `SKILL.md` lines 134–135 and
+  154, and the existing Claude Code note at line 228. The repository was deleted afterwards.
+- That a lane's resource values reach its checks through `taskrail checks` is T052's
+  `test_checks.py::test_the_lane_resources_reach_the_checks_before_and_after_done`, which passes in
+  the full run below.
+- `taskrail --root <worktree> checks T063 --stage implement` → `test` `870 passed in 86.95s`,
+  `lint` not configured, `T063 in <worktree>: passed`, exit 0.
+- `taskrail --root <worktree> validate` → `61 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
+- `DESIGN.md` unchanged (Decision 2). The follow-up of Decision 4 is opened at the docs stage.
 
 ## Risks
 
