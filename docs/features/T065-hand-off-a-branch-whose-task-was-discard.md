@@ -1,6 +1,6 @@
 # T065 — Hand off a branch whose task was discarded on it
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: the impact stage of [T062](../bugs/T062-treat-a-task-discarded-on-its-unmerged-b.md)
 (*Proposed fix*, point 6, and *Impact*), decided in
@@ -253,6 +253,68 @@ All in `tools/taskrail/tests/`.
 | 8 | `test_autopilot_next.py::test_a_task_discarded_on_its_unmerged_branch_is_closed_and_not_dispatched_again` (`touched == ["TODO.md"]`, queue `["T001"]`) |
 | skill text (question 5) | `test_autopilot_skill.py::test_a_discarded_branch_is_handed_off_like_a_done_one[source, claude, opencode]` — the approved skill text in the source and both installed copies |
 | 9 | `taskrail checks T065 --stage implement`: 942 passed |
+
+## Verification
+
+The real CLI from this branch, one subprocess per command
+(`uv run --directory tools/taskrail taskrail --root …`), driven by a throwaway script in a temporary
+directory outside this repository, removed afterwards. The scratch repository has `TODO.md` with
+pending `T001` (feature, *Dropped idea*) and `T002` (bug, *Real fix*), `[autopilot] enabled = true`
+with `governing = ["docs/adr"]`, and a bare `origin`. Steps: `autopilot start --count 2`; one worktree
+per task from `origin/main`, each claimed with `--run`; T001 commits `docs/adr/0001.md` and
+`shared.py` at 09:00, T002 commits `shared.py` at 09:30; `lane T001 --state handed-off` while running;
+`discard T001` committed at 10:00, `done T002` committed at 11:00, and a later commit on T001 at
+12:00; `review T001 --json --no-fetch` and `review T001 --json --publish` in T001's worktree;
+`lane T001 --state handed-off`; then T001's branch pushed to `origin/main` and fetched, the local
+`main` not pulled.
+
+```text
+== both lanes running
+--- taskrail autopilot status --run 20260915-1 --json (exit 0)
+T001: state=running touched=['docs/adr/0001.md', 'shared.py'] governing_touched=['docs/adr/0001.md'] escalation=['governing']
+T002: state=running touched=['shared.py'] governing_touched=[] escalation=[]
+handoff={"mode": "sequential", "in_review": null, "queue": [], "next": null}
+overlaps={"shared.py": ["T001", "T002"]} known_overlaps={}
+--- taskrail autopilot lane T001 --run 20260915-1 --state handed-off (exit 5)
+taskrail: T001 is neither done nor discarded on its branch (done-branch or discarded-branch), so it cannot be handed off
+--- taskrail discard T001 --owner lane (exit 0)
+T001 discarded
+--- taskrail done T002 --owner lane (exit 0)
+T002 done
+== T001 discarded at 10:00 (later commit at 12:00), T002 done at 11:00
+--- taskrail autopilot status --run 20260915-1 --json (exit 0)
+T001: state=discarded-branch touched=['TODO.md', 'docs/adr/0001.md', 'docs/decision.md', 'shared.py'] governing_touched=['docs/adr/0001.md'] escalation=[]
+T002: state=done-branch touched=['TODO.md', 'shared.py'] governing_touched=[] escalation=[]
+handoff={"mode": "sequential", "in_review": null, "queue": ["T001", "T002"], "next": "T001"}
+overlaps={"shared.py": ["T001", "T002"]} known_overlaps={"TODO.md": {"class": "backlog", "tasks": ["T001", "T002"]}}
+--- taskrail review T001 --json --no-fetch (exit 0)
+{"head": "T001-dropped-idea", "rebase": {"enabled": true, "onto": "origin/main", "diverged": false, "needed": false, "reason": "origin/main is up to date with or ahead of main", "dependency": null}, "title": "chore: dropped idea (T001)", "body": "Task: T001 — Dropped idea\nArtifact: docs/features/T001-dropped-idea.md\n"}
+--- taskrail review T001 --json --publish (exit 0)
+{"published": true, "push": {"enabled": true, "pushed": true, "command": "git push --set-upstream origin HEAD:refs/heads/T001-dropped-idea", "error": null}}
+--- taskrail autopilot lane T001 --run 20260915-1 --state handed-off (exit 0)
+T001 in run 20260915-1: running; handed off (1 of 1)
+== T001 handed off
+--- taskrail autopilot status --run 20260915-1 --json (exit 0)
+T001: state=discarded-branch touched=['TODO.md', 'docs/adr/0001.md', 'docs/decision.md', 'shared.py'] governing_touched=['docs/adr/0001.md'] escalation=[]
+T002: state=done-branch touched=['TODO.md', 'shared.py'] governing_touched=[] escalation=[]
+handoff={"mode": "sequential", "in_review": "T001", "queue": ["T002"], "next": null}
+overlaps={"shared.py": ["T001", "T002"]} known_overlaps={"TODO.md": {"class": "backlog", "tasks": ["T001", "T002"]}}
+--- taskrail autopilot status --run 20260915-1 (exit 0)
+  T001   discarded-branch  idle 0m
+  T002   done-branch  idle 369512m
+  hand-off: next — · in review T001 · queue T002
+== T001's branch merged into origin/main (local main not pulled)
+--- taskrail autopilot status --run 20260915-1 --json (exit 0)
+T001: state=discarded touched=[] governing_touched=[] escalation=[]
+T002: state=done-branch touched=['TODO.md', 'shared.py'] governing_touched=[] escalation=[]
+handoff={"mode": "sequential", "in_review": null, "queue": ["T002"], "next": "T002"}
+overlaps={} known_overlaps={}
+```
+
+The behaviour matches the plan; no gap. As before this task, `lane --state handed-off` reports the
+lane's recorded state (`running`) in its text, as it does for a `done-branch` task; T002's large
+`idle` comes from the scripted 2026-01-01 commit dates. The pull request body names the kind's
+artifact path, as for a done task (see *Open questions and risks*).
 
 ## DESIGN.md text (approved at the plan gate, applied as written)
 
