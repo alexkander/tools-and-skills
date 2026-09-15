@@ -182,7 +182,8 @@ Recorded in [the decision record](../autopilot/decisions/T065-hand-off-a-branch-
 all six answers as recommended — option A (a handed-off discard keeps reading `discarded-branch`),
 `review` included with `chore` as the default type, T062's two assertions changed here, the
 `DESIGN.md` texts a–f and the skill text approved as written (the new paragraph above *Close and hand
-off* step 1), and the follow-up opened on its own commit on this branch.
+off* step 1), and the follow-up opened on its own commit on this branch as **T067** (feature, E02,
+depending on T065), *Detect and clean up a merged branch whose task was discarded on it*.
 
 ## Implementation
 
