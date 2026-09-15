@@ -1,7 +1,7 @@
 # T063 — Name taskrail checks in the lane brief and the autopilot skill's re-run steps
 
 Kind: chore · Epic: E02 · Depends on: T052, T055 (both merged) · Status: implemented (scope
-approved: Decisions 1–4 as recommended). Record:
+approved: Decisions 1–4 as recommended; implementation approved; follow-up T066). Record:
 `docs/autopilot/decisions/T063-name-taskrail-checks-in-the-lane-brief-a.md`.
 
 ## Goal
@@ -244,7 +244,14 @@ Results:
 - `taskrail --root <worktree> checks T063 --stage implement` → `test` `870 passed in 86.95s`,
   `lint` not configured, `T063 in <worktree>: passed`, exit 0.
 - `taskrail --root <worktree> validate` → `61 task(s) in 1 backlog(s): 0 error(s), 0 warning(s)`.
-- `DESIGN.md` unchanged (Decision 2). The follow-up of Decision 4 is opened at the docs stage.
+- `DESIGN.md` unchanged (Decision 2).
+
+## Docs
+
+No README, `CLAUDE.md` or `DESIGN.md` text describes the changed steps, so none changed. The
+follow-up of Decision 4 is **T066** (feature, E02, no dependencies), "Pass chosen resource values to
+taskrail checks for a lane whose values were released", opened with `taskrail new` on this branch
+(commit `3e0a8bc`).
 
 ## Risks
 
