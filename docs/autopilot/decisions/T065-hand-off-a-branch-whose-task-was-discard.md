@@ -65,3 +65,19 @@ re-run at the implement gate (942 passed). `taskrail validate`: 0 errors. No ups
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Queue the branch for hand-off | queue · changes | **queue, as `feat(taskrail)`, after T063 and T064** | Every close check holds; the verification walks the whole hand-off of a discarded branch. |
+
+## rebase after T063 and T064
+
+T063 (`8555317`) and T064 (`acec04a`) were merged into `main` since the branch started. The branch was
+rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID, ✅ winning · stop | **unite by ID: T064 ✅, T065 ✅, T067** | Class 1. The orchestrator's resolver first kept T064 `⬜` because it looked for `✅` anywhere in the row and T064's description contains one; `taskrail validate` reported `reopen-untraced`, the resolver now reads only the status cell, and the `mark T065 done` commit was redone before anything was pushed. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+| 4 | Conflict in `tools/taskrail/DESIGN.md`: §12.1 `autopilot next` and `autopilot lane` rows, §12.4 `discarded-branch` and `discarded` bullets | stop · keep each task's line | **T064's `autopilot next` row and `discarded` bullet with T065's `autopilot lane` row and `discarded-branch` bullet** | Each task changed a different line of the two adjacent pairs. Decided under the human's delegation. |
+
+`status.py` merged without conflicts beside T064's `_on_mainline`. After the rebase: `taskrail checks
+T065 --stage implement`: `test` 948 passed, `lint` not configured; `taskrail validate` 0 errors, 0
+warnings.
