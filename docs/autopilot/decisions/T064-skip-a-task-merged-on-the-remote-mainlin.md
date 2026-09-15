@@ -48,3 +48,13 @@ local reopen still reading `done-merged`), the approved DESIGN.md (a)–(c) and 
 |---|---|---|---|---|
 | 1 | Approve the fix | approve · changes | **approve** | The tests cover both closings, a removed lane branch, the pull and the reopen rule; the diff stays inside the touch map. |
 | 2 | Follow-ups for an uncommitted reopen or a recorded merge after a reopen | none · bug in E02 | **as recommended (none)** | A reopen is committed by procedure, and a recorded merge only counts while its commit stays on the mainline. |
+
+## close gate
+
+Reviewed: `bffa248` (`taskrail done T064` on its own, changing only T064's row). Impact had nothing to
+open. No code changed after the checks re-run at the fix gate (937 passed). `taskrail validate`: 0
+errors. No upstream is configured. `review --json`: `rebase.needed` false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Queue the branch for hand-off | queue · changes | **queue, as `fix(taskrail)`, after T063** | Every close check holds; T063 is in review. |
