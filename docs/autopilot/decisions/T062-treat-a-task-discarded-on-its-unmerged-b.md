@@ -63,3 +63,18 @@ checks re-run at the fix gate (849 passed). `taskrail validate`: 0 errors. No up
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Queue the branch for hand-off | queue · changes | **queue, as `fix(taskrail)`** | Every close check holds. |
+
+## rebase after the merged tasks
+
+T055, T052, T053, T056, T048, T051, T047, T061 and T059 (`e7089ef`) were merged into `main` since the
+branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/bugs/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID: T062 ✅, T063, T064, T065** | Class 1. |
+| 3 | Conflict in `tools/taskrail/DESIGN.md` §12.1, the `approve-governing` and `autopilot status` rows | stop · keep every phrase | **`main`'s rows with T062's three `autopilot status` phrases applied, each replaced exactly once** | The status row carries T049, T051, T053, T054, T059 and T061's phrases; T062's state-list, precedence and `running` phrases do not overlap them. Decided under the human's delegation. |
+
+`stack.py`, `query.py`, `cli.py` and `autopilot/status.py` merged without conflicts beside T048, T053,
+T059 and T061's changes. After the rebase: no conflict markers, `taskrail checks T062 --stage fix`:
+`test` 934 passed, `lint` not configured; `taskrail validate` 0 errors.
