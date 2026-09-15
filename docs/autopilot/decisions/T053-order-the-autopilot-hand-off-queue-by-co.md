@@ -59,3 +59,18 @@ human's delegation.
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch for hand-off | queue · changes | **queue, as `fix(taskrail)`** | Every close check holds; hand-off is sequential, after T050 and T049. At its rebase, the §12.1 `autopilot status` row also carries T049's escalation phrase: both are kept. |
+
+## rebase after T049, T060, T054, T055 and T052
+
+T049 (`ff8e4e6`), T060 (`502ea3b`), T054 (`4420c8d`), T055 (`2265434`) and T052 (`301ba0e`) were
+merged into `main` since the close. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/bugs/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2: appended index rows and *Unreleased* bullets. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+| 3 | Conflict in `tools/taskrail/DESIGN.md`, §12.1 `autopilot status` row | stop · keep every task's phrase | **`main`'s row with T053's `queue` phrase applied, replaced exactly once** | The row is one line that T049 and T054 also changed; the phrases do not overlap. Decided under the human's delegation of DESIGN.md decisions. |
+
+After the rebase: no conflict markers (`git diff --check` reports only trailing spaces inside the
+artifact's quoted pytest output), `taskrail checks T053 --stage fix`: `test` 870 passed, `lint` not
+configured; `taskrail validate` 0 errors.
