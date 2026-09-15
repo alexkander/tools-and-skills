@@ -37,3 +37,18 @@ no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T066 owns `checks.py`, `cmd_checks` and the `checks` parser in `cli.py`, `tests/test_checks.py`, the named assertions in `tests/test_autopilot_skill.py`, the named skill and gate-review sentences, and the approved DESIGN text. T064 (in review) owns `next_lanes`'s candidate loop and `_on_mainline`; T065 (queued) owns `WITH_BRANCH`, `_handoff`, `_closed_time`, `MOVED_ON`, `cmd_lane`, `cmd_review` and a paragraph above *Close and hand off* step 1.** | T065's paragraph sits above the step-1 sentence T066 edits; both are kept at hand-off. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commit `0339490` (range `b7f8745..0339490`): `chosen_resources` and the `resource_pairs`
+merge in `checks.py` (the holder check reads `next_lanes`'s read-only preview), `--resource` in
+`cli.py`, the approved DESIGN.md, skill and gate-review text with installed copies, one CHANGELOG
+bullet, five `test_checks.py` tests and the skill assertion shown failing before the code, and a
+one-line change to T063's skill test that asserted the sentence D5 replaced. Re-ran `taskrail checks
+T066 --stage implement` in the lane's worktree: 942 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–6 map to tests seen failing first; `dispatch.py` is untouched. |
+| 2 | One-line change to T063's test | accept · revert and drop D5 | **as recommended (accept)** | It asserted the exact sentence the approved D5 text replaces. |
+| 3 | `--resource` validated after worktree and stage selection | accept · validate first | **as recommended (accept)** | No check runs in any refusal, and the worktree's own configuration is loaded before the pool is read. |
