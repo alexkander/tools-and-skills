@@ -1,6 +1,7 @@
 # T066 — Pass chosen resource values to taskrail checks for a lane whose values were released
 
-Kind: feature · Epic: E02 · Status: plan (awaiting approval). Record:
+Kind: feature · Epic: E02 · Status: implemented (plan approved: D1–D6 and the race as recommended;
+implementation awaiting review). Record:
 `docs/autopilot/decisions/T066-pass-chosen-resource-values-to-taskrail.md`.
 
 Source: question 4 of T063's scope gate
@@ -64,6 +65,37 @@ After this change:
    *Rebase* section name `--resource NAME=VALUE` (source and both integrations' installed copies),
    no longer tell the orchestrator to set `TASKRAIL_RESOURCE_<NAME>` itself, and the existing
    command-and-flag test finds `--resource` in the parser.
+
+## Tests per criterion
+
+All in `tools/taskrail/tests/`. Each was observed failing before the implementation: the five
+`test_checks.py` tests with `taskrail: error: unrecognized arguments: --resource …` (argparse exit
+2), or `KeyError: 'chosen'` for the first call without the flag; the skill test on each copy
+(`source`, `claude`, `opencode`) with ``'`taskrail checks <id> --resource name=value`' in …`` false.
+
+| Criterion | Test |
+|-----------|------|
+| 1 | `test_checks.py::test_a_chosen_value_reaches_the_checks_of_a_lane_whose_values_were_released` (`PORT` pool `5433, 5434`, `max_lanes = 1`: T004 finished, the refill releases `5433` and gives it to the next task; without the flag `resources`, `environment` and `chosen` are `{}`; `--resource PORT=5434` echoes `port=5434` and reports it in all three) |
+| 2 | `test_checks.py::test_a_chosen_value_replaces_its_name_and_keeps_the_lane_s_other_values` (pools `PORT` and `DB`; the running lane holds `5433`/`db_a`; `--resource PORT=5434` echoes `port=5434 db=db_a`) |
+| 3 | `test_checks.py::test_a_value_another_lane_holds_exits_4_and_runs_nothing` (`PORT=5433`, held by the refilled lane: exit 4, stderr names `PORT=5433` and the holder, no `ran-5433` file); the own-value half in `…replaces_its_name…` (`--resource PORT=5433` while T004's lane holds it: exit 0) |
+| 4 | `test_checks.py::test_a_rejected_resource_pair_exits_2_and_runs_nothing` (`PORT`, `CACHE=1`, `PORT=9999`, `PORT` twice: exit 2, a message naming `NAME=VALUE`, the configured names, the pool's values or "more than once"; no `ran-*` file) |
+| 5 | `test_checks.py::test_text_mode_passes_chosen_values_and_refuses_held_ones` (text mode: `port=5434` and `passed test`, exit 0; a held value exits 4 naming the holder, with no `== test` header) |
+| 6 | `test_autopilot_skill.py::test_refill_runs_once_a_close_is_reviewed_not_at_hand_off` (source, `claude` and `opencode` copies: *Close and hand off* names `` `taskrail checks <ID> --resource NAME=VALUE` `` and no longer "set as `TASKRAIL_RESOURCE_<NAME>`"; gate-review's *Rebase* section names `--resource NAME=VALUE`); `test_every_taskrail_command_and_flag_shown_exists` (unchanged, passes with `--resource` in the parser) |
+
+Implementation notes:
+
+- `test_autopilot_skill.py::test_the_brief_and_the_re_run_steps_name_taskrail_checks` (T063) asserted
+  the sentence D5 replaces ("set as `TASKRAIL_RESOURCE_<NAME>`"). The full run failed on it on all
+  three copies after the skill edit; its assertion now names the new phrase
+  ("with `taskrail checks <ID> --resource NAME=VALUE`"). This test was not listed in the plan's
+  affected areas.
+- The worktree and the stage/check selection are resolved first, then `--resource`, so a task with no
+  worktree still exits 5 and an unknown stage 2 before the pairs are read; in every refusal no check
+  runs.
+- The holder check runs only when `--resource` is given, so plain `taskrail checks` does no extra
+  work.
+- This repository's installed copies (`.claude/skills/taskrail-autopilot/SKILL.md`,
+  `references/gate-review.md`, `.taskrail/installed.json`) were updated with `taskrail upgrade`.
 
 ## Affected areas
 
