@@ -34,3 +34,15 @@ are no longer passed. Nothing else is edited yet.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T063 owns both Workspace resource bullets of `references/lane-brief.md`, *Close and hand off* step 1 and *After a merge* step 2 of the skill, gate-review's *Never approve with failing checks* and *Rebase* bullets, and one test in `tests/test_autopilot_skill.py`. T061 (closed) owns *Before the first dispatch* and *Governing documents first*; T059 (closed) *Escalate* and gate-review *Close*; T048 (unmerged) the end of *Escalate*; T051 (unmerged) *Supervise*.** | Built from the plans reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs, adjacent bullets | resolve at hand-off · serialize | **resolve at hand-off, keeping both sides** | Known conflict classes 1–3; adjacent bullets from different tasks are kept. |
+
+## implement gate
+
+Reviewed: commit `45b5f11` (range `2de2fd3..45b5f11`): both Workspace bullets of `lane-brief.md`,
+*Close and hand off* step 1 and *After a merge* step 2 of the skill, gate-review's *Never approve
+with failing checks* and *Rebase* bullets, installed copies and digests, one CHANGELOG bullet, and a
+test over the source and both integrations' copies, shown failing on each file before its edit. Re-ran
+`taskrail checks T063 --stage implement` in the lane's worktree: 870 passed, `lint` not configured.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | The diff is the approved text only; every section's assertions were seen failing first. |
