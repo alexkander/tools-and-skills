@@ -62,3 +62,17 @@ gate (835 passed). `taskrail validate`: 0 errors. No upstream is configured. `re
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification and its control show F1 fixed. |
+
+## rebase after the merged tasks
+
+T050, T049, T060, T054, T055, T052, T053, T056, T048 and T051 (`e7111d9`) were merged into `main`
+since the branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+
+`cli.py` (beside T048's closed-run check and T062's refusal), `merged.py` and DESIGN.md merged without
+conflicts. After the rebase: no conflict markers, `taskrail checks T047 --stage implement`: `test` 893
+passed, `lint` not configured; `taskrail validate` 0 errors.
