@@ -37,3 +37,20 @@ were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T059 owns the new `autopilot/approve.py`, its import lines and `add("approve-governing", …)` block after `decision` in `commands.py` `register()`, `_escalation_text()`, `flags()`'s `approved` argument, `current_blobs()` and the `governing_approved` key in `status.py` `_lane_details()`/`_flag_escalations()`, `tests/test_autopilot_governing.py`, one test at the end of `tests/test_autopilot_skill.py`, and the approved DESIGN and skill text. T061 (planning) owns the new read-first configuration key and must leave governing matching to T059. Unmerged run 20260914-1 branches keep their areas (T048 `cmd_lane`/`cmd_close`/`runs.py`, T051 `status()`, T054 `task_state`, T055 other skill sections, T052 `taskrail checks`).** | Built from the plans reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs, same-line DESIGN rows | resolve at hand-off · serialize | **resolve at hand-off, keeping every phrase** | Known conflict classes 1–3; row edits apply phrase by phrase as at T054's rebase. |
+
+## implement gate
+
+Reviewed: commits `2583371`, `7df2e32` and `7b25ab9` (range `8a592d6..7b25ab9`): the new
+`autopilot/approve.py` (run, task and membership checks, refusals, blob IDs merged into
+`governing_approved` under the lock), `current_blobs` and `_approved` in `status.py` feeding
+`_lane_details` and `_flag_escalations`, `flags(…, approved=())` in `escalation.py`,
+`_escalation_text` naming only unapproved files, the `approve-governing` registration after
+`decision`, the approved skill and DESIGN.md text with installed copies, and
+`tests/test_autopilot_governing.py` plus one skill test, 20 shown failing before the code. The lane
+also broke the branch-tip lookup on purpose and saw two tests fail. Re-ran
+`uv run --directory tools/taskrail pytest -q` in the lane's worktree: 860 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–11 map to tests seen failing first; the diff stays in the named areas. |
+| 2 | Skill test placed after T049's; `approve.py` reuses `status._branch_ref` | accept · move the test / copy the helper | **as recommended (accept both)** | An appended function conflicts only in the append class; one branch-ref rule is better than two. |
