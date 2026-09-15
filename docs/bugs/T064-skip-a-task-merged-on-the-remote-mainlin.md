@@ -1,6 +1,6 @@
 # T064 — Skip a task merged on the remote mainline but not pulled in autopilot next
 
-Kind: bug · Epic: E02 · Status: diagnosed
+Kind: bug · Epic: E02 · Status: fixed
 
 Source: found on the way in [T062](T062-treat-a-task-discarded-on-its-unmerged-b.md) (its *Verification*,
 "Found on the way, not fixed here", and *Impact*), opened as decided in
@@ -229,3 +229,103 @@ makes `next` follow `_on_mainline`.
 4. **Docs.** `tools/taskrail/DESIGN.md` §12.1 (`autopilot next` row) and §12.4 (`done-merged` and
    `discarded`), exact text in the gate report; one bullet under `## Unreleased` in
    `tools/taskrail/CHANGELOG.md`.
+
+## Gate decisions
+
+Recorded in [the autopilot decisions](../autopilot/decisions/T064-skip-a-task-merged-on-the-remote-mainlin.md):
+the diagnosis and fix points 1–4 are approved; a task closed on the mainline is reported in `skipped`
+with its reason; the reopen rule goes into `_on_mainline` in this fix; plain `next`, `show` and
+`claim` are recorded only, with no follow-up; the `DESIGN.md` texts a–c and the CHANGELOG bullet are
+approved as written.
+
+## Fix
+
+`tools/taskrail/src/taskrail/autopilot/dispatch.py` `next_lanes`: reads `done_on_mainline` and
+`discarded_on_mainline` before the lock (both cached per project, one scan of the mainline refs), and
+the candidate loop's first skip reason is `done-merged on the mainline, not in this checkout` or
+`discarded on the mainline, not in this checkout`. The task is not dispatched, takes no lane, resource
+value or place in the run's count, and its run record is not written.
+
+`tools/taskrail/src/taskrail/autopilot/status.py` `_on_mainline`: when both mainline refs exist, a
+closed row read on one ref is dropped for tasks that `_reopened_elsewhere` finds — IDs from
+`git log --format=%B --grep=^Reopens: <other ref> --not <ref>`, parsed with `review.REOPENS` (one
+`git log` per mainline ref per backlog). `done_on_mainline`, `discarded_on_mainline` and
+`task_state` follow it.
+
+Also: the approved `DESIGN.md` texts a–c (§12.1 `autopilot next` row; §12.4 `done-merged` and
+`discarded`) and one bullet under `## Unreleased` in `tools/taskrail/CHANGELOG.md`. `query.py`,
+`stack.py`, `cli.py` and T062's tests are unchanged.
+
+## Verification
+
+Regression tests in `tests/test_autopilot_next.py`, `pilot` fixture, with a `merge_without_pull`
+helper (close in the lane, commit, push the branch to `origin/main`, fetch):
+
+- `test_a_task_closed_on_the_remote_mainline_but_not_pulled_is_not_dispatched[done|discard]` — count
+  6, five tasks dispatched, `T001` claimed with `--run`, closed, merged without a pull, dispatch
+  backdated 16 minutes: `status` reads `done-merged`/`discarded` while `show` still reads `pending`;
+  the preview and `next --run` dispatch nothing and skip `T001` with the reason, and the run's
+  `dispatched` time for `T001` is unchanged; with the lane worktree and branch removed the preview
+  still skips it; after `git merge --ff-only origin/main` it is neither dispatched nor skipped.
+- `test_a_task_reopened_on_the_local_mainline_is_offered_while_the_remote_is_still_closed` — `T001`
+  done, merged and pulled, then reopened and committed on `main` without a push: `status` reads
+  `pending` and the preview dispatches it; after pushing the reopen and resetting the local `main`
+  one commit back (the remote reopen not pulled), `status` still reads `pending`.
+
+Run against the unfixed code (the tests written, `dispatch.py` and `status.py` untouched):
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no tests/test_autopilot_next.py -k "remote_mainline or reopened_on_the_local_mainline"
+FFF                                                                      [100%]
+>       assert (ids(preview), skipped(preview).get("T001")) == ([], reason)
+E       AssertionError: assert (['T001'], None) == ([], 'done-me...his checkout')
+tests/test_autopilot_next.py:665: AssertionError
+>       assert (ids(preview), skipped(preview).get("T001")) == ([], reason)
+E       AssertionError: assert (['T001'], None) == ([], 'discard...his checkout')
+tests/test_autopilot_next.py:665: AssertionError
+>       assert row(pilot.root, capsys, run_id, "T001")["state"] == "pending"
+E       AssertionError: assert 'done-merged' == 'pending'
+tests/test_autopilot_next.py:691: AssertionError
+FAILED tests/test_autopilot_next.py::test_a_task_closed_on_the_remote_mainline_but_not_pulled_is_not_dispatched[done-done-merged]
+FAILED tests/test_autopilot_next.py::test_a_task_closed_on_the_remote_mainline_but_not_pulled_is_not_dispatched[discard-discarded]
+FAILED tests/test_autopilot_next.py::test_a_task_reopened_on_the_local_mainline_is_offered_while_the_remote_is_still_closed
+3 failed, 40 deselected in 2.85s
+```
+
+Each fails on the root cause: `status` reads `T001` closed and the preview still dispatches it, with no
+skip; and a reopen on the local mainline still reads `done-merged` from `origin/main`.
+
+After the fix:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no tests/test_autopilot_next.py -k "remote_mainline or reopened_on_the_local_mainline"
+...                                                                      [100%]
+3 passed, 40 deselected in 3.22s
+$ taskrail checks T064 --stage fix
+== test: uv run --directory tools/taskrail pytest -q
+937 passed in 107.13s (0:01:47)
+== lint: not configured
+```
+
+The reproduction script, re-run with the fixed code (changed lines):
+
+```text
+--- branch merged into origin/main, fetched, local main not pulled            (closing with `done`)
+autopilot next (preview): {"dispatch": [], "skipped": [{"id": "T001", "reason": "done-merged on the mainline, not in this checkout"}, …]}
+autopilot next --run 20260915-1: {"dispatch": [], "skipped": [{"id": "T001", "reason": "done-merged on the mainline, not in this checkout"}, …], "remaining": 1}
+--- lane worktree and local branch removed (as `autopilot merged --cleanup` does)
+autopilot next (preview): {"dispatch": [], "skipped": [{"id": "T001", "reason": "done-merged on the mainline, not in this checkout"}, …]}
+--- reopened and committed on local main, not pushed (origin/main still closed)
+autopilot status --run 20260915-1: {"T001": "pending", …}
+autopilot next (preview): {"dispatch": ["T001"], …}
+--- branch merged into origin/main, fetched, local main not pulled            (closing with `discard`)
+autopilot next (preview): {"dispatch": [], "skipped": [{"id": "T001", "reason": "discarded on the mainline, not in this checkout"}, …]}
+autopilot next --run 20260915-1: {"dispatch": [], "skipped": [{"id": "T001", "reason": "discarded on the mainline, not in this checkout"}, …], "remaining": 2}
+--- reopened and committed on local main, not pushed (origin/main still closed)
+autopilot status --run 20260915-1: {"T001": "pending", …}
+autopilot next (preview): {"dispatch": ["T001"], …}
+===== T004 closed from another clone, never in a run =====
+autopilot next (preview): ["T001", "T002", "T003"]
+```
+
+Plain `taskrail next` and `show` still report `T001` as `pending` until the pull, as decided (§7).
