@@ -36,3 +36,18 @@ row is `✅`. The root cause is located. No code changed, so no checks were re-r
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T062 owns `stack._find` and `discarded_on_branch`, `query.STATES` and `state`, the `discarded-branch` refusals in `cli.py` `cmd_claim` (after the `done_on_branch` refusal) and `cmd_edit`, `status.py` `STATES`, `task_state`, `done_on_mainline`/`discarded_on_mainline` and `_closing`, and tests in `tests/test_autopilot_next.py` and `tests/test_stacked_base.py`. T059 owns `escalation.py`, `approve.py`, `_escalation_text` and `_lane_details`/`_flag_escalations`; T061 `config.py` `read_first` and new fields in `cmd_status`/`_status_text`; unmerged T053 `_handoff`/`_done_time`, T051 `status()`, T048 `cmd_claim`'s `--run` check and `dispatch.py`, T047 `cmd_claim`'s lane line.** | Built from the plans reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs, same-line DESIGN rows | resolve at hand-off · serialize | **resolve at hand-off, keeping every phrase** | Known conflict classes 1–3. |
+
+## fix gate
+
+Reviewed: commit `20866b5` (range `6258c5b..20866b5`): `_find` returning done and discarded tips from
+one scan and `discarded_on_branch` in `stack.py`, `discarded-branch` in `query.py`, the `claim` and
+`edit` refusals in `cli.py`, `_on_mainline`, `discarded_on_mainline`, `task_state` and `_closing` in
+`autopilot/status.py`, the approved DESIGN.md texts, one CHANGELOG bullet, and seven tests, six shown
+failing on the unfixed code (twice, the second time with the final test files in a detached worktree).
+Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 849 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · changes | **approve** | The regression tests cover every reader the diagnosis named; the diff stays inside the touch map. |
+| 2 | A task merged on `origin/main` but not pulled is still offered by `autopilot next` (`✅` already on `main`, `❌` too) | open a bug · fix here · record only | **as recommended (open a bug)**: E02, "Skip a task merged on the remote mainline but not pulled in autopilot next", verified by a pytest closing a task with `done` and with `discard`, pushing without a pull, and asserting `next` does not offer it; committed on its own at impact | A separate cause in the dispatch candidate list, next to T048's code; not part of the approved plan. |
+| 3 | Rebase conflicts expected at hand-off | known classes and phrase-level DESIGN edits · stop | **as recommended (at hand-off)** | As at earlier hand-offs. |
