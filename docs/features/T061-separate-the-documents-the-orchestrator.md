@@ -1,6 +1,6 @@
 # T061 — Separate the documents the orchestrator reads first from the paths that escalate
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: question 3 of T060's scope gate
 ([decision record](../autopilot/decisions/T060-remove-design-md-and-claude-md-from-the.md)), which
@@ -82,6 +82,25 @@ passing is criterion 5's guard, which holds before and after) before the impleme
 Two existing tests in `test_autopilot.py` pinned the old shape and were changed by one line each:
 the every-key configuration test expects `read_first` to take the `governing` entry, and the
 no-runs status test expects `read_first` and `read_first_missing` beside `fetched`.
+
+## Verification in the real CLI
+
+Run from the task worktree with `.taskrail/bin/taskrail --root <worktree> autopilot status --run
+20260914-2`, against the live run of this repository (T059 and T061 lanes). No gap against the plan.
+
+1. **This repository's configuration** (`read_first = ["CLAUDE.md", "tools/taskrail/DESIGN.md"]`):
+   the text form started with `read first: CLAUDE.md, tools/taskrail/DESIGN.md` and no missing line;
+   `--json` ended with `"read_first": ["CLAUDE.md", "tools/taskrail/DESIGN.md"]` and
+   `"read_first_missing": []`. Both lanes touch `tools/taskrail/DESIGN.md` (T061 also `CLAUDE.md`)
+   and both show `governing_touched: []`, `escalation: []`.
+2. **A missing entry and a `./` glob**, set temporarily
+   (`["CLAUDE.md", "./docs/spikes/*.md", "GONE.md", "tools/taskrail/DESIGN.md"]`): `read first:
+   CLAUDE.md, ./docs/spikes/*.md, GONE.md, tools/taskrail/DESIGN.md` then `read first missing:
+   GONE.md`.
+3. **The fallback**, with the `read_first` line removed and `governing = ["docs/nowhere",
+   "TODO.md"]`: `read first: docs/nowhere, TODO.md` then `read first missing: docs/nowhere`.
+
+The configuration was restored with `git checkout -- .taskrail/config.toml`; `git status` was clean.
 
 ## Affected areas
 
