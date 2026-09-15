@@ -58,3 +58,17 @@ row and the T062 row. No code or test changed after the checks re-run at the fix
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `fix(taskrail)`** | Every close check holds. At its rebase, the §12.1 `autopilot status` row carries T049's, T053's and T054's phrases: all are kept. |
+
+## rebase after T049 and T060
+
+T049 (`ff8e4e6`), T050 (`1631ab8`) and T060 (`502ea3b`) were merged into `main` since the branch
+started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2: appended index rows and *Unreleased* bullets. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID: T059, T061, T062** | Class 1: rows appended to E02 by different tasks. |
+| 3 | Conflict in `tools/taskrail/DESIGN.md`, §12.1 `autopilot next`, `autopilot lane` and `autopilot status` rows | stop · keep every task's phrase | **keep every phrase: `main`'s rows (T050's `close`, T049's escalation phrase) with T054's two phrases applied, each replaced exactly once** | Each table row is one line, so edits to different phrases conflict textually; the approved texts do not overlap. Decided under the human's delegation of DESIGN.md decisions. |
+
+After the rebase: no conflict markers (`git diff --check` clean), `uv run --directory tools/taskrail
+pytest -q` 842 passed, `taskrail validate` 0 errors.
