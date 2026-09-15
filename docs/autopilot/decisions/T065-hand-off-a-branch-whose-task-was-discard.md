@@ -50,3 +50,18 @@ worktree: 942 passed.
 | 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–9 map to tests seen failing first; the diff stays inside the touch map. |
 | 2 | T067 depends on T065 | keep · clear | **as recommended (keep)** | The follow-up builds on this hand-off. |
 | 3 | Four phrase replacements past the line width | keep · re-wrap | **as recommended (keep)** | Phrase-sized diffs merge with the other branches' phrases in the same paragraphs. |
+
+## close gate
+
+Reviewed: `1b0a1fe` (verification in a scratch repository: a running lane refused `handed-off`; after
+the discard the task read `discarded-branch` with its `touched` files and no escalation, queued ahead
+of a later done by its discard commit; `review --publish` titled it `chore`; after `handed-off` it
+stayed `discarded-branch` with `in_review` naming it; after its branch reached `origin/main` it read
+`discarded` and the next task was offered) and `dd3dce2` (`taskrail done T065` on its own). The
+backlog differs from its base only in T065's row and the T067 row. No code changed after the checks
+re-run at the implement gate (942 passed). `taskrail validate`: 0 errors. No upstream is configured.
+`review --json`: `rebase.needed` false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Queue the branch for hand-off | queue · changes | **queue, as `feat(taskrail)`, after T063 and T064** | Every close check holds; the verification walks the whole hand-off of a discarded branch. |
