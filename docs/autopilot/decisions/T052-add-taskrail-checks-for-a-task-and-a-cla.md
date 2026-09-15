@@ -69,3 +69,17 @@ the implement gate (841 passed). `taskrail validate`: 0 errors. No upstream is c
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification ran the new command on the task itself. |
+
+## rebase after T049, T060, T054 and T055
+
+T050, T049 (`ff8e4e6`), T060 (`502ea3b`), T054 (`4420c8d`) and T055 (`2265434`) were merged into
+`main` since the branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2: appended index rows and *Unreleased* bullets. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1: T063's row appended beside T059, T061 and T062. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3; the digests match the merged skill sources and Claude Code notes. |
+
+After the rebase: no conflict markers (`git diff --check` clean), `uv run --directory tools/taskrail
+pytest -q` 867 passed, `taskrail validate` 0 errors.
