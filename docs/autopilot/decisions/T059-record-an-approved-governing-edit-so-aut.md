@@ -54,3 +54,18 @@ also broke the branch-tip lookup on purpose and saw two tests fail. Re-ran
 |---|---|---|---|---|
 | 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–11 map to tests seen failing first; the diff stays in the named areas. |
 | 2 | Skill test placed after T049's; `approve.py` reuses `status._branch_ref` | accept · move the test / copy the helper | **as recommended (accept both)** | An appended function conflicts only in the append class; one branch-ref rule is better than two. |
+
+## close gate
+
+Reviewed: `93a68dd` (verification in a scratch repository: a governing edit flagged, cleared by
+`approve-governing` with the worktree's blob ID, re-flagged after an uncommitted change and a new
+file, partially approved with `--path`, the three refusals exiting 2, 3 and 5, and both approvals
+holding from the branch tip at `done-branch` after the worktree was removed) and `be5e809`
+(`taskrail done T059` on its own). No code changed after the checks re-run at the implement gate (860
+passed). `taskrail validate`: 0 errors. No upstream is configured. `review --json`: `rebase.needed`
+true onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Queue the branch for hand-off | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification covers recording, re-flagging and refusals. |
+| 2 | Expected rebase conflicts | known classes, keeping every phrase in the DESIGN rows · stop | **as recommended** | As at earlier hand-offs in these runs. |
