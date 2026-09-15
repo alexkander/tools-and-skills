@@ -33,3 +33,19 @@ whatever status closed the task. The premise holds. No code changed, so no check
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T067 owns `_row_status`, `recorded_merges`, `cmd_merged` and `_text` in `merged.py`, `done_on_mainline` and `discarded_on_mainline` in `status.py`, its tests in `tests/test_autopilot_merged.py`, and the approved DESIGN.md text. No other lane is running.** | Single lane. |
 | 2 | CHANGELOG, TODO.md, index READMEs | resolve at hand-off | **resolve at hand-off** | Known conflict classes 1–2. |
+
+## implement gate
+
+Reviewed: commit `d913a0b` (range `8d3f9cd..d913a0b`): `_row_status`, `CLOSED`, `record_status`,
+`recorded_merges` returning each task's newest record status, `cmd_merged` detecting a ✅ or ❌ head
+and recording `status`, `_text`'s ` (discarded)`, `_recorded` feeding `done_on_mainline` and
+`discarded_on_mainline` in `status.py`, the approved DESIGN.md texts, one CHANGELOG bullet, and six new
+plus three changed tests shown failing first; the lane also broke the newest-record rule on purpose
+and saw its test fail. Re-ran `taskrail checks T067 --stage implement` in the lane's worktree: 959
+passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–8 map to tests seen failing first; the diff stays in the approved areas. |
+| 2 | §12.1 `autopilot close` row: "those still count toward `done-merged`" | replace with "…toward `done-merged`, or `discarded` for a discarded branch (T067)" · leave | **replace, as recommended, in its own commit** | The row would otherwise contradict this task's behaviour. Decided under the human's delegation. |
+| 3 | `recorded_merges` checks every record of a task | keep · newest first, stop at the first valid | **as recommended (keep)** | Tasks rarely have records in more than one run; the cost equals today's for a single record. |
