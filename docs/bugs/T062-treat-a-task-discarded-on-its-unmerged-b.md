@@ -1,6 +1,6 @@
 # T062 — Treat a task discarded on its unmerged branch as closed in status and next
 
-Kind: bug · Epic: E02 · Status: diagnosed
+Kind: bug · Epic: E02 · Status: fixed
 
 Source: the impact stage of [T054](T054-keep-a-closing-lane-from-reading-as-pend.md) (its
 *Affected areas* and *Impact*), decided in
@@ -209,3 +209,174 @@ Consequences, reader by reader:
 8. **Docs.** `DESIGN.md` §7 (state list, a *Discarded on its branch* paragraph, the `next` row),
    §12.1 `autopilot status` row, §12.4 and §12.7 (exact text at the gate), and one bullet under
    `## Unreleased` in `tools/taskrail/CHANGELOG.md`.
+
+## Gate decisions
+
+Recorded in [the autopilot decisions](../autopilot/decisions/T062-treat-a-task-discarded-on-its-unmerged-b.md):
+the diagnosis and fix points 1–8 with the new `discarded-branch` state are approved; `claim` refuses
+it with exit 5 and `edit` without `--force`; `❌` on either mainline ref reads `discarded` in
+`autopilot status`; `_closing` also matches an uncommitted `❌`; the hand-off stays out, with a
+follow-up feature once T053 is merged; the `DESIGN.md` texts a–h are approved as proposed.
+
+## Fix
+
+`tools/taskrail/src/taskrail/stack.py`:
+
+- `_find` returns two maps from the same scan: `done` as before, and `discarded`, the tasks with a
+  `❌` tip that are not in `done` (a `✅` tip wins) and whose row is closed (`✅` or `❌`) on neither
+  mainline ref. Both use the same tip rule — the local branch or `<remote>/<branch>`, and not older
+  than a `Reopens: <ID>` commit on a mainline ref — through a local `tips` helper.
+- `done_on_branch` returns the first map, unchanged; the new `discarded_on_branch` returns the
+  second. Both share the one cache entry (`CACHE_KEY`), which `_fetch_records` still clears.
+
+`tools/taskrail/src/taskrail/query.py`: `discarded-branch` joins `STATES` after `done-branch` (so
+`list --state discarded-branch` accepts it), and `state` returns it after `done-branch`.
+
+`tools/taskrail/src/taskrail/cli.py`: `cmd_claim` refuses a `discarded-branch` task with exit 5 —
+`<ID> is discarded on branch <refs>, not yet merged into <mainline>` — right after the `done-branch`
+refusal; `cmd_edit` refuses it without `--force` — `<ID> is discarded on branch <refs>; pass --force
+to edit it anyway`.
+
+`tools/taskrail/src/taskrail/autopilot/status.py`:
+
+- `_on_mainline(project, status)` reads the mainline refs once per project (cached as
+  `autopilot_closed_on_mainline`) and keeps both the `✅` and the `❌` rows, falling back to the
+  checkout's rows outside git as before. `done_on_mainline` is built on it, still adding
+  `recorded_merges`; the new `discarded_on_mainline` returns the `❌` rows.
+- `task_state` returns `discarded` for `❌` in the checkout or on a mainline ref, and
+  `discarded-branch` right after `handed-off`/`done-branch`, before the recorded states. It is not
+  in `WITH_BRANCH`, so it has no `touched` files and no escalation flag; `STATES` lists it.
+- `_closing` matches an uncommitted `✅` or `❌`.
+
+`autopilot/dispatch.py` is unchanged: the task is no longer in `query.eligible`, and
+`discarded-branch` is in neither `OCCUPYING` nor `COUNTED`. `_handoff` is unchanged, so the hand-off
+queue still holds only `done-branch` rows.
+
+Also: the approved `DESIGN.md` texts a–h (§7 state list, *Discarded on its branch*, the `next` row;
+§12.1 `autopilot status` row; §12.4 `running`, `discarded-branch` and `discarded`; §12.7 twice) and
+one bullet under `## Unreleased` in `tools/taskrail/CHANGELOG.md`.
+
+## Verification
+
+Regression tests:
+
+- `tests/test_stacked_base.py`, `lanes` fixture, with a `discard_on_branch` helper (claim, discard,
+  commit in the task's worktree):
+  - `test_a_task_discarded_on_its_branch_is_discarded_branch_and_never_offered` — `show` reports
+    `status: pending`, `state: discarded-branch`; `next` offers only `T003`;
+    `list --state discarded-branch` lists `T001`; `claim` exits 5 naming the branch; dependent
+    `T002` stays `blocked` by `T001` with no stacked `dependency`.
+  - `test_a_discard_only_on_the_remote_branch_is_discarded_branch` — pushed, local branch and
+    worktree removed: `discarded-branch`, `refs == ("origin/T001-base-task",)`, not in
+    `done_on_branch`.
+  - `test_a_done_tip_wins_over_a_discarded_one` — `origin` keeps the `❌`, the local tip is `✅`:
+    `done-branch`, not in `discarded_on_branch`.
+  - `test_a_discard_older_than_a_reopen_on_the_mainline_does_not_count` — the discard merged on
+    `main` and reopened there: `pending` and offered again (a guard: it passes before the fix too).
+- `tests/test_edit.py::test_a_task_discarded_on_its_branch_is_refused_unless_forced` — exit 5 with
+  `T003 is discarded on branch T003-rounding-error`, then `--force` edits it.
+- `tests/test_autopilot_next.py`, `pilot` fixture:
+  - `test_a_task_discarded_on_its_unmerged_branch_is_closed_and_not_dispatched_again` — count 2,
+    `T001` and `T002` dispatched, `T001` claimed with `--run`, discarded and committed, dispatch
+    backdated 16 minutes: `status` reports `discarded-branch`, `claim` null, its branch, no
+    `touched`, an empty hand-off queue; plain `next` omits `T001`; `next --run` does not skip it
+    (it is no candidate) and dispatches `T003` into the place it freed (`remaining: 0`). After the
+    branch is pushed to `origin/main` without pulling, `status` reports `discarded`.
+  - `test_a_lane_between_discard_and_its_commit_is_running` — `discard` without a commit: `running`,
+    `claim` null, `touched == ["TODO.md"]`; after the commit, `discarded-branch`.
+
+Run against the unfixed code — the final test files copied into a temporary detached worktree at
+`6258c5b` (the diagnosis commit), removed afterwards:
+
+```text
+$ uv run --directory /…/T062/unfixed/tools/taskrail pytest -q -p no:cacheprovider --color=no tests/test_stacked_base.py tests/test_edit.py tests/test_autopilot_next.py -k "discard"
+FFF..FFF                                                                 [100%]
+>       assert (shown["status"], shown["state"]) == ("pending", "discarded-branch")
+E       AssertionError: assert ('pending', 'pending') == ('pending', '...arded-branch')
+tests/test_stacked_base.py:409: AssertionError
+>       assert data(lanes.root, "show", "T001", capsys=capsys)["state"] == "discarded-branch"
+E       AssertionError: assert 'pending' == 'discarded-branch'
+tests/test_stacked_base.py:425: AssertionError
+>       assert "T001" not in stack.discarded_on_branch(project)
+E       AttributeError: module 'taskrail.stack' has no attribute 'discarded_on_branch'
+tests/test_stacked_base.py:440: AttributeError
+>       assert "T003 is discarded on branch T003-rounding-error" in refused(git_repo, "T003", "--description", "X", code=5, capsys=capsys)
+tests/test_edit.py:325:
+>       assert (result, out) == (code, ""), err
+E       assert (0, 'T003 des...by one → X\n') == (5, '')
+tests/test_edit.py:51: AssertionError
+>       assert (lane["state"], lane["claim"], lane["branch"], lane["touched"]) == ("discarded-branch", None, branch, [])
+E       AssertionError: assert ('pending', N...first-ui', []) == ('discarded-b...first-ui', [])
+tests/test_autopilot_next.py:611: AssertionError
+>       assert (lane["state"], lane["claim"], lane["touched"]) == ("running", None, ["TODO.md"])
+E       AssertionError: assert ('pending', None, []) == ('running', None, ['TODO.md'])
+tests/test_autopilot_next.py:633: AssertionError
+FAILED tests/test_stacked_base.py::test_a_task_discarded_on_its_branch_is_discarded_branch_and_never_offered
+FAILED tests/test_stacked_base.py::test_a_discard_only_on_the_remote_branch_is_discarded_branch
+FAILED tests/test_stacked_base.py::test_a_done_tip_wins_over_a_discarded_one
+FAILED tests/test_edit.py::test_a_task_discarded_on_its_branch_is_refused_unless_forced
+FAILED tests/test_autopilot_next.py::test_a_task_discarded_on_its_unmerged_branch_is_closed_and_not_dispatched_again
+FAILED tests/test_autopilot_next.py::test_a_lane_between_discard_and_its_commit_is_running
+6 failed, 2 passed, 105 deselected in 2.68s
+```
+
+Each fails on the root cause: the committed `❌` reads `pending` (plain and autopilot), `edit` goes
+through (exit 0), the uncommitted `❌` reads `pending` with no `touched`, and the reader
+`discarded_on_branch` does not exist. The two passes are the existing
+`test_a_closed_task_is_refused_unless_forced[discard]` and the reopen guard above. The mainline part
+of the autopilot test is not reached on the unfixed code; the reproduction's last block shows it
+reading `pending` there.
+
+After the fix:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no tests/test_stacked_base.py tests/test_edit.py tests/test_autopilot_next.py -k "discard"
+........                                                                 [100%]
+8 passed, 105 deselected in 2.61s
+$ uv run --directory tools/taskrail pytest -q
+849 passed in 87.45s (0:01:27)
+```
+
+The `lint` check the `fix` stage names is not configured in this repository's `[checks]`.
+
+The reproduction script, re-run with the fixed CLI (changed lines):
+
+```text
+--- autopilot status --run 20260915-1 after the discard is committed on the branch (exit 0)
+T001: state=discarded-branch claim=False touched=[]
+--- autopilot next (preview) after the discard is committed on the branch (exit 0)
+{"dispatch": [], "skipped": [{"id": "T003", "reason": "dispatched in run 20260915-1"}]}
+--- taskrail next after the discard is committed on the branch (exit 0)
+["T003"]
+--- show T001 after the discard is committed on the branch (exit 0)
+{"status": "pending", "state": "discarded-branch", "blocked_by": [], "base.onto": "origin/main"}
+--- claim T001 from the main checkout (exit 5)
+taskrail: T001 is discarded on branch T001-first-bug, not yet merged into main
+--- autopilot next --run 20260915-1 after the discard is committed on the branch (exit 0)
+{"dispatch": [], "skipped": [{"id": "T003", "reason": "dispatched in run 20260915-1"}], "remaining": 1}
+--- autopilot status --run 20260915-1 after the branch is merged into origin/main (local main not pulled) (exit 0)
+T001: state=discarded claim=False touched=[]
+--- autopilot next (preview) after the branch is merged into origin/main (local main not pulled) (exit 0)
+{"dispatch": ["T001"], "skipped": [{"id": "T003", "reason": "dispatched in run 20260915-1"}]}
+--- taskrail next after the branch is merged into origin/main (local main not pulled) (exit 0)
+["T001", "T003"]
+```
+
+**Found on the way, not fixed here.** After a merge into `<remote>/<mainline>` that the local
+mainline has not pulled, `autopilot next` still offers the task, for a `✅` as much as for a `❌`.
+`autopilot status` reports `done-merged` or `discarded`, but `next_lanes` takes its candidates from
+`query.eligible`, which by §7 reads merged rows only from the checkout, and none of its skip checks
+looks at `done-merged` or `discarded`. A throwaway probe (`closing` = `done` or `discard`, dispatch,
+claim with `--run`, close and commit in the lane, push the branch to `origin/main`, fetch, backdate
+the dispatch):
+
+```text
+unfixed code
+PROBE done {'status': 'done-merged', 'show': 'pending', 'preview': ['T001']}
+PROBE discard {'status': 'pending', 'show': 'pending', 'preview': ['T001']}
+fixed code
+PROBE done {'status': 'done-merged', 'show': 'pending', 'preview': ['T001']}
+PROBE discard {'status': 'discarded', 'show': 'pending', 'preview': ['T001']}
+```
+
+The `✅` case is on `main` today, before this fix; it is proposed as a follow-up at the gate.
