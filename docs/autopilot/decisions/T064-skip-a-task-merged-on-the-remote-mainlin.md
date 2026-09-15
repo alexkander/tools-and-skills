@@ -35,3 +35,16 @@ no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T064 owns the candidate loop and cache warm-up in `dispatch.py` `next_lanes`, `_on_mainline` in `status.py`, and two tests in `tests/test_autopilot_next.py`. T065 owns `WITH_BRANCH`, `_handoff` and `_closed_time` in `status.py`, `MOVED_ON`, `cmd_lane`'s `handed-off` check, `cmd_review`, and T062's two assertions in `tests/test_autopilot_next.py`. T063 (in review) edits only skill text and the lane brief.** | Built from the plans reached so far; a conflict between the two test edits in one file keeps both. |
 | 2 | CHANGELOG, TODO.md, index READMEs, same-line DESIGN rows | resolve at hand-off · serialize | **resolve at hand-off, keeping every phrase** | Known conflict classes 1–2. |
+
+## fix gate
+
+Reviewed: commit `4cba750` (range `5ef7cef..4cba750`): the new first skip reason and cache warm-up in
+`dispatch.py` `next_lanes`, `_reopened_elsewhere` and its use in `_on_mainline`, three new tests in
+`tests/test_autopilot_next.py` shown failing on the unfixed code (the preview dispatching `T001`, and a
+local reopen still reading `done-merged`), the approved DESIGN.md (a)–(c) and CHANGELOG bullet. Re-ran
+`taskrail checks T064 --stage fix` in the lane's worktree: 937 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the fix | approve · changes | **approve** | The tests cover both closings, a removed lane branch, the pull and the reopen rule; the diff stays inside the touch map. |
+| 2 | Follow-ups for an uncommitted reopen or a recorded merge after a reopen | none · bug in E02 | **as recommended (none)** | A reopen is committed by procedure, and a recorded merge only counts while its commit stays on the mainline. |
