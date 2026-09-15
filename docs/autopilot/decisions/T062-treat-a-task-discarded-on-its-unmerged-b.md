@@ -51,3 +51,15 @@ Re-ran `uv run --directory tools/taskrail pytest -q` in the lane's worktree: 849
 | 1 | Approve the fix | approve · changes | **approve** | The regression tests cover every reader the diagnosis named; the diff stays inside the touch map. |
 | 2 | A task merged on `origin/main` but not pulled is still offered by `autopilot next` (`✅` already on `main`, `❌` too) | open a bug · fix here · record only | **as recommended (open a bug)**: E02, "Skip a task merged on the remote mainline but not pulled in autopilot next", verified by a pytest closing a task with `done` and with `discard`, pushing without a pull, and asserting `next` does not offer it; committed on its own at impact | A separate cause in the dispatch candidate list, next to T048's code; not part of the approved plan. |
 | 3 | Rebase conflicts expected at hand-off | known classes and phrase-level DESIGN edits · stop | **as recommended (at hand-off)** | As at earlier hand-offs. |
+
+## close gate
+
+Reviewed: `5efbf4d` (follow-up T064, bug, E02), `deb15c4` (follow-up T065, feature, E02, depending on
+T053), `74a7182` (artifact *Impact*) and `f3eabe0` (`taskrail done T062` on its own). The backlog
+differs from its base only in T062's row and the two rows the task added. No code changed after the
+checks re-run at the fix gate (849 passed). `taskrail validate`: 0 errors. No upstream is configured.
+`review --json`: `rebase.needed` true onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Queue the branch for hand-off | queue · changes | **queue, as `fix(taskrail)`** | Every close check holds. |
