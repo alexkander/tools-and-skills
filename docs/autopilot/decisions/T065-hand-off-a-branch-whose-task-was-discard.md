@@ -35,3 +35,18 @@ is not `✅`. The premise holds. No code changed, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T065 owns `WITH_BRANCH`, `_closed_time` (renamed from `_done_time`) and `_handoff` in `status.py`, `MOVED_ON` in `escalation.py`, the `handed-off` check in `commands.py` `cmd_lane`, the `Status.DONE` check and default type in `cli.py` `cmd_review`, its tests in `tests/test_autopilot.py`, `tests/test_review.py` and `tests/test_autopilot_skill.py`, T062's two assertions in `tests/test_autopilot_next.py`, and the approved DESIGN and skill text. T064 owns the candidate filtering in `dispatch.py` `next_lanes` and its tests. T063 (in review) owns *Close and hand off* step 1, *After a merge* step 2, gate-review's check bullets and the lane brief.** | Built from the plans reached so far. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs, adjacent tests and phrases | resolve at hand-off · serialize | **resolve at hand-off, keeping both sides** | Known conflict classes 1–3. |
+
+## implement gate
+
+Reviewed: commits `b58657f`, `3148216` and `afccf10` (range `4f04eea..afccf10`): `WITH_BRANCH`,
+`WAITING`, `_closed_time` and `_handoff` in `status.py`, `MOVED_ON`, `cmd_lane`'s `handed-off` check,
+`cmd_review` accepting a discard with `chore` as default type, the approved skill text with installed
+copies, DESIGN.md a–f, one CHANGELOG bullet, follow-up T067, and ten tests shown failing before the
+code. `dispatch.py` is untouched. Re-ran `taskrail checks T065 --stage implement` in the lane's
+worktree: 942 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–9 map to tests seen failing first; the diff stays inside the touch map. |
+| 2 | T067 depends on T065 | keep · clear | **as recommended (keep)** | The follow-up builds on this hand-off. |
+| 3 | Four phrase replacements past the line width | keep · re-wrap | **as recommended (keep)** | Phrase-sized diffs merge with the other branches' phrases in the same paragraphs. |
