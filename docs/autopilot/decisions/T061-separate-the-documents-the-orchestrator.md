@@ -68,3 +68,19 @@ gate (854 passed). `taskrail validate`: 0 errors. No upstream is configured. `re
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and queue the branch | queue · changes | **queue, as `feat(taskrail)`** | Every close check holds; the verification covers the list, the missing report and the fallback. |
+
+## rebase after the merged tasks
+
+T054, T055, T052, T053, T056, T048, T051 and T047 (`4313c71`) were merged into `main` since the
+branch started. The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID** | Class 1. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+| 4 | Conflict in `tools/taskrail/DESIGN.md`, §12.1 `autopilot status` row | stop · keep every task's phrase | **`main`'s row with T061's `read_first` sentence inserted after "to a flagged lane."** | The row carries T049, T051, T053 and T054's phrases; T061 only adds a sentence. Decided under the human's delegation. |
+| 5 | Conflict in `tools/taskrail/tests/test_autopilot.py`, the no-runs expected dict | stop · keep every key | **every key: `known_overlaps` (T051) and `read_first`, `read_first_missing` (T061)** | Anticipated at T061's implement gate: both tasks add top-level keys to the same report. |
+
+After the rebase: no conflict markers, `taskrail checks T061 --stage implement`: `test` 907 passed,
+`lint` not configured; `taskrail validate` 0 errors.
