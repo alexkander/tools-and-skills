@@ -1,0 +1,39 @@
+# T066 — autopilot decisions
+
+Decisions the orchestrator took on the human's behalf while this task ran in an autopilot lane.
+Each is recorded before it is given to the lane.
+
+## escalated to the human
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Who decides changes to `DESIGN.md` and `CLAUDE.md` proposed by autopilot lanes | the human per text · the orchestrator · remove them from `governing` | **the orchestrator decides them and the human reviews them in the pull request; both files were removed from `governing` (T060)** | The human's instruction during run 20260914-1, made permanent by T060. |
+| 2 | Launch T066 | — | **run 20260915-2 with T066, dispatched once T063 merged** | The human's instruction ("agrega la tarea que abrió a la lista"). |
+
+Answered by the human (repository owner), in the orchestrator session.
+
+## plan gate
+
+Reviewed: the plan in `docs/features/T066-pass-chosen-resource-values-to-taskrail.md` (commit
+`bc1f9bd`), its six acceptance criteria, and on `origin/main` (`8555317`) `checks.run_checks`, which
+passes only the lane's recorded values (empty after release), and the skill's *Close and hand off*
+step 1, which still documents an environment-variable prefix. The premise holds. No code changed, so
+no checks were re-run.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the plan | approve · changes · split the skill text | **as recommended (approve)** | One small CLI flag with the text that documents it. |
+| 2 | D1: combine with lane values | merge, flag wins per name · replace all · refuse while held | **as recommended (merge)** | Lets the orchestrator replace only the released names. |
+| 3 | D2: accepted values | configured name and pool value · any · name only | **as recommended (configured name and pool value)** | The same pool `next` allocates from; a typo fails loudly. |
+| 4 | D3: a value another lane holds | exit 4 · exit 5 · no check | **as recommended (exit 4)** | Exit 4 is taskrail's conflict code; reading `next_lanes`'s preview keeps one allocation rule. T064 (unmerged) changes only the candidate loop of `next_lanes`, not the held map. |
+| 5 | D4: DESIGN.md §7 row, §7.5 sentences, §12.7 sentence | approve as written · §7 only | **approve as written** | Decided under the human's delegation of DESIGN.md decisions. |
+| 6 | D5: skill *Close and hand off* step 1 sentence and gate-review *Rebase* bullet | approve as written · CLI only | **approve as written** | Otherwise the documented procedure keeps the command shape F11 warns against. |
+| 7 | D6: CHANGELOG bullet | add · none | **as recommended (add)** | A new CLI flag. |
+| 8 | Race between the holder check and the run | accept · record a reservation | **as recommended (accept)** | It needs two orchestrators on one clone; a reservation would widen the task beyond its row. |
+
+## Conflict handling agreed for all lanes
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Which lane edits which files | per-plan areas · free | **T066 owns `checks.py`, `cmd_checks` and the `checks` parser in `cli.py`, `tests/test_checks.py`, the named assertions in `tests/test_autopilot_skill.py`, the named skill and gate-review sentences, and the approved DESIGN text. T064 (in review) owns `next_lanes`'s candidate loop and `_on_mainline`; T065 (queued) owns `WITH_BRANCH`, `_handoff`, `_closed_time`, `MOVED_ON`, `cmd_lane`, `cmd_review` and a paragraph above *Close and hand off* step 1.** | T065's paragraph sits above the step-1 sentence T066 edits; both are kept at hand-off. |
+| 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs | resolve at hand-off · serialize | **resolve at hand-off** | Known conflict classes 1–3. |
