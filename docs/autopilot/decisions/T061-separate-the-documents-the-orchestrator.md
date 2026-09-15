@@ -38,3 +38,20 @@ changed, so no checks were re-run.
 |---|---|---|---|---|
 | 1 | Which lane edits which files | per-plan areas · free | **T061 owns `AutopilotConfig.read_first` and its reading in `config.py` `_autopilot`, `cmd_status` and `_status_text` in `commands.py` for the new fields, the skill's *Before the first dispatch* bullets, gate-review's *Governing documents first* bullet, its tests in `tests/test_autopilot.py` and `tests/test_autopilot_skill.py`, the approved DESIGN text, the `[autopilot]` block of `.taskrail/config.toml` and the last *Backlog* bullet of `CLAUDE.md`. T059 owns `escalation.py`, `approve.py`, `_escalation_text` and `governing_approved` in `status.py`; T051 (unmerged) `status()` and the overlaps lines of `_status_text` plus the no-runs expected dict in `test_autopilot.py`; T048 (unmerged) the run header line of `_status_text` and `cmd_status`'s closed-run filter.** | `cmd_status` and `_status_text` are shared with T048 and T051: add the new fields in separate lines so the hand-off keeps every change. |
 | 2 | Installed skill copies, `installed.json`, CHANGELOG, TODO.md, index READMEs, same-line DESIGN rows | resolve at hand-off · serialize | **resolve at hand-off, keeping every phrase** | Known conflict classes 1–3; row edits apply phrase by phrase. |
+
+## implement gate
+
+Reviewed: commits `0d0cb76` (tests, 13 of 14 shown failing; the one passing guards that `governing`
+escalation is unchanged) and `2bb9e14` (range `e3ba0cb..2bb9e14`): `AutopilotConfig.read_first` with
+its fallback in `config.py`, `read_first` and `read_first_missing` added in `cmd_status` on separate
+lines with `_matches_anything` and `_read_first_text`, the approved skill and gate-review text with
+installed copies, the approved DESIGN.md, `.taskrail/config.toml` and `CLAUDE.md` text, one CHANGELOG
+bullet, and one-line updates to two existing tests. Re-ran `uv run --directory tools/taskrail pytest
+-q` in the lane's worktree: 854 passed.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–7 map to tests; the diff avoids T059's and T051's functions. |
+| 2 | Tests in their own file | keep · move to planned files | **as recommended (keep)** | Fewer conflicts with four other branches editing those test files. |
+| 3 | One-line edits to two existing tests | accept · rewrite them | **as recommended (accept)** | A conflict on the no-runs expected dict keeps every key at hand-off. |
+| 4 | `Path.glob` for `read_first_missing` | accept · reuse `escalation.matches` | **as recommended (accept)** | Only affects a report, never escalation, and stays out of T059's module. |
