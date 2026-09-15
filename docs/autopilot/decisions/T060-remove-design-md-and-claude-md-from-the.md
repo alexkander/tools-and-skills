@@ -49,3 +49,16 @@ configured. The `test` check passed at implement (828) and only backlog and reco
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Hand-off order | next after the branch in review · after the run's queue | **next after T049, ahead of T053, as `chore(repo)`** | The human made T060 a priority; hand-off stays one branch at a time. |
+
+## rebase after T049
+
+T049 was merged into `main` (`ff8e4e6`). The branch was rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/autopilot/decisions/README.md` | keep both · stop | **keep both** | Class 2: appended index rows. |
+| 2 | Conflict in `TODO.md` | unite rows by ID · stop | **unite by ID: T059 then T061** | Class 1: two rows appended to E02 by different tasks. |
+
+After the rebase: no conflict markers (`git diff --check` clean), `uv run --directory tools/taskrail
+pytest -q` 840 passed, `taskrail validate` 0 errors. Handed off ahead of the run's queue, as the
+human made T060 a priority.
