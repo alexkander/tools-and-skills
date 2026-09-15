@@ -1,6 +1,6 @@
 # T065 — Hand off a branch whose task was discarded on it
 
-Kind: feature · Epic: E02 · Status: planned
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: the impact stage of [T062](../bugs/T062-treat-a-task-discarded-on-its-unmerged-b.md)
 (*Proposed fix*, point 6, and *Impact*), decided in
@@ -176,7 +176,84 @@ hand off* step 1, *After a merge* step 2, gate-review's *Never approve with fail
    `--cleanup` removes its worktree and branch; verified by a pytest that discards on a branch,
    squash-merges it and runs `merged --cleanup`. Alternatives: record only, or no follow-up.
 
-## DESIGN.md text (proposed; question 4)
+## Plan-gate decisions
+
+Recorded in [the decision record](../autopilot/decisions/T065-hand-off-a-branch-whose-task-was-discard.md):
+all six answers as recommended — option A (a handed-off discard keeps reading `discarded-branch`),
+`review` included with `chore` as the default type, T062's two assertions changed here, the
+`DESIGN.md` texts a–f and the skill text approved as written (the new paragraph above *Close and hand
+off* step 1), and the follow-up opened on its own commit on this branch.
+
+## Implementation
+
+- `autopilot/status.py`: `WITH_BRANCH` adds `discarded-branch`, so its `touched` files are reported
+  and join `overlaps`; new `WAITING = ("done-branch", "discarded-branch")`. `_done_time` became
+  `_closed_time`: it takes the task from `stack.done_on_branch`, else `stack.discarded_on_branch`, and
+  finds the newest first-parent commit off the mainline that turns the row into that status (`✅` or
+  `❌`). `_handoff` queues the `WAITING` rows except a `discarded-branch` one already in
+  `run["handed_off"]`, and `in_review` accepts a row that is `handed-off` or `discarded-branch`.
+  `task_state` is unchanged.
+- `autopilot/escalation.py`: `MOVED_ON = ("done-branch", "handed-off", "discarded-branch")`.
+- `autopilot/commands.py` `cmd_lane`: `--state handed-off` accepts a task in `done_on_branch` or
+  `discarded_on_branch`; otherwise exit 5 with
+  `<ID> is neither done nor discarded on its branch (done-branch or discarded-branch), so it cannot be handed off`.
+- `cli.py` `cmd_review`: accepts `Status.DISCARDED`; the refusal reads
+  `<ID> is <status> on this branch; run \`taskrail done <ID>\` or \`taskrail discard <ID>\` first`; the
+  default type is the kind's `commit_type` only for a done task, else `chore`.
+- Skill source: *Escalate* condition 1, the new paragraph above *Close and hand off* step 1, *Resume a
+  run* step 4, and gate-review's *Close* bullet, as approved; `.taskrail/bin/taskrail upgrade`
+  refreshed `.claude/skills/taskrail-autopilot/` and `.taskrail/installed.json`.
+- `DESIGN.md` texts a–f applied as written (b replaces the wrapped phrase across its two lines);
+  one *Unreleased* bullet in `CHANGELOG.md`.
+- `autopilot/dispatch.py` is not changed.
+
+The new and changed tests were run before the implementation and failed for the reasons the criteria
+name (10 failed; the one pass is T062's existing `test_a_lane_between_discard_and_its_commit_is_running`,
+selected by the same `-k`):
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no --tb=line tests/test_autopilot.py tests/test_autopilot_notify.py tests/test_review.py tests/test_autopilot_next.py tests/test_autopilot_skill.py -k "discard or requires_the_task_to_be_done or neither_done"
+FFFFFFF.FFF                                                              [100%]
+tests/test_autopilot.py:659: AssertionError: assert ('discarded-branch', None, []) == ('discarded-b...d', 'fix.py'])
+tests/test_autopilot.py:682: AssertionError: assert 'T003 is neither done nor discarded on its branch (done-branch or discarded-branch)' in 'taskrail: T003 is not done on its branch (done-branch), so it cannot be handed off\n'
+tests/test_autopilot.py:696: AssertionError: assert (['T004'], 'T004') == (['T003', 'T004'], 'T003')
+tests/test_autopilot_notify.py:369: AssertionError: assert ('discarded-branch', [], []) == ('discarded-b...0001.md'], [])
+tests/test_review.py:65: AssertionError: assert 'run `taskrail done T003` or `taskrail discard T003` first' in 'taskrail: T003 is pending on this branch; run `taskrail done T003` first\n'
+tests/test_review.py:22: AssertionError: taskrail: T002 is discarded on this branch; run `taskrail done T002` first
+tests/test_autopilot_next.py:611: AssertionError: assert ('discarded-b...first-ui', []) == ('discarded-b..., ['TODO.md'])
+tests/test_autopilot_skill.py:443: AssertionError: stops after `taskrail discard` (source, claude, opencode)
+10 failed, 1 passed, 208 deselected in 3.61s
+```
+
+After it:
+
+```text
+$ uv run --directory tools/taskrail pytest -q -p no:cacheprovider --color=no --tb=short … (same selection)
+11 passed, 208 deselected in 4.16s
+$ taskrail checks T065 --stage implement
+== test: uv run --directory tools/taskrail pytest -q
+942 passed in 105.39s (0:01:45)
+== lint: not configured
+```
+
+## Criteria and tests
+
+All in `tools/taskrail/tests/`.
+
+| # | Tests |
+|---|---|
+| 1 | `test_autopilot.py::test_a_branch_discarded_on_it_is_queued_handed_off_and_leaves_review_once_merged` (state, `touched == ["TODO.md", "fix.py"]`, queue `["T003", "T004"]`, `next` `T003`) |
+| 2 | the same test, after `lane --state handed-off`: `handed_off == ["T003"]`, state `discarded-branch`, `in_review` `T003`, queue `["T004"]`, `next` `null` |
+| 3 | the same test, after the branch is pushed to `origin/main` and fetched: `discarded`, `in_review` `null`, `next` `T004` |
+| 4 | `test_autopilot.py::test_handed_off_refuses_a_task_neither_done_nor_discarded_on_its_branch` (exit 5, message, hand-off order still empty) |
+| 5 | `test_autopilot.py::test_handoff_queue_orders_a_discard_by_its_discard_commit` (discard at 09:00, done at 10:00, a later commit on the discarded branch at 12:00: `["T003", "T004"]`); also criterion 1's order |
+| 6 | `test_autopilot_notify.py::test_status_drops_the_governing_escalation_at_discarded_branch` (`running` flagged; `discarded-branch` and after hand-off: `governing_touched` kept, `escalation` empty) |
+| 7 | `test_review.py::test_review_prepares_a_task_discarded_on_its_branch_as_a_chore` (`chore: repricing (T002)`, `--type fix`, `--publish` pushes) and `test_review_requires_the_task_to_be_done` (the new refusal message) |
+| 8 | `test_autopilot_next.py::test_a_task_discarded_on_its_unmerged_branch_is_closed_and_not_dispatched_again` (`touched == ["TODO.md"]`, queue `["T001"]`) |
+| skill text (question 5) | `test_autopilot_skill.py::test_a_discarded_branch_is_handed_off_like_a_done_one[source, claude, opencode]` — the approved skill text in the source and both installed copies |
+| 9 | `taskrail checks T065 --stage implement`: 942 passed |
+
+## DESIGN.md text (approved at the plan gate, applied as written)
 
 **a. §7.1, step 1** — replace "only once the task is done there;" with "only once the task is done or
 discarded there (T065);".
