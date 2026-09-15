@@ -1,6 +1,6 @@
 # T067 — Detect and clean up a merged branch whose task was discarded on it
 
-Kind: feature · Epic: E02 · Status: implemented
+Kind: feature · Epic: E02 · Status: verified
 
 Source: [T065's plan](T065-hand-off-a-branch-whose-task-was-discard.md) (*Out of scope*, first
 bullet), opened at T065's plan gate
@@ -224,6 +224,64 @@ All in `tools/taskrail/tests/test_autopilot_merged.py`, section 15 unless named 
 | 6 | `test_an_unstarted_branch_is_not_merged_although_it_is_an_ancestor` (section 5: `closed: null`, `not done or discarded`, no check run, `--cleanup` exit 5 `not merged`) |
 | 7 | `test_the_text_form_names_a_discarded_merge`; `test_text_and_json_forms` (section 14) with the `closed` key; `test_confirmations_are_reported_and_never_prove` (section 6) with `row_discarded_on_mainline` |
 | 8 | `taskrail checks T067 --stage implement`: 959 passed |
+
+## Implement-gate decisions
+
+Recorded in [the decision record](../autopilot/decisions/T067-detect-and-clean-up-a-merged-branch-whos.md):
+the implementation approved; the §12.1 `autopilot close` row's last phrase now reads "`merged` still
+records merges in it, and those still count toward `done-merged`, or `discarded` for a discarded
+branch (T067)", in its own commit; `recorded_merges` kept as is.
+
+## Verification
+
+The real CLI from this branch, one subprocess per command
+(`uv run --directory tools/taskrail taskrail --root …`), driven by a throwaway script in a temporary
+directory outside this repository, removed afterwards. The scratch repository has `TODO.md` with
+pending `T001` (feature, *Dropped idea*) and `T002` (bug, *Real fix*), `[autopilot] enabled = true`,
+a bare `origin` and a second clone as the host. Steps: `autopilot start --count 2`; a worktree for
+T001 from `origin/main`, claimed with `--run`; a commit, `discard T001` committed and the branch
+pushed; `merged` and `merged --cleanup` before any merge; the host squash-merges the branch and then
+edits the `❌` row back to `⬜` by hand; `merged --run R --cleanup`; the remote branch deleted and
+`merged` again; `next --run R`.
+
+```text
+== T001 discarded on its branch and pushed, not merged
+--- taskrail autopilot status --run 20260915-1 --fetch --json (exit 0)
+states={'T001': 'discarded-branch'} done_merged=0 complete=False handoff={"mode": "sequential", "in_review": null, "queue": ["T001"], "next": "T001"}
+--- taskrail autopilot merged T001 --json (exit 0)
+{"merged": false, "via": null, "closed": "discarded", "done_at_head": false, "recorded": false, "reason": "no check proves that T001-dropped-idea is contained in origin/main", "confirmations": {"row_done_on_mainline": false, "row_discarded_on_mainline": false, "title_commit": null}, "runs": [], "cleanup": null}
+--- taskrail autopilot merged T001 --cleanup --owner lane --json (exit 5)
+stderr: taskrail: cleanup refused: T001 is not merged, so nothing was removed
+lane still exists: True
+== T001 squash-merged on the host, then its row edited back to ⬜ by hand
+--- taskrail autopilot status --run 20260915-1 --fetch --json (exit 0)
+states={'T001': 'discarded-branch'} done_merged=0 complete=False handoff={"mode": "sequential", "in_review": null, "queue": ["T001"], "next": "T001"}
+== autopilot merged T001 --run --cleanup
+--- taskrail autopilot merged T001 --run 20260915-1 --cleanup --owner lane --json (exit 0)
+{"merged": true, "via": "tree", "closed": "discarded", "done_at_head": false, "recorded": false, "reason": null, "confirmations": {"row_done_on_mainline": false, "row_discarded_on_mainline": false, "title_commit": "c18254ff838d2f1e907151635082c91508daff2d"}, "runs": ["20260915-1"], "cleanup": {"worktree": "/tmp/t067-verify-AgbTlm/lanes/T001-dropped-idea", "worktree_removed": true, "branch_deleted": true, "claim_released": false, "remote_branch": "origin/T001-dropped-idea", "refused": null}}
+lane still exists: False | local branch: False
+run record: {"via": "tree", "commit": "c18254ff838d2f1e907151635082c91508daff2d", "head": "409a48dc66bc1ad3e355ffb0e2bdb45c21fbca30", "mainline": "origin/main", "detected": "2026-09-15T02:16:45+00:00", "status": "discarded"}
+--- taskrail autopilot status --run 20260915-1 --fetch --json (exit 0)
+states={'T001': 'discarded'} done_merged=0 complete=False handoff={"mode": "sequential", "in_review": null, "queue": [], "next": null}
+== remote branch deleted: only the run knows the merge
+--- taskrail autopilot merged T001 (exit 0)
+T001 merged into origin/main via tree at c18254f (recorded in a run) (discarded)
+--- taskrail autopilot merged T001 --json (exit 0)
+{"merged": true, "via": "tree", "closed": "discarded", "done_at_head": null, "recorded": true, "reason": null, "confirmations": {"row_done_on_mainline": false, "row_discarded_on_mainline": false, "title_commit": "c18254ff838d2f1e907151635082c91508daff2d"}, "runs": [], "cleanup": null}
+--- taskrail autopilot status --run 20260915-1 --fetch --json (exit 0)
+states={'T001': 'discarded'} done_merged=0 complete=False handoff={"mode": "sequential", "in_review": null, "queue": [], "next": null}
+== next --run does not dispatch T001 again
+--- taskrail autopilot next --run 20260915-1 --json (exit 0)
+"skipped": [{"id": "T001", "reason": "discarded on the mainline, not in this checkout"}, …]
+```
+
+The behaviour matches the plan; no gap. `closed` is reported for a closed head whether or not the
+merge is proven, as planned. `claim_released` is false because `discard` had already released the
+claim; the leftover-claim case is criterion 3's test. `row_discarded_on_mainline` is false after the
+merge only because the host edited the row back to `⬜`, which is what makes the recorded merge the
+only evidence here. The script's first `next --run` call dispatched T002 and failed to print its
+output (a bug in the throwaway script reading `lanes`); the output above is a second call, where T002
+is already dispatched.
 
 ## DESIGN.md text (approved at the plan gate, applied as written)
 
