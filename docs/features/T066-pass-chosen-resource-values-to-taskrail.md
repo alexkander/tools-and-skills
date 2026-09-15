@@ -1,7 +1,8 @@
 # T066 — Pass chosen resource values to taskrail checks for a lane whose values were released
 
-Kind: feature · Epic: E02 · Status: implemented (plan approved: D1–D6 and the race as recommended;
-implementation awaiting review). Record:
+Kind: feature · Epic: E02 · Status: verified (plan approved: D1–D6 and the race as recommended;
+implementation approved, including the one-line change to T063's test and the order of refusals).
+Record:
 `docs/autopilot/decisions/T066-pass-chosen-resource-values-to-taskrail.md`.
 
 Source: question 4 of T063's scope gate
@@ -96,6 +97,39 @@ Implementation notes:
   work.
 - This repository's installed copies (`.claude/skills/taskrail-autopilot/SKILL.md`,
   `references/gate-review.md`, `.taskrail/installed.json`) were updated with `taskrail upgrade`.
+
+## Verify
+
+The real CLI from this branch (`<worktree>/.taskrail/bin/taskrail`, pinned to the branch's source),
+invoked with `--root` at this repository's main checkout. T066 is claimed in run `20260915-2`; this
+repository configures no `[[autopilot.resource]]`, so the pool paths are covered by the fixture tests
+above and the real run exercises parsing, validation and the result shape.
+
+```text
+$ taskrail --root <main checkout> checks T066 --stage plan --resource PORT=1 --json
+taskrail: --resource: `PORT` is not an [[autopilot.resource]] (configured: none)
+exit 2
+
+$ taskrail --root <main checkout> checks T066 --stage plan --resource PORT
+taskrail: --resource expects NAME=VALUE, got `PORT`
+exit 2
+
+$ taskrail --root <main checkout> checks T066 --stage plan --json          # exit 0
+"worktree": "<main checkout>/.worktrees/T066-pass-chosen-resource-values-to-taskrail",
+"run": "20260915-2", "resources": {}, "environment": {}, "chosen": {}, "stage": "plan",
+"checks": [], "passed": true
+
+$ taskrail --root <main checkout> checks --help
+usage: taskrail checks [-h] [--json] [--stage STAGE] [--check NAME]
+                       [--resource NAME=VALUE] [--allow-invalid]
+                       id
+  --resource NAME=VALUE
+                        pass this pool value as TASKRAIL_RESOURCE_<NAME>,
+                        replacing the lane's; refused when another lane holds
+                        it; repeatable
+```
+
+No gap against the plan.
 
 ## Affected areas
 
