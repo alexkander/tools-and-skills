@@ -49,3 +49,18 @@ passed.
 | 1 | Approve the implementation | approve · changes | **approve** | Criteria 1–8 map to tests seen failing first; the diff stays in the approved areas. |
 | 2 | §12.1 `autopilot close` row: "those still count toward `done-merged`" | replace with "…toward `done-merged`, or `discarded` for a discarded branch (T067)" · leave | **replace, as recommended, in its own commit** | The row would otherwise contradict this task's behaviour. Decided under the human's delegation. |
 | 3 | `recorded_merges` checks every record of a task | keep · newest first, stop at the first valid | **as recommended (keep)** | Tasks rarely have records in more than one run; the cost equals today's for a single record. |
+
+## close gate
+
+Reviewed: `575f02a` (the §12.1 `autopilot close` row phrase, as approved), `fda5f66` (verification in a
+scratch repository: before the merge `merged` reported `closed: discarded` and refused `--cleanup`;
+after a squash merge whose row the host edited back to `⬜`, `merged --run --cleanup` proved it via
+`tree`, recorded `status: discarded`, removed the worktree and local branch, the task read `discarded`
+with `done_merged` 0, the recorded merge survived the remote branch's deletion, and `next` skipped the
+task) and `2360d38` (`taskrail done T067` on its own, changing only T067's row). No code changed after
+the checks re-run at the implement gate (959 passed). `taskrail validate`: 0 errors. No upstream is
+configured. `review --json`: `rebase.needed` false.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Hand the branch off | hand off · changes | **hand off, as `feat(taskrail)`** | Every close check holds; no other branch is in review. |
