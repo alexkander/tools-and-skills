@@ -5,9 +5,9 @@
   ],
   "extras": {},
   "files": {
-    ".claude/skills/taskrail-autopilot/SKILL.md": "e38b9ef888ef397b5cafcc913078a02420c3b1c6d70045da352122a17d717ee9",
+    ".claude/skills/taskrail-autopilot/SKILL.md": "f98d73b3be10fdef373af7f2ceb7113ee7f6c34441c2ee57878106cb603e2289",
     ".claude/skills/taskrail-autopilot/references/decision-record.md": "a69e2633f0941a4ca691c7d891ff1dd9a4ccc40c7b85266e230e040c0e59a072",
-    ".claude/skills/taskrail-autopilot/references/gate-review.md": "dab1808b2de5925c3cc931d2f428ee64b7ec9c2b860d2a2516cb889ae9d486c9",
+    ".claude/skills/taskrail-autopilot/references/gate-review.md": "6812a55874976d2a9ec53a0ccfc7325dfcce69843cbead694e55312f4296e595",
     ".claude/skills/taskrail-autopilot/references/lane-brief.md": "e67e65340800a470e6f66282880e4cefa0b3919713b4b98666bd9cb240e6779a",
     ".claude/skills/taskrail-bug/SKILL.md": "6ac6d1f8f7fbbe12403bcd0e537d209bb1c22b544e8faa23193c23e6d5ade234",
     ".claude/skills/taskrail-chore/SKILL.md": "a9bb64718816008d4185eb64d0e95a7759f537a2631d678d9987f6e2c962b880",
