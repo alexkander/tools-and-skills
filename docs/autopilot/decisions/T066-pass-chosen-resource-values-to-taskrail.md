@@ -65,3 +65,18 @@ gate (942 passed). `taskrail validate`: 0 errors. `review --json`: `rebase.neede
 | # | Question | Options | Decision | Reason |
 |---|---|---|---|---|
 | 1 | Approve the close and hand the branch off | hand off · changes | **hand off, as `feat(taskrail)`, after the rebase** | Every close check holds; no other branch is in review. |
+
+## rebase after T064 and T065
+
+T064 (`acec04a`) and T065 (`0404505`) were merged into `main` since the branch started. The branch was
+rebased onto `origin/main`.
+
+| # | Question | Options | Decision | Reason |
+|---|---|---|---|---|
+| 1 | Conflict in `docs/features/README.md`, `docs/autopilot/decisions/README.md` and `tools/taskrail/CHANGELOG.md` | keep both · stop | **keep both** | Class 2. |
+| 2 | Conflict in `TODO.md` | unite rows by ID, ✅ by status cell · stop | **unite by ID; the backlog differs from `origin/main` only in T066's row** | Class 1. |
+| 3 | Conflict in `.taskrail/installed.json` | manifest valid, then `upgrade --force` · stop | **kept `main`'s digests, then `taskrail upgrade --force`, committed** | Class 3. |
+
+The skill source (beside T065's paragraph above *Close and hand off* step 1) and DESIGN.md merged
+without conflicts. After the rebase: `taskrail checks T066 --stage implement`: `test` 953 passed,
+`lint` not configured; `taskrail validate` 0 errors, 0 warnings.
