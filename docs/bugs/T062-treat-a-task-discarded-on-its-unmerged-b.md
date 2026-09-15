@@ -380,3 +380,16 @@ PROBE discard {'status': 'discarded', 'show': 'pending', 'preview': ['T001']}
 ```
 
 The `✅` case is on `main` today, before this fix; it is proposed as a follow-up at the gate.
+
+## Impact
+
+- **T064** (bug, E02) — *Skip a task merged on the remote mainline but not pulled in autopilot
+  next*: `autopilot next` offers a task whose `✅` or `❌` is on the remote mainline but not in the
+  checkout, because its candidates come from `query.eligible`. To be verified by a pytest that closes
+  a task on its branch with `done` and with `discard`, pushes it to `origin/main` without pulling,
+  and asserts `autopilot next` does not offer it.
+- **T065** (feature, E02, depends on T053) — *Hand off a branch whose task was discarded on it*:
+  `autopilot status` leaves `discarded-branch` out of the hand-off queue and `autopilot lane --state
+  handed-off` refuses it; queue it by its discard commit, accept `handed-off`, and report its
+  `touched` files without a `governing` flag. To be verified by a pytest that discards on a branch
+  and hands it off.
