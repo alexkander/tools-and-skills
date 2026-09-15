@@ -1,6 +1,6 @@
 # T059 — Record an approved governing edit so autopilot status stops flagging it
 
-Kind: feature · Epic: E02 · Status: plan
+Kind: feature · Epic: E02 · Status: implemented
 
 Source: finding F9 of the autopilot trial
 ([T033](../spikes/T033-trial-the-autopilot-on-a-real-backlog-wi.md), Findings table and
@@ -115,8 +115,9 @@ Chosen to stay out of the functions and phrases the unmerged branches change (to
   only what `status` computes from.
 - Approving an `escalate_gate` or any other reason of §12.6.
 - Refusing `approve-governing` on a run `autopilot close` ended: T048 (unmerged) adds closed runs.
-  An approval in a closed run is harmless, since `status` hides a closed run unless it is named;
-  whether to refuse it once both are merged is a question below.
+  An approval in a closed run is harmless, since `status` hides a closed run unless it is named, so
+  `approve-governing` does not refuse a closed run, and no follow-up is opened for it (decided at
+  the plan gate).
 - Changing `touched`, `overlaps`, the hand-off queue, or the behaviour at `done-branch` (T049).
 - Symbolic links and files git filters differently per worktree: the blob ID is what
   `git hash-object` reports for the path, which follows git's own attribute handling.
@@ -136,7 +137,61 @@ Chosen to stay out of the functions and phrases the unmerged branches change (to
   line that T051, T053 and T054 also edit, and the §12.4 key-list lines are rewritten by T048;
   each edit is a phrase-level addition resolved by keeping every branch's phrase.
 
-## DESIGN.md text proposed (governing — applied only once approved)
+## Plan-gate decisions
+
+Recorded in [the decision record](../autopilot/decisions/T059-record-an-approved-governing-edit-so-aut.md):
+a separate `autopilot approve-governing` command in a new module; the blob ID from the worktree
+file, else the branch tip, else `null`; exit 5 when there is nothing to approve and exit 2 for a
+`--path` outside `governing_touched`; no refusal of closed runs and no follow-up for it; the
+DESIGN.md text (a)–(e) and the skill text approved as written (the orchestrator, by the human's
+delegation for this run); the plan approved.
+
+## Implementation
+
+- `autopilot/approve.py` (new): `cmd_approve_governing` and `add_arguments`. It checks the run, the
+  task and its membership, computes the task's row with `status.run_status`, refuses an empty
+  `governing_touched` or an unknown `--path`, reads the blob IDs with `status.current_blobs`, and
+  merges them into the lane's `governing_approved` under `runs.update`. JSON: `run`, `task`,
+  `approved` (this call's paths) and `governing_approved` (every path the lane has approved); text:
+  `T003 in run R: approved docs/adr/0001.md (<12-character blob ID>), …`.
+- `autopilot/status.py`: `current_blobs()` — `git hash-object` in the worktree for the files
+  present there when the worktree directory exists, else one `git ls-tree -r -z <branch>` for the
+  paths; `_approved()` compares them with the lane's record for the touched files that have one;
+  `_lane_details()` adds `governing_approved`; `_flag_escalations()` passes it to `flags()`.
+- `autopilot/escalation.py`: `flags(…, approved=())` returns `governing_approved` (the governing
+  files among `approved`) and adds `governing` only while a governing file is not approved.
+- `autopilot/commands.py`: the two imports, the `approve-governing` registration after `decision`,
+  and `_escalation_text()` naming only the files not approved.
+- Skill sources and installed copies (`.taskrail/bin/taskrail upgrade`), one CHANGELOG bullet, and
+  the approved DESIGN.md text in its own commit.
+
+The new tests were run before the implementation and failed for the reason each criterion names
+(20 failed, 1 passed — the one passing was T049's existing skill test selected by `-k`):
+`invalid choice: 'approve-governing'` for the command tests, `KeyError: 'governing_approved'` for
+the status rows, `TypeError: flags() got an unexpected keyword argument 'approved'`, and the skill
+condition 1 without "governing path not yet approved". With the branch-tip lookup disabled on
+purpose, the two criterion-7 tests failed (2 failed, 17 passed); restored, the full suite passes
+(860 passed).
+
+## Criteria and tests
+
+All in `tools/taskrail/tests/`.
+
+| # | Tests |
+|---|---|
+| 1 | `test_autopilot_governing.py::test_approve_records_every_governing_path_with_its_blob` (a committed and an uncommitted governing file; a non-governing file left out) |
+| 2 | `test_status_drops_the_governing_reason_for_approved_files_before_done_branch` (`running`, `gate` with `bug:fix` in `escalate_gates`, `escalated`, `failed`; JSON and text) |
+| 3 | `test_a_change_to_an_approved_file_flags_it_again[commit/uncommitted/delete]`, `test_a_recreated_deleted_file_flags_again` |
+| 4 | `test_a_governing_path_touched_after_the_approval_is_named_alone` |
+| 5 | `test_path_approves_only_the_named_files`, `test_a_path_outside_governing_touched_is_refused[notes.md/docs/adr/0009.md]` |
+| 6 | `test_approving_again_records_the_new_blob` |
+| 7 | `test_an_approval_holds_without_the_worktree_and_at_done_branch`, `test_an_approval_from_the_branch_tip_matches_the_worktree_file` |
+| 8 | `test_unknown_run_task_or_member_exits_3_and_nothing_to_approve_exits_5`, and `test_approve_text_names_the_files` for the text form |
+| 9 | `test_flags_drop_governing_only_when_every_governing_file_is_approved[running/gate/escalated/failed]`; T049's `test_autopilot_notify.py` governing tests still pass unchanged |
+| 10 | `test_autopilot_skill.py::test_an_approved_governing_edit_is_recorded_and_the_close_review_reads_it` |
+| 11 | `uv run --directory tools/taskrail pytest -q`: 860 passed |
+
+## DESIGN.md text (approved at the plan gate, applied as written)
 
 **§12.1, new table row** — inserted right after the `autopilot decision …` row:
 
@@ -182,7 +237,7 @@ the task's record does not show escalated.":
 > out of the `governing` reason, while a later change to the file, its deletion, or a governing
 > path not approved flags the task again (T033 finding F9; T059).
 
-## Skill text proposed
+## Skill text (approved at the plan gate, applied as written)
 
 **`SKILL.md`, *Escalate*, condition 1** — replace
 
